@@ -1,0 +1,40 @@
+/* Neutral placeholder styling until the design system is applied. */
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  background: #ecebe7;
+  color: #1f1f1f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    background: #1b1b1d;
+    color: #e6e6e6;
+  }
+}
+main {
+  max-width: 44rem;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+.probe {
+  border: 1px solid #8884;
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+.badge {
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 0.4rem;
+  font-size: 0.85rem;
+}
+.error {
+  color: #b3261e;
+}
+pre {
+  white-space: pre-wrap;
+}
+button:focus-visible {
+  outline: 2px solid #3366cc;
+  outline-offset: 2px;
+}
