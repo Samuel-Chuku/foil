@@ -189,6 +189,7 @@ export function verifyReceipt(
     receipt.senderBank !== null && receipt.senderBank !== chosen.credit.bank
   if (
     !session.ok &&
+    session.reason !== 'other-route' &&
     interbank &&
     shownBank?.receiptShowsSessionId &&
     !chosen.byId

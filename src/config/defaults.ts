@@ -43,7 +43,7 @@ export const DEFAULT_VERIFY: VerifyConfig = {
       ['access'],
       ['no_reply@accessbankplc.com'],
       true,
-      null,
+      0,
     ),
     // Zenith's code is unconfirmed: its receipts print no session ID.
     bank(
@@ -74,15 +74,14 @@ export const DEFAULT_VERIFY: VerifyConfig = {
       0,
     ),
     bank('kuda', 'Kuda', '090267', ['kuda'], ['no-reply@kuda.com'], true, 60),
-    // Moniepoint's receipt ID does not follow the 30-digit NIP layout; unconfirmed.
     bank(
       'moniepoint',
       'Moniepoint',
       '090405',
       ['moniepoint'],
       ['no-reply@moniepoint.com'],
-      false,
-      null,
+      true,
+      0,
     ),
     bank(
       'opay',

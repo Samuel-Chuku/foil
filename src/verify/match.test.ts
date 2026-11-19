@@ -154,6 +154,18 @@ describe('verifyReceipt: per-bank session ID facts', () => {
     expect(v.kind).toBe('mismatch')
   })
 
+  it('accepts a Moniepoint receipt whose ID took a non-NIP route', () => {
+    const v = verifyReceipt(
+      receipt({
+        senderBank: 'moniepoint',
+        reference: 'APT00002261121110212000000000123',
+      }),
+      ledger([credit()]),
+      config,
+    )
+    expect(v.kind).toBe('matched')
+  })
+
   it('accepts an interbank receipt from a bank that never prints the ID', () => {
     const v = verifyReceipt(
       receipt({ senderBank: 'palmpay', reference: '033e6m7xb600' }),

@@ -9,7 +9,9 @@ export type SessionId = {
 
 export type SessionIdResult =
   | { ok: true; value: SessionId }
-  | { ok: false; reason: 'missing' | 'length' | 'date' }
+  // 'other-route': an ID in a non-NIP layout, such as Moniepoint's "APT..."
+  // on transfers into OPay, which proves nothing either way.
+  | { ok: false; reason: 'missing' | 'length' | 'date' | 'other-route' }
 
 // Digit runs that could be a NIP session ID. Receipts sometimes prefix the ID
 // with letters ("NXG...") or space it out, so unbroken runs are tried first and
@@ -25,7 +27,11 @@ export function decodeSessionId(text: string): SessionIdResult {
   const runs = digitRuns(text).filter((r) => r.length >= 25)
   if (runs.length === 0) return { ok: false, reason: 'missing' }
   const digits = runs.find((r) => r.length === 30)
-  if (!digits) return { ok: false, reason: 'length' }
+  if (!digits) {
+    return /APT\d{20,}/i.test(text)
+      ? { ok: false, reason: 'other-route' }
+      : { ok: false, reason: 'length' }
+  }
   const n = (from: number) => Number(digits.slice(from, from + 2))
   const [y, mo, d, h, mi, s] = [6, 8, 10, 12, 14, 16].map(n) as [
     number,
