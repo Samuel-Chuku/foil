@@ -140,6 +140,30 @@ describe('verifyReceipt: interbank', () => {
   })
 })
 
+describe('verifyReceipt: per-bank session ID facts', () => {
+  it('holds a bank to its own timezone for session IDs', () => {
+    // GTBank stamps Lagos time, so an ID one hour behind does not fit.
+    const v = verifyReceipt(
+      receipt({
+        senderBank: 'gtbank',
+        reference: '000013261121100212000000000123',
+      }),
+      ledger([credit({ bank: 'kuda' })]),
+      config,
+    )
+    expect(v.kind).toBe('mismatch')
+  })
+
+  it('accepts an interbank receipt from a bank that never prints the ID', () => {
+    const v = verifyReceipt(
+      receipt({ senderBank: 'palmpay', reference: '033e6m7xb600' }),
+      ledger([credit()]),
+      config,
+    )
+    expect(v.kind).toBe('matched')
+  })
+})
+
 describe('verifyReceipt: same bank', () => {
   const sameBank = (over: Partial<Receipt> = {}) =>
     receipt({ senderBank: 'gtbank', reference: 'GTB/INT/55120098', ...over })

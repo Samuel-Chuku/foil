@@ -16,6 +16,11 @@ export type BankInfo = {
   aliases: string[]
   // Exact sender addresses of this bank's alert emails. Anything else is untrusted.
   alertSenders: string[]
+  // Whether this bank's receipts print the NIP session ID for interbank
+  // transfers. Some (PalmPay, Zenith) never do, so its absence proves nothing.
+  receiptShowsSessionId: boolean
+  // Minutes the session ID's time runs behind Lagos time, when known.
+  sessionOffsetMin: number | null
 }
 
 export type VerifyConfig = {
@@ -24,7 +29,7 @@ export type VerifyConfig = {
   nameThreshold: number
   // How long after a receipt's time an interbank credit may still arrive.
   interbankWindowMin: number
-  // Same-bank transfers land almost at once, so the window is much tighter.
+  // Same-bank transfers land almost at once, but alert emails can lag by minutes.
   sameBankWindowMin: number
   // Receipts show minutes and clocks drift, so times may differ by this much.
   clockToleranceMin: number

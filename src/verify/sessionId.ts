@@ -12,9 +12,13 @@ export type SessionIdResult =
   | { ok: false; reason: 'missing' | 'length' | 'date' }
 
 // Digit runs that could be a NIP session ID. Receipts sometimes prefix the ID
-// with letters ("NXG..."), so letters around the run are ignored.
+// with letters ("NXG...") or space it out, so unbroken runs are tried first and
+// spaced-out ones second, without gluing two separate IDs together.
 function digitRuns(text: string): string[] {
-  return text.replace(/[\s-]/g, '').match(/\d+/g) ?? []
+  const plain = text.match(/\d+/g) ?? []
+  const spaced =
+    text.match(/\d[\d -]*\d/g)?.map((r) => r.replace(/[ -]/g, '')) ?? []
+  return [...plain, ...spaced]
 }
 
 export function decodeSessionId(text: string): SessionIdResult {

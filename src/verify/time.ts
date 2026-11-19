@@ -44,7 +44,11 @@ function findDate(s: string): [number, number, number] | null {
 // Reads the date and time as written on a receipt or alert, in Lagos time.
 // A missing time gives day precision rather than a guessed midnight.
 export function parseLagosStamp(text: string): Stamp | null {
-  const s = text.toLowerCase().replace(/(\d)t(\d)/, '$1 $2')
+  // Some bank emails arrive with junk markup inside the time ("10<:15:...>50").
+  const s = text
+    .toLowerCase()
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/(\d)t(\d)/, '$1 $2')
   const date = findDate(s)
   if (!date) return null
   const [y, mo, d] = date

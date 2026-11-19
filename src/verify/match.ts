@@ -87,7 +87,11 @@ export function verifyReceipt(
     }
     if (receipt.at && receipt.at.precision !== 'day') {
       const gap = (receipt.at.ms - sid.stampedMs) / MIN
-      const fits = config.sessionOffsetsMin.some(
+      const offsets =
+        codeBank?.sessionOffsetMin != null
+          ? [codeBank.sessionOffsetMin]
+          : config.sessionOffsetsMin
+      const fits = offsets.some(
         (o) => Math.abs(gap - o) <= config.clockToleranceMin,
       )
       if (!fits) {
@@ -178,11 +182,17 @@ export function verifyReceipt(
     }
   }
   const chosen = pick[0]!
-  // Same-bank transfers never pass through NIP, so only interbank receipts
-  // must carry a readable session ID.
+  // Same-bank transfers never pass through NIP, and some banks never print the
+  // ID, so only interbank receipts from banks that do must carry a readable one.
+  const shownBank = config.banks.find((b) => b.id === receipt.senderBank)
   const interbank =
     receipt.senderBank !== null && receipt.senderBank !== chosen.credit.bank
-  if (!session.ok && interbank && !chosen.byId) {
+  if (
+    !session.ok &&
+    interbank &&
+    shownBank?.receiptShowsSessionId &&
+    !chosen.byId
+  ) {
     return {
       kind: 'check',
       reason:
