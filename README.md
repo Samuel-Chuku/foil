@@ -1,6 +1,6 @@
-# Moderator handover (working title)
+# Vendor payment desk (working title)
 
-A web app that turns a community group chat export into a shift handover for moderators. Messages are sorted on the moderator's own device with Firebase AI Logic hybrid inference, and only items the moderator approves are sent to the cloud.
+A Chrome extension that helps small businesses selling on WhatsApp verify bank-transfer payments. On the seller's click, it reads a customer's payment screenshot on the seller's own device with Firebase AI Logic hybrid inference, checks whether the money actually arrived, captures the order and delivery details, and drafts a reply for the seller to send. Only items the seller approves are sent to the cloud.
 
 Work in progress for #BuildHybridAI 2026.
 
