@@ -1,0 +1,74 @@
+import type { LagosMs } from './types'
+
+export type SessionId = {
+  digits: string
+  nipCode: string
+  // The YYMMDDHHmmss reading, before any bank timezone offset.
+  stampedMs: LagosMs
+}
+
+export type SessionIdResult =
+  | { ok: true; value: SessionId }
+  | { ok: false; reason: 'missing' | 'length' | 'date' }
+
+// Digit runs that could be a NIP session ID. Receipts sometimes prefix the ID
+// with letters ("NXG..."), so letters around the run are ignored.
+function digitRuns(text: string): string[] {
+  return text.replace(/[\s-]/g, '').match(/\d+/g) ?? []
+}
+
+export function decodeSessionId(text: string): SessionIdResult {
+  const runs = digitRuns(text).filter((r) => r.length >= 25)
+  if (runs.length === 0) return { ok: false, reason: 'missing' }
+  const digits = runs.find((r) => r.length === 30)
+  if (!digits) return { ok: false, reason: 'length' }
+  const n = (from: number) => Number(digits.slice(from, from + 2))
+  const [y, mo, d, h, mi, s] = [6, 8, 10, 12, 14, 16].map(n) as [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ]
+  const ms = Date.UTC(2000 + y, mo - 1, d, h, mi, s)
+  const back = new Date(ms)
+  if (
+    back.getUTCMonth() !== mo - 1 ||
+    back.getUTCDate() !== d ||
+    h > 23 ||
+    mi > 59 ||
+    s > 59
+  ) {
+    return { ok: false, reason: 'date' }
+  }
+  return {
+    ok: true,
+    value: { digits, nipCode: digits.slice(0, 6), stampedMs: ms },
+  }
+}
+
+// One digit is sometimes miscopied when a long ID is read from an image, so a
+// single substitution, insertion or deletion still counts as the same ID.
+export function sameSessionId(a: string, b: string): boolean {
+  if (a === b) return true
+  if (Math.abs(a.length - b.length) > 1) return false
+  let i = 0
+  let j = 0
+  let edits = 0
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i++
+      j++
+      continue
+    }
+    if (++edits > 1) return false
+    if (a.length > b.length) i++
+    else if (b.length > a.length) j++
+    else {
+      i++
+      j++
+    }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1
+}
