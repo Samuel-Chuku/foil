@@ -33,6 +33,9 @@ describe('nameScore', () => {
   it('finds names glued to narration text', () => {
     expect(nameScore('Tunde Bakare', 'NIP TRF TUNDEBAKAREFOOD')).toBe(1)
   })
+  it('accepts a whole name read without its spaces', () => {
+    expect(nameScore('Amaka Obi', 'AMAKAOBI')).toBe(1)
+  })
   it('scores a different person low', () => {
     expect(nameScore('Tunde Bakare', 'IFEOMA NWOSU')).toBe(0)
   })

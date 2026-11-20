@@ -1,8 +1,10 @@
 import type { BankInfo } from './types'
 
 export function bankFromText(banks: BankInfo[], text: string): BankInfo | null {
-  const t = text.toLowerCase()
-  return banks.find((b) => b.aliases.some((a) => t.includes(a))) ?? null
+  // Spaces are ignored on both sides: models sometimes split a logo ("KUD A").
+  const squash = (x: string) => x.toLowerCase().replace(/\s+/g, '')
+  const t = squash(text)
+  return banks.find((b) => b.aliases.some((a) => t.includes(squash(a)))) ?? null
 }
 
 export function bankFromNipCode(

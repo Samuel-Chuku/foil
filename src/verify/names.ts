@@ -17,6 +17,9 @@ export function nameScore(receiptName: string, alertText: string): number {
   if (wanted.length === 0) return 0
   const have = nameTokens(alertText)
   const squashed = have.join('')
+  // A whole name read with its spaces dropped ("AMAKAOBI") is still that name.
+  const whole = wanted.join('')
+  if (whole.length >= 6 && squashed.includes(whole)) return 1
   const found = wanted.filter(
     (w) =>
       have.includes(w) ||
