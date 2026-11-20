@@ -13,9 +13,9 @@ import { gmailToken, SignInNeeded } from './gmailAuth'
 
 // How often the inbox is checked while the panel is open.
 const EVERY_MS = 45_000
-// Each check looks back this far, so an alert that arrived while the panel
-// was closed is still read.
-const LOOK_BACK_SEC = 2 * 24 * 3600
+// Each check looks back one day, so an alert that arrived while the panel
+// was closed is still read, and older mail under the label never is.
+const LOOK_BACK_SEC = 24 * 3600
 
 export type AccountStatus =
   | { state: 'checking' }
