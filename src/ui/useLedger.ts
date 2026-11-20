@@ -38,7 +38,8 @@ async function load(): Promise<LedgerData> {
     getAll('customers'),
     getAll('settlements'),
   ])
-  orders.sort((a, b) => b.createdAt - a.createdAt)
+  // Latest change first, so an order whose payment just landed rises to the top.
+  orders.sort((a, b) => b.updatedAt - a.updatedAt)
   return { orders, credits, customers, settlements }
 }
 

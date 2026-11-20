@@ -19,18 +19,23 @@ import type { AlertResult } from '../verify/alerts'
 // The hosted demo: simulated chat and inbox panes stand in for WhatsApp Web
 // and Gmail, beside the same panel the extension shows.
 
+// Like WhatsApp, the chat with the latest message comes first.
 function buildChats(): OpenChat[] {
-  return SAMPLE_CHATS.map((c) => ({
-    phone: c.phone,
-    contactName: c.contactName,
-    messages: c.messages.map((m) => ({
-      id: m.id,
-      from: m.from,
-      time: m.time,
-      text: m.text,
-      image: m.receipt ? drawReceipt(m.receipt) : undefined,
-    })),
-  }))
+  const last = (c: (typeof SAMPLE_CHATS)[number]) =>
+    c.messages.at(-1)?.time ?? ''
+  return [...SAMPLE_CHATS]
+    .sort((a, b) => last(b).localeCompare(last(a)))
+    .map((c) => ({
+      phone: c.phone,
+      contactName: c.contactName,
+      messages: c.messages.map((m) => ({
+        id: m.id,
+        from: m.from,
+        time: m.time,
+        text: m.text,
+        image: m.receipt ? drawReceipt(m.receipt) : undefined,
+      })),
+    }))
 }
 
 function alertLine(r: AlertResult): string {

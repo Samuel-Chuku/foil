@@ -191,7 +191,7 @@ export function Panel(props: {
             const c = data.credits.find((cr) => cr.id === x.id)
             return c ? [{ credit: c, settlement: x }] : []
           }),
-      ]
+      ].sort((a, b) => (b.credit.at?.ms ?? 0) - (a.credit.at?.ms ?? 0))
     : []
   const paidWith =
     order?.payment.state === 'matched'
