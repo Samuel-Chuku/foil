@@ -322,6 +322,77 @@ export const SAMPLE_CHATS: SampleChat[] = [
       },
     ],
   },
+  {
+    // Pays ₦500 short, then sends the balance as a second transfer.
+    id: 'ngozi',
+    contactName: 'Ngozi',
+    phone: '+234 800 000 0008',
+    expected: 'matched',
+    messages: [
+      {
+        id: 'n1',
+        from: 'customer',
+        time: '17:05',
+        text: 'Hi, I want the green ankara gown in size 12 and a matching headwrap.',
+      },
+      {
+        id: 'n2',
+        from: 'vendor',
+        time: '17:07',
+        text: 'The gown is ₦9,500 and the headwrap ₦3,000, so ₦12,500 in total.',
+      },
+      {
+        id: 'n3',
+        from: 'customer',
+        time: '17:16',
+        receipt: {
+          issuer: 'UBA',
+          amountText: '₦12,000.00',
+          statusText: 'Successful',
+          sender: 'NGOZI OKONKWO',
+          recipient: 'SAMPLE STORES',
+          recipientBank: 'GTBank',
+          sessionId: '000004261121171503829164730528',
+          reference: '',
+          dateTime: '21/11/2026 17:15',
+        },
+      },
+      {
+        id: 'n4',
+        from: 'customer',
+        time: '17:16',
+        text: 'Sent. Deliver to 4 Bode Thomas Street, Surulere.',
+      },
+      {
+        id: 'n5',
+        from: 'vendor',
+        time: '17:20',
+        text: 'Thank you! ₦12,000 has come in, so ₦500 is left.',
+      },
+      {
+        id: 'n6',
+        from: 'customer',
+        time: '17:23',
+        receipt: {
+          issuer: 'UBA',
+          amountText: '₦500.00',
+          statusText: 'Successful',
+          sender: 'NGOZI OKONKWO',
+          recipient: 'SAMPLE STORES',
+          recipientBank: 'GTBank',
+          sessionId: '000004261121172204617382950164',
+          reference: '',
+          dateTime: '21/11/2026 17:22',
+        },
+      },
+      {
+        id: 'n7',
+        from: 'customer',
+        time: '17:23',
+        text: "Sorry about that, I've sent the balance.",
+      },
+    ],
+  },
 ]
 
 const GTBANK = 'gens@gtbank.com'
@@ -451,6 +522,36 @@ Value Date    :    2026-11-21
 Remarks    :    REFUND
 Time of Transaction    :    04:05:10 PM
 Document Number    :    00001326112116045800`,
+  },
+  {
+    id: 'e9',
+    from: GTBANK,
+    subject: 'GeNS Transaction Alert [Credit: NGN 12,000.00]',
+    time: '17:15',
+    receivedAt: at(17, 15, 40),
+    inSpam: false,
+    body: `We wish to inform you that a CREDIT transaction occurred on your account with us.
+Account Number    :    ******0001
+Description    :    000004261121171503829164730528-NGOZI OKONKWO
+Amount    :    NGN 12000
+Value Date    :    2026-11-21
+Time of Transaction    :    05:15:40 PM
+Document Number    :    00000426112117150300`,
+  },
+  {
+    id: 'e10',
+    from: GTBANK,
+    subject: 'GeNS Transaction Alert [Credit: NGN 500.00]',
+    time: '17:22',
+    receivedAt: at(17, 22, 30),
+    inSpam: false,
+    body: `We wish to inform you that a CREDIT transaction occurred on your account with us.
+Account Number    :    ******0001
+Description    :    000004261121172204617382950164-NGOZI OKONKWO
+Amount    :    NGN 500
+Value Date    :    2026-11-21
+Time of Transaction    :    05:22:30 PM
+Document Number    :    00000426112117220400`,
   },
 ]
 

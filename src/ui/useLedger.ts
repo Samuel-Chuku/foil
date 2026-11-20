@@ -3,7 +3,7 @@ import { appConfig } from '../config/active'
 import { syncBook, vendorId } from '../ledger/books'
 import { clearAll, getAll, putAll, remove } from '../ledger/db'
 import { applyReversals, freshCredits, matcherLedger } from '../ledger/ledger'
-import { applyRefunds, settle } from '../ledger/settle'
+import { applyRefunds, settle, type ExtraRow } from '../ledger/settle'
 import type { Customer, Order, Settlement } from '../ledger/types'
 import { parseAlert, type AlertEmail, type AlertResult } from '../verify/alerts'
 import {
@@ -40,7 +40,21 @@ async function load(): Promise<LedgerData> {
   ])
   // Latest change first, so an order whose payment just landed rises to the top.
   orders.sort((a, b) => b.updatedAt - a.updatedAt)
-  return { orders, credits, customers, settlements }
+  // Records saved before balances and part refunds existed lack those fields.
+  return {
+    orders: orders.map((o) =>
+      o.payment.topUpIds
+        ? o
+        : { ...o, payment: { ...o.payment, topUpIds: [] } },
+    ),
+    credits,
+    customers,
+    settlements: settlements.flatMap((x) => {
+      if (x.creditId) return [x]
+      const c = credits.find((cr) => cr.id === x.id)
+      return c ? [{ ...x, creditId: c.id, amountKobo: c.amountKobo }] : []
+    }),
+  }
 }
 
 function errorText(error: unknown): string {
@@ -173,22 +187,25 @@ export function useLedger() {
   // confirmed at once if the transfer out was already in the alerts.
   const settleCredit = useCallback(
     async (
-      creditId: string,
+      row: Pick<ExtraRow, 'key' | 'credit' | 'amountKobo'>,
       state: Settlement['state'],
       customerId: string | null,
     ) => {
       const before = await load()
-      const credit = before.credits.find((c) => c.id === creditId)
+      const credit = before.credits.find((c) => c.id === row.credit.id)
       if (!credit) return
       const now = Date.now()
-      const decided = settle(credit, state, customerId, now)
-      const others = before.settlements.filter((x) => x.id !== creditId)
+      const decided = settle(credit, state, customerId, now, {
+        id: row.key,
+        amountKobo: row.amountKobo,
+      })
+      const others = before.settlements.filter((x) => x.id !== row.key)
       const confirmed = applyRefunds(
         [...others, decided],
         before.credits,
         verifyConfig(),
         now,
-      ).find((x) => x.id === creditId)
+      ).find((x) => x.id === row.key)
       await putAll({ settlements: [confirmed ?? decided] })
       await reload()
     },
@@ -197,8 +214,8 @@ export function useLedger() {
 
   // Takes back a refund or credit decision; the money is undecided again.
   const unsettle = useCallback(
-    async (creditId: string) => {
-      await remove('settlements', creditId)
+    async (key: string) => {
+      await remove('settlements', key)
       await reload()
     },
     [reload],

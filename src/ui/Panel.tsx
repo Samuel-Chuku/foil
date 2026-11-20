@@ -11,16 +11,18 @@ import {
   matcherLedger,
   newOrder,
   normalisePhone,
+  applyVerdict,
+  balanceKobo,
   recordVerdict,
   undoCreditPick,
 } from '../ledger/ledger'
-import { moreFromPayer, unclaimedCredits } from '../ledger/settle'
+import { extraMoney, moreFromPayer, type ExtraRow } from '../ledger/settle'
 import type { Order, PaymentState, Settlement } from '../ledger/types'
 import { verifyReceipt, type Verdict } from '../verify/match'
 import { formatNaira, parseNairaKobo } from '../verify/money'
 import type { RawReceipt } from '../verify/receiptFields'
 import { toReceipt } from '../verify/receiptFields'
-import type { Receipt } from '../verify/types'
+import type { Credit, Receipt } from '../verify/types'
 import type { OpenChat, PanelHost } from './host'
 import {
   fileToImage,
@@ -28,7 +30,7 @@ import {
   lagosToday,
   type BankAppResult,
 } from './bankApp'
-import { ExtraMoney, type ExtraRow } from './ExtraMoney'
+import { ExtraMoney } from './ExtraMoney'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
 
@@ -70,6 +72,16 @@ const PAYMENT_LABEL: Record<PaymentState, string> = {
   'not yet credited': 'Not yet credited',
   mismatch: 'Does not match',
   check: 'Check this',
+}
+
+// The state label, sharpened by what has actually arrived against the total.
+function paymentText(order: Order, credits: Credit[]): string {
+  const balance = balanceKobo(order, credits)
+  if (balance !== null && balance > 0) return `Short by ${formatNaira(balance)}`
+  if (balance !== null && balance < 0) {
+    return `Paid, ${formatNaira(-balance)} over`
+  }
+  return PAYMENT_LABEL[order.payment.state]
 }
 
 function errorText(error: unknown): string {
@@ -167,64 +179,39 @@ export function Panel(props: {
   const current = chat ? (work[chat.phone] ?? {}) : {}
 
   // Money that pays no order: the open list for the whole day, and the part
-  // that belongs with this chat (the customer's own decided extras, plus any
-  // undecided payment from whoever paid their order).
-  const settled = (id: string) =>
-    data?.settlements.find((x) => x.id === id) ?? null
-  const dayLedger = data
-    ? matcherLedger(
-        data.orders,
-        data.credits,
-        config,
-        undefined,
-        data.settlements,
-      )
-    : null
-  const extraRows: ExtraRow[] = data
-    ? [
-        ...(dayLedger ? unclaimedCredits(dayLedger) : []).map((c) => ({
-          credit: c,
-          settlement: settled(c.id),
-        })),
-        ...data.settlements
-          .filter((x) => x.state !== 'kept')
-          .flatMap((x) => {
-            const c = data.credits.find((cr) => cr.id === x.id)
-            return c ? [{ credit: c, settlement: x }] : []
-          }),
-      ].sort((a, b) => (b.credit.at?.ms ?? 0) - (a.credit.at?.ms ?? 0))
+  // that belongs with this chat (this order's overpayment, the customer's own
+  // decided extras, and any undecided payment from whoever paid their order).
+  const extraRows = data
+    ? extraMoney(data.orders, data.credits, data.settlements, config)
     : []
   const paidWith =
     order?.payment.state === 'matched'
       ? (data?.credits.find((x) => x.id === order.payment.creditId) ?? null)
       : null
   const payerExtra = new Set(
-    paidWith && dayLedger
-      ? moreFromPayer(paidWith, dayLedger, config).map((x) => x.id)
+    paidWith && data
+      ? moreFromPayer(
+          paidWith,
+          matcherLedger(
+            data.orders,
+            data.credits,
+            config,
+            undefined,
+            data.settlements,
+          ),
+          config,
+        ).map((x) => x.id)
       : [],
   )
   const chatRows = extraRows.filter((r) =>
     r.settlement
       ? r.settlement.customerId === customerId
-      : payerExtra.has(r.credit.id),
+      : (order !== null && r.orderCode === order.code) ||
+        (r.orderCode === null && payerExtra.has(r.credit.id)),
   )
-  // A payment counts as extra only once its payer has an order paid; before
-  // that it is simply money no order has been matched to yet.
-  const settleable = new Set(
-    data && dayLedger
-      ? data.orders.flatMap((o) => {
-          const paid =
-            o.payment.state === 'matched'
-              ? data.credits.find((x) => x.id === o.payment.creditId)
-              : undefined
-          return paid
-            ? moreFromPayer(paid, dayLedger, config).map((x) => x.id)
-            : []
-        })
-      : [],
-  )
-  const settle = (creditId: string, state: Settlement['state']) =>
-    void ledger.settleCredit(creditId, state, customerId)
+  const balance = order && data ? balanceKobo(order, data.credits) : null
+  const settle = (row: ExtraRow, state: Settlement['state']) =>
+    void ledger.settleCredit(row, state, customerId)
 
   async function verify(messageId?: string) {
     if (!chat) return
@@ -254,11 +241,9 @@ export function Panel(props: {
         ),
         config,
       )
-      if (mine) {
-        await ledger.saveOrder(
-          recordVerdict(mine, receipt, verdict, Date.now()),
-        )
-      }
+      const next =
+        mine && applyVerdict(mine, receipt, verdict, now.credits, Date.now())
+      if (next) await ledger.saveOrder(next)
       patch(phone, {
         verify: { status: 'done', value: { reading, receipt, verdict } },
       })
@@ -498,8 +483,9 @@ export function Panel(props: {
             .filter((r) => r.settlement?.customerId === customerId)
             .map((r) => ({
               state: r.settlement!.state,
-              amountKobo: r.credit.amountKobo,
+              amountKobo: r.amountKobo,
             })),
+          shortKobo: balance !== null && balance > 0 ? balance : null,
         },
         transcript(
           chat.messages.map((m) => ({
@@ -529,7 +515,9 @@ export function Panel(props: {
   const hasReceipt = chat?.messages.some((m) => m.image) ?? false
   const customerName = (id: string | null) =>
     data?.customers.find((x) => x.id === id)?.name || 'Customer'
+  // Before a payment is confirmed, flag a receipt that does not cover the order.
   const amountGap =
+    balance === null &&
     v?.status === 'done' &&
     order?.amountKobo != null &&
     v.value.receipt.amountKobo !== null &&
@@ -654,7 +642,6 @@ export function Panel(props: {
                 </p>
                 <ExtraMoney
                   rows={chatRows}
-                  settleable={settleable}
                   onSettle={settle}
                   onUndo={(id) => void ledger.unsettle(id)}
                 />
@@ -671,7 +658,7 @@ export function Panel(props: {
                   {order.amountKobo === null
                     ? ''
                     : formatNaira(order.amountKobo)}{' '}
-                  · {PAYMENT_LABEL[order.payment.state]}
+                  · {paymentText(order, data?.credits ?? [])}
                   {order.payment.decidedBy === 'vendor' &&
                     ' (confirmed by you)'}
                   {order.payment.decidedBy === 'vendor' &&
@@ -692,6 +679,13 @@ export function Panel(props: {
                   {order.items.map((i) => `${i.qty} × ${i.name}`).join(', ') ||
                     'No items listed'}
                 </p>
+                {balance !== null && balance > 0 && (
+                  <p className="hint">
+                    Ask for the balance of {formatNaira(balance)}. When the
+                    customer sends a receipt for it, verify it here and it is
+                    added to this order.
+                  </p>
+                )}
                 {amountGap && v?.status === 'done' && (
                   <p className="hint">
                     The receipt shows{' '}
@@ -859,7 +853,7 @@ export function Panel(props: {
                   {o.amountKobo === null ? '' : formatNaira(o.amountKobo)}
                 </span>
                 <span data-kind={o.payment.state}>
-                  {PAYMENT_LABEL[o.payment.state]}
+                  {paymentText(o, data?.credits ?? [])}
                 </span>
               </li>
             ))}
@@ -933,13 +927,12 @@ export function Panel(props: {
         ) : (
           <ExtraMoney
             rows={extraRows}
-            settleable={settleable}
             onUndo={(id) => void ledger.unsettle(id)}
-            onSettle={(id, state) =>
+            onSettle={(row, state) =>
               void ledger.settleCredit(
-                id,
+                row,
                 state,
-                settled(id)?.customerId ?? null,
+                row.settlement?.customerId ?? null,
               )
             }
           />

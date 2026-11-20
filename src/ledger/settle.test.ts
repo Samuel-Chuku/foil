@@ -1,8 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_VERIFY as config } from '../config/defaults'
-import type { Credit } from '../verify/types'
-import { freshCredits, matcherLedger, newOrder } from './ledger'
-import { applyRefunds, moreFromPayer, settle, unclaimedCredits } from './settle'
+import type { Verdict } from '../verify/match'
+import type { Credit, Receipt } from '../verify/types'
+import {
+  applyVerdict,
+  balanceKobo,
+  freshCredits,
+  matcherLedger,
+  newOrder,
+} from './ledger'
+import {
+  applyRefunds,
+  extraMoney,
+  moreFromPayer,
+  settle,
+  unclaimedCredits,
+} from './settle'
 import type { Order } from './types'
 
 // Synthetic payments only. 21 Nov 2026, Lagos wall-clock.
@@ -143,5 +156,106 @@ describe('freshCredits', () => {
       original,
       reversal,
     ])
+  })
+})
+
+describe('short and over payments', () => {
+  const order = (amountKobo: number, creditId: string | null): Order => {
+    const o = newOrder(
+      [],
+      { mode: 'everyday', customerId: '2348000000006', items: [], amountKobo },
+      NOW,
+    )
+    return creditId
+      ? {
+          ...o,
+          payment: {
+            ...o.payment,
+            state: 'matched',
+            creditId,
+            decidedBy: 'rules',
+          },
+        }
+      : o
+  }
+  const receipt: Receipt = {
+    amountKobo: 50_000,
+    sender: 'OLUWAKEMI JOHNSON',
+    senderBank: 'palmpay',
+    reference: '',
+    at: at(15, 40),
+    status: 'successful',
+  }
+  const balance = credit({ id: 'b1', amountKobo: 50_000, at: at(15, 40) })
+  const matched = (creditId: string): Verdict => ({
+    kind: 'matched',
+    creditId,
+    notes: [],
+  })
+
+  it('works out what is still owed or paid over', () => {
+    expect(balanceKobo(order(550_000, 'c1'), [first])).toBe(50_000)
+    expect(balanceKobo(order(400_000, 'c1'), [first])).toBe(-100_000)
+    expect(balanceKobo(order(500_000, null), [first])).toBeNull()
+  })
+
+  it('adds a later payment to a short order as its balance', () => {
+    const short = order(550_000, 'c1')
+    const next = applyVerdict(
+      short,
+      receipt,
+      matched('b1'),
+      [first, balance],
+      NOW,
+    )!
+    expect(next.payment).toMatchObject({ creditId: 'c1', topUpIds: ['b1'] })
+    expect(balanceKobo(next, [first, balance])).toBe(0)
+    expect(
+      matcherLedger([next], [first, balance], config).claimedCredits.get('b1'),
+    ).toBe(next.code)
+  })
+
+  it("does not call a short payer's next payment extra", () => {
+    const short = order(550_000, 'c1')
+    const row = extraMoney([short], [first, balance], [], config).find(
+      (r) => r.key === 'b1',
+    )
+    expect(row?.settleable).toBe(false)
+  })
+
+  it('never undoes a confirmed payment because a later receipt did not match', () => {
+    const paid = order(500_000, 'c1')
+    const notYet = { kind: 'not yet credited', reason: '' } as const
+    expect(applyVerdict(paid, receipt, notYet, [first], NOW)).toBeNull()
+    expect(applyVerdict(paid, receipt, matched('c1'), [first], NOW)).toBeNull()
+  })
+
+  it('lists the part paid over as extra, and refunds just that part', () => {
+    const over = order(400_000, 'c1')
+    const refundPart = credit({
+      id: 'd2',
+      direction: 'debit',
+      amountKobo: 100_000,
+      sender: 'TRF TO OLUWAKEMI JOHNSON',
+      at: at(16, 0),
+    })
+    const [row] = extraMoney([over], [first], [], config)
+    expect(row).toMatchObject({
+      key: 'c1:over',
+      amountKobo: 100_000,
+      orderCode: over.code,
+      settleable: true,
+    })
+    const owed = settle(first, 'refund owed', null, NOW, {
+      id: row!.key,
+      amountKobo: row!.amountKobo,
+    })
+    // The order stays paid by its credit while part of it is refunded.
+    expect(
+      matcherLedger([], [first], config, undefined, [owed]).credits,
+    ).toHaveLength(1)
+    expect(
+      applyRefunds([owed], [first, refundPart], config, NOW),
+    ).toMatchObject([{ id: 'c1:over', state: 'refunded', refundId: 'd2' }])
   })
 })

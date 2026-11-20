@@ -1,8 +1,7 @@
+import type { ExtraRow } from '../ledger/settle'
 import type { Settlement } from '../ledger/types'
 import { formatNaira } from '../verify/money'
 import type { Credit } from '../verify/types'
-
-export type ExtraRow = { credit: Credit; settlement: Settlement | null }
 
 // Times are Lagos wall-clock readings stored as UTC, so the UTC clock face is
 // the Lagos time.
@@ -23,54 +22,56 @@ function status(s: Settlement): string {
   }
 }
 
+function describe(row: ExtraRow): string {
+  const from = row.credit.sender || 'an unknown sender'
+  const at = row.credit.at ? ` at ${clock(row.credit)}` : ''
+  const what = row.orderCode
+    ? `${formatNaira(row.amountKobo)} paid over the total of order ${row.orderCode}, from ${from}${at}`
+    : `${formatNaira(row.amountKobo)} from ${from}${at}`
+  if (row.settlement) return `${what} · ${status(row.settlement)}`
+  if (row.orderCode) return what
+  return row.settleable
+    ? `${what} · a second payment from someone whose order is paid`
+    : `${what} · no order matched yet`
+}
+
 // Money that arrived but pays for no order, with the vendor's choices. The
 // desk only records the decision; any refund is sent from the bank app.
 export function ExtraMoney(props: {
   rows: ExtraRow[]
-  // Credits whose payer already has a paid order, so they can be called extra.
-  settleable: Set<string>
-  onSettle: (creditId: string, state: Settlement['state']) => void
-  onUndo: (creditId: string) => void
+  onSettle: (row: ExtraRow, state: Settlement['state']) => void
+  onUndo: (key: string) => void
 }) {
   return (
     <ul className="extra">
-      {props.rows.map(({ credit, settlement }) => (
-        <li key={credit.id}>
-          <p>
-            {formatNaira(credit.amountKobo)} from{' '}
-            {credit.sender || 'an unknown sender'}
-            {credit.at && ` at ${clock(credit)}`}
-            {settlement
-              ? ` · ${status(settlement)}`
-              : props.settleable.has(credit.id)
-                ? ' · a second payment from someone whose order is paid'
-                : ' · no order matched yet'}
-          </p>
-          {!settlement && props.settleable.has(credit.id) && (
+      {props.rows.map((row) => (
+        <li key={row.key}>
+          <p>{describe(row)}</p>
+          {!row.settlement && row.settleable && (
             <p>
               <button
                 type="button"
-                onClick={() => props.onSettle(credit.id, 'refund owed')}
+                onClick={() => props.onSettle(row, 'refund owed')}
               >
                 Refund owed
               </button>{' '}
               <button
                 type="button"
                 className="quiet"
-                onClick={() => props.onSettle(credit.id, 'kept')}
+                onClick={() => props.onSettle(row, 'kept')}
               >
                 Keep as credit
               </button>
             </p>
           )}
-          {settlement && (
+          {row.settlement && (
             <p>
-              {settlement.state === 'refund owed' && (
+              {row.settlement.state === 'refund owed' && (
                 <>
                   <button
                     type="button"
                     className="quiet"
-                    onClick={() => props.onSettle(credit.id, 'refunded')}
+                    onClick={() => props.onSettle(row, 'refunded')}
                   >
                     Mark refunded
                   </button>{' '}
@@ -79,7 +80,7 @@ export function ExtraMoney(props: {
               <button
                 type="button"
                 className="link"
-                onClick={() => props.onUndo(credit.id)}
+                onClick={() => props.onUndo(row.key)}
               >
                 Undo
               </button>

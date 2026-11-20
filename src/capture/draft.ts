@@ -8,6 +8,8 @@ export type DraftFacts = {
   pickup: boolean
   // Extra money from this customer that pays no order, and what the shop decided.
   extra?: { state: Settlement['state']; amountKobo: number }[]
+  // What is still owed after a payment that fell short.
+  shortKobo?: number | null
 }
 
 // The engine decides; the model only words the decision. Each state becomes a
@@ -15,6 +17,9 @@ export type DraftFacts = {
 function paymentLine(facts: DraftFacts): string {
   const amount =
     facts.amountKobo === null ? '' : ` of ${formatNaira(facts.amountKobo)}`
+  if (facts.payment === 'matched' && facts.shortKobo) {
+    return `A payment has arrived, but it is ${formatNaira(facts.shortKobo)} short of the total${amount}. Thank the customer and ask politely for the balance of ${formatNaira(facts.shortKobo)}.`
+  }
   switch (facts.payment) {
     case 'matched':
       return `The payment${amount} has arrived in the shop's account. Thank the customer and confirm the order.`

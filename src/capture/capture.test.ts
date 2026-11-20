@@ -112,6 +112,20 @@ describe('draft', () => {
     expect(p).toContain('sent back')
   })
 
+  it('asks for the balance when a payment fell short', () => {
+    const p = draftPrompt(
+      {
+        ...facts,
+        payment: 'matched',
+        amountKobo: 1_850_000,
+        shortKobo: 50_000,
+      },
+      'Customer (11:03): Sent.',
+    )
+    expect(p).toContain('₦500 short')
+    expect(p).not.toContain('has arrived in the shop')
+  })
+
   it('throws away accusing drafts', () => {
     expect(draftProblem('This receipt is fake.')).not.toBeNull()
     expect(draftProblem('Thank you, e don land!')).toBeNull()

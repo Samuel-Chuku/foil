@@ -34,6 +34,7 @@ export function newOrder(
       creditId: null,
       sessionId: null,
       candidates: [],
+      topUpIds: [],
       decidedBy: null,
       checkedAt: null,
     },
@@ -54,14 +55,19 @@ export function matcherLedger(
   settlements: Settlement[] = [],
 ): Ledger {
   // Money being refunded, or already refunded, can never pay an order.
+  // Only a whole credit is held back; the extra part of a credit still pays
+  // its own order.
   const refunds = new Set(
-    settlements.filter((s) => s.state !== 'kept').map((s) => s.id),
+    settlements
+      .filter((s) => s.state !== 'kept' && s.id === s.creditId)
+      .map((s) => s.id),
   )
   const claimedCredits = new Map<string, string>()
   const usedSessionIds = new Map<string, string>()
   for (const o of orders) {
     if (o.id === forOrderId || o.payment.state !== 'matched') continue
     if (o.payment.creditId) claimedCredits.set(o.payment.creditId, o.code)
+    for (const t of o.payment.topUpIds) claimedCredits.set(t, o.code)
     if (o.payment.sessionId) usedSessionIds.set(o.payment.sessionId, o.code)
   }
   return {
@@ -89,10 +95,54 @@ export function recordVerdict(
     sessionId:
       verdict.kind === 'matched' && session.ok ? session.value.digits : null,
     candidates: verdict.kind === 'check' ? verdict.candidates : [],
+    topUpIds: [],
     decidedBy: 'rules',
     checkedAt: now,
   }
   return { ...order, payment, updatedAt: now }
+}
+
+// What has arrived for an order: its credit plus any balance paid later.
+export function paidKobo(order: Order, credits: Credit[]): number {
+  const p = order.payment
+  if (p.state !== 'matched') return 0
+  return [p.creditId, ...p.topUpIds].reduce(
+    (sum, id) => sum + (credits.find((c) => c.id === id)?.amountKobo ?? 0),
+    0,
+  )
+}
+
+// Positive when the customer still owes money, negative when they paid more.
+// Null until the order has a total and a payment.
+export function balanceKobo(order: Order, credits: Credit[]): number | null {
+  if (order.amountKobo === null || order.payment.state !== 'matched')
+    return null
+  return order.amountKobo - paidKobo(order, credits)
+}
+
+// Records a verdict on an order that may already be paid. A second receipt on
+// a short order pays its balance; a receipt that does not match never undoes a
+// payment already confirmed. Returns null when nothing should change.
+export function applyVerdict(
+  order: Order,
+  receipt: Receipt,
+  verdict: Verdict,
+  credits: Credit[],
+  now: number,
+): Order | null {
+  const p = order.payment
+  if (p.state !== 'matched') return recordVerdict(order, receipt, verdict, now)
+  if (verdict.kind !== 'matched') return null
+  if (verdict.creditId === p.creditId || p.topUpIds.includes(verdict.creditId))
+    return null
+  if ((balanceKobo(order, credits) ?? 0) > 0) {
+    return {
+      ...order,
+      payment: { ...p, topUpIds: [...p.topUpIds, verdict.creditId] },
+      updatedAt: now,
+    }
+  }
+  return recordVerdict(order, receipt, verdict, now)
 }
 
 // The vendor settles a "check" by picking the credit that pays for the order.

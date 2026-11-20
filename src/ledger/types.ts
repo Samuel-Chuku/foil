@@ -25,6 +25,8 @@ export type Payment = {
   sessionId: string | null
   // Credit ids the vendor can choose between when the rules cannot decide.
   candidates: string[]
+  // Later credits that pay the balance of a short payment.
+  topUpIds: string[]
   decidedBy: 'rules' | 'vendor' | null
   checkedAt: number | null
 }
@@ -59,8 +61,11 @@ export type BookEntry = {
 // What the vendor decided about money that pays no order, usually a customer
 // paying twice. Recorded only; the desk never moves money.
 export type Settlement = {
-  // The credit this is about.
+  // The credit id for a whole credit, or "<credit id>:over" for the part of a
+  // credit that paid more than its order.
   id: string
+  creditId: string
+  amountKobo: number
   state: 'refund owed' | 'refunded' | 'kept'
   // Whose money it is, when the vendor decided from that customer's chat.
   customerId: string | null

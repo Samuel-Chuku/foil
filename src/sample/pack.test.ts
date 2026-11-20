@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_VERIFY as config } from '../config/defaults'
 import {
+  applyVerdict,
+  balanceKobo,
   confirmCredit,
   matcherLedger,
   newOrder,
@@ -46,6 +48,8 @@ describe('sample pack', () => {
     expect(results.map((r) => r.status)).toEqual([
       'parsed',
       'untrusted',
+      'parsed',
+      'parsed',
       'parsed',
       'parsed',
       'parsed',
@@ -109,5 +113,37 @@ describe('sample pack', () => {
     expect(applyRefunds([owed], credits, config, 1)).toMatchObject([
       { id: 'e7', state: 'refunded', refundId: 'e8' },
     ])
+  })
+
+  // Ngozi pays ₦500 short of ₦12,500, then sends the balance.
+  it('ngozi short payment is completed by her second receipt', () => {
+    const chat = SAMPLE_CHATS.find((c) => c.id === 'ngozi')!
+    const [firstPay, balancePay] = chat.messages.flatMap((m) =>
+      m.receipt ? [toReceipt(m.receipt, config)] : [],
+    )
+    const others = orders.filter((o) => o.customerId !== chat.phone)
+    let order = {
+      ...newOrder(
+        others,
+        {
+          mode: 'everyday',
+          customerId: chat.phone,
+          items: [],
+          amountKobo: 1_250_000,
+        },
+        0,
+      ),
+    }
+    for (const r of [firstPay!, balancePay!]) {
+      const verdict = verifyReceipt(
+        r,
+        matcherLedger(others, credits, config, order.id),
+        config,
+      )
+      expect(verdict.kind).toBe('matched')
+      order = applyVerdict(order, r, verdict, credits, 0) ?? order
+    }
+    expect(order.payment.topUpIds).toEqual(['e10'])
+    expect(balanceKobo(order, credits)).toBe(0)
   })
 })
