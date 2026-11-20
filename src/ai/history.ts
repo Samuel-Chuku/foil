@@ -46,7 +46,7 @@ description: the row's description or narration, including any long number, exac
 dateTime: the row's date and time as printed; if the row shows only a time, copy the date heading above it as well`
 
 // The vendor's own account history: on the device, unless they consented.
-const { onDevice, consented } = privateModels({
+const model = privateModels({
   createOptions: TEXT_AND_IMAGE,
   onDeviceSchema,
   cloudConfig: {
@@ -62,16 +62,13 @@ export async function readHistoryImage(
   if (!RECEIPT_IMAGE_TYPES.includes(image.mimeType)) {
     throw new Error(`Screenshots must be PNG or JPEG, not ${image.mimeType}.`)
   }
-  const { json, source, ms } = await generateJson(
-    cloudConsent ? consented : onDevice,
-    [
-      PROMPT,
-      {
-        type: 'inlineData',
-        inlineData: { mimeType: image.mimeType, data: image.base64 },
-      },
-    ],
-  )
+  const { json, source, ms } = await generateJson(model(cloudConsent), [
+    PROMPT,
+    {
+      type: 'inlineData',
+      inlineData: { mimeType: image.mimeType, data: image.base64 },
+    },
+  ])
   const rows =
     json &&
     typeof json === 'object' &&

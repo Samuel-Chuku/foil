@@ -46,7 +46,7 @@ const cloudSchema = Schema.object({
 
 // The chat holds the customer's address and name, so it stays on the device
 // unless the vendor has consented to the cloud.
-const { onDevice, consented } = privateModels({
+const model = privateModels({
   createOptions: TEXT_ONLY,
   onDeviceSchema,
   cloudConfig: {
@@ -70,9 +70,8 @@ export async function readOrder(
   chat: string,
   cloudConsent: boolean,
 ): Promise<Reading<RawOrder>> {
-  const { json, source, ms } = await generateJson(
-    cloudConsent ? consented : onDevice,
-    [PROMPT + chat],
-  )
+  const { json, source, ms } = await generateJson(model(cloudConsent), [
+    PROMPT + chat,
+  ])
   return { fields: pickOrder(json), source, ms }
 }

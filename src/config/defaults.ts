@@ -1,9 +1,27 @@
 import type { BankInfo, VerifyConfig } from '../verify/types'
 
-// In-code defaults. Remote Config overrides these once it is wired up.
-export const DEFAULTS = {
-  cloudModel: 'gemini-3.5-flash-lite',
-} as const
+// In-code defaults. Remote Config overrides them (see remote.ts), and they
+// stay in force whenever it is unreachable or sends something invalid.
+export const DEFAULT_CLOUD_MODEL = 'gemini-3.5-flash-lite'
+
+// Common Nigerian Pidgin in orders, for the voice-note vocabulary.
+export const DEFAULT_PIDGIN_GLOSSARY: Record<string, string> = {
+  abeg: 'please',
+  dey: 'is, are, or is available',
+  wey: 'that, which',
+  'don pay': 'have paid',
+  'e don land': 'it has arrived',
+  collect: 'buy, take',
+  oya: 'okay, go ahead',
+  wetin: 'what',
+  'how much': 'what is the price',
+  'sharp sharp': 'quickly',
+  'send am come': 'deliver it to me',
+  'no wahala': 'no problem',
+  'i go': 'I will',
+  na: 'it is',
+  una: 'you (plural)',
+}
 
 const bank = (
   id: string,

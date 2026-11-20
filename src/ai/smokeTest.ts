@@ -5,7 +5,7 @@ import {
   type GenerativeModel,
 } from 'firebase/ai'
 import { ai } from '../firebase'
-import { DEFAULTS } from '../config/defaults'
+import { appConfig } from '../config/active'
 
 // Throwaway Phase 0 probes: prove one request runs on the device and one in
 // the cloud through Firebase AI Logic, and that a regex constraint reaches
@@ -47,10 +47,12 @@ const onDeviceRegex = getGenerativeModel(ai, {
   },
 })
 
-const cloud = getGenerativeModel(ai, {
-  mode: InferenceMode.ONLY_IN_CLOUD,
-  inCloudParams: { model: DEFAULTS.cloudModel },
-})
+// Made on use, after Remote Config has named the cloud model.
+const cloud = () =>
+  getGenerativeModel(ai, {
+    mode: InferenceMode.ONLY_IN_CLOUD,
+    inCloudParams: { model: appConfig().cloudModel },
+  })
 
 async function run(
   model: GenerativeModel,
@@ -86,5 +88,5 @@ export function probeOnDeviceRegex(): Promise<ProbeResult> {
 }
 
 export function probeCloud(): Promise<ProbeResult> {
-  return run(cloud, 'In one sentence, what does a community moderator do?')
+  return run(cloud(), 'In one sentence, what does a community moderator do?')
 }

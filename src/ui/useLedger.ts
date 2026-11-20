@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { DEFAULT_VERIFY } from '../config/defaults'
+import { appConfig } from '../config/active'
 import { syncBook, vendorId } from '../ledger/books'
 import { clearAll, getAll, putAll } from '../ledger/db'
 import { applyReversals, freshCredits, matcherLedger } from '../ledger/ledger'
@@ -26,7 +26,8 @@ export type LedgerData = {
   settlements: Settlement[]
 }
 
-const config = DEFAULT_VERIFY
+// Fixed for the session: Remote Config is applied before the first render.
+const verifyConfig = () => appConfig().verify
 
 // Read straight from IndexedDB, so a step that waited seconds on the model
 // decides against the records as they are now.
@@ -120,9 +121,14 @@ export function useLedger() {
         ...credits,
       ]
       const now = Date.now()
-      const reversed = matcherLedger([], all, config).reversedCredits
+      const reversed = matcherLedger([], all, verifyConfig()).reversedCredits
       const unpaid = applyReversals(before.orders, reversed, now)
-      const refunded = applyRefunds(before.settlements, all, config, now)
+      const refunded = applyRefunds(
+        before.settlements,
+        all,
+        verifyConfig(),
+        now,
+      )
       await putAll({ credits, orders: unpaid, settlements: refunded })
       await reload()
       syncBooks(unpaid)
@@ -133,7 +139,7 @@ export function useLedger() {
   const importAlerts = useCallback(
     async (emails: AlertEmail[]): Promise<AlertResult[]> => {
       const before = await load()
-      const results = emails.map((e) => parseAlert(e, config))
+      const results = emails.map((e) => parseAlert(e, verifyConfig()))
       const credits = freshCredits(
         before.credits,
         results.flatMap((r) => (r.status === 'parsed' ? [r.credit] : [])),
@@ -179,7 +185,7 @@ export function useLedger() {
       const confirmed = applyRefunds(
         [...others, decided],
         before.credits,
-        config,
+        verifyConfig(),
         now,
       ).find((x) => x.id === creditId)
       await putAll({ settlements: [confirmed ?? decided] })
@@ -204,7 +210,7 @@ export function useLedger() {
     importHistory,
     settleCredit,
     reset,
-    config,
+    config: verifyConfig(),
   }
 }
 

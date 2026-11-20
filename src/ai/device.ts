@@ -4,7 +4,7 @@ import {
   type GenerationConfig,
   type GenerativeModel,
 } from 'firebase/ai'
-import { DEFAULTS } from '../config/defaults'
+import { appConfig } from '../config/active'
 import { ai } from '../firebase'
 
 export type DeviceState =
@@ -43,31 +43,38 @@ export async function deviceState(): Promise<DeviceState> {
 
 // Each private feature gets two instances: one that can never leave the
 // device, and one for a vendor who consented to the cloud when this machine
-// has no model. Which one runs is decided per call, from the consent.
+// has no model. Which one runs is decided per call, from the consent. They are
+// made on first use, after Remote Config has named the cloud model.
 export function privateModels(options: {
   createOptions: CreateOptions
   // A JSON schema for the on-device constraint; omitted for free text.
   onDeviceSchema?: object
   cloudConfig?: GenerationConfig
-}): { onDevice: GenerativeModel; consented: GenerativeModel } {
+}): (cloudConsent: boolean) => GenerativeModel {
   const onDeviceParams = {
     createOptions: options.createOptions,
     ...(options.onDeviceSchema && {
       promptOptions: { responseConstraint: options.onDeviceSchema },
     }),
   }
-  return {
-    onDevice: getGenerativeModel(ai, {
-      mode: InferenceMode.ONLY_ON_DEVICE,
-      onDeviceParams,
-    }),
-    consented: getGenerativeModel(ai, {
+  let onDevice: GenerativeModel | undefined
+  let consented: GenerativeModel | undefined
+  return (cloudConsent) => {
+    if (!cloudConsent) {
+      onDevice ??= getGenerativeModel(ai, {
+        mode: InferenceMode.ONLY_ON_DEVICE,
+        onDeviceParams,
+      })
+      return onDevice
+    }
+    consented ??= getGenerativeModel(ai, {
       mode: InferenceMode.PREFER_ON_DEVICE,
       onDeviceParams,
       inCloudParams: {
-        model: DEFAULTS.cloudModel,
+        model: appConfig().cloudModel,
         ...(options.cloudConfig && { generationConfig: options.cloudConfig }),
       },
-    }),
+    })
+    return consented
   }
 }

@@ -1,4 +1,4 @@
-import { Schema, type GenerativeModel } from 'firebase/ai'
+import { Schema } from 'firebase/ai'
 import { parsePdfReceiptText } from '../verify/pdfReceipt'
 import { RAW_RECEIPT_FIELDS, type RawReceipt } from '../verify/receiptFields'
 import { privateModels, TEXT_AND_IMAGE } from './device'
@@ -34,7 +34,7 @@ dateTime: the transaction date and time as printed`
 
 // Receipts hold customer and bank details, so the default path never leaves
 // the device. The cloud path exists only for a vendor who has consented.
-const { onDevice, consented } = privateModels({
+const model = privateModels({
   createOptions: TEXT_AND_IMAGE,
   onDeviceSchema,
   cloudConfig: {
@@ -48,14 +48,10 @@ export type ReceiptImage = { mimeType: string; base64: string }
 // The on-device model accepts only these image types.
 export const RECEIPT_IMAGE_TYPES = ['image/png', 'image/jpeg']
 
-function pick(cloudConsent: boolean): GenerativeModel {
-  return cloudConsent ? consented : onDevice
-}
-
 export function prepareReceiptModel(
   onProgress: (fraction: number) => void,
 ): Promise<void> {
-  return onDevice.initializeDeviceModel(onProgress)
+  return model(false).initializeDeviceModel(onProgress)
 }
 
 export async function readReceiptImage(
@@ -67,7 +63,7 @@ export async function readReceiptImage(
       `Receipt images must be PNG or JPEG, not ${image.mimeType}.`,
     )
   }
-  const { json, source, ms } = await generateJson(pick(cloudConsent), [
+  const { json, source, ms } = await generateJson(model(cloudConsent), [
     PROMPT,
     {
       type: 'inlineData',
@@ -82,7 +78,7 @@ export async function readReceiptText(
   text: string,
   cloudConsent: boolean,
 ): Promise<Reading<RawReceipt>> {
-  const { json, source, ms } = await generateJson(pick(cloudConsent), [
+  const { json, source, ms } = await generateJson(model(cloudConsent), [
     `${PROMPT}\n\nReceipt text:\n${text.slice(0, 6000)}`,
   ])
   return { fields: pickStrings(json, RAW_RECEIPT_FIELDS), source, ms }
