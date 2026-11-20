@@ -106,3 +106,17 @@ export type DeliveryPlan = {
   // delivery. Null when nobody has said.
   paidTo: 'shop' | 'rider' | null
 }
+
+// Something the shop sells. Drop mode's one-of-a-kind items are products with
+// a quantity of one.
+export type Product = {
+  id: string
+  name: string
+  priceKobo: number | null
+  // How many the shop had when it last counted; null when it does not count.
+  qty: number | null
+  // Paid orders after this time reduce the count; earlier ones were already
+  // gone when the vendor counted.
+  countedAt: number
+  updatedAt: number
+}

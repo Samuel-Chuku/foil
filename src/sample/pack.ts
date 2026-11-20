@@ -1,4 +1,5 @@
 import type { ShopRules } from '../capture/shopRules'
+import type { Product } from '../ledger/types'
 import type { AlertEmail } from '../verify/alerts'
 import type { RawHistoryRow } from '../verify/history'
 import type { RawReceipt } from '../verify/receiptFields'
@@ -456,6 +457,22 @@ export const SAMPLE_CHATS: SampleChat[] = [
       },
     ],
   },
+  {
+    // Asks after an item that sells out once Adaeze's order is paid, and one
+    // the shop has already run out of.
+    id: 'tola',
+    contactName: 'Tola',
+    phone: '+234 800 000 0011',
+    expected: 'awaiting',
+    messages: [
+      {
+        id: 'to1',
+        from: 'customer',
+        time: '15:24',
+        text: 'Good afternoon. Is the ankara gown in size 14 still available? And how much is the red handbag?',
+      },
+    ],
+  },
 ]
 
 const GTBANK = 'gens@gtbank.com'
@@ -714,3 +731,34 @@ export const SAMPLE_SHOP_RULES: ShopRules = {
   ].join('\n\n'),
   fromFile: [],
 }
+
+const item = (
+  id: string,
+  name: string,
+  naira: number,
+  qty: number | null,
+): Product => ({
+  id: `sample-${id}`,
+  name,
+  priceKobo: naira * 100,
+  qty,
+  countedAt: 0,
+  updatedAt: 0,
+})
+
+// The sample shop's stock. The ankara gown is the last one, so it sells out
+// once Adaeze's order is paid; the red handbag is already gone.
+export const SAMPLE_PRODUCTS: Product[] = [
+  item('gown', 'Ankara gown', 15_000, 1),
+  item('green-gown', 'Green ankara gown', 9_500, 2),
+  item('headwrap', 'Headwrap', 3_500, 12),
+  item('jeans', 'Blue jeans', 12_000, 4),
+  item('sneakers', 'White sneakers', 9_000, 3),
+  item('bag', 'Brown leather bag', 18_500, 2),
+  item('necklace', 'Beaded necklace', 7_000, 5),
+  item('scarf', 'Silk scarf', 5_000, null),
+  item('cap', 'Plain black cap', 11_000, 6),
+  item('abaya', 'Black abaya', 16_000, 2),
+  item('sandals', 'Brown leather sandals', 9_500, 3),
+  item('handbag', 'Red handbag', 20_000, 0),
+]

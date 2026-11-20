@@ -9,7 +9,13 @@ import {
   recheckOrders,
 } from '../ledger/ledger'
 import { applyRefunds, settle, type ExtraRow } from '../ledger/settle'
-import type { Customer, Order, RefundTo, Settlement } from '../ledger/types'
+import type {
+  Customer,
+  Order,
+  Product,
+  RefundTo,
+  Settlement,
+} from '../ledger/types'
 import { parseAlert, type AlertEmail, type AlertResult } from '../verify/alerts'
 import {
   historyCredits,
@@ -30,6 +36,7 @@ export type LedgerData = {
   credits: Credit[]
   customers: Customer[]
   settlements: Settlement[]
+  products: Product[]
 }
 
 // Fixed for the session: Remote Config is applied before the first render.
@@ -38,12 +45,15 @@ const verifyConfig = () => appConfig().verify
 // Read straight from IndexedDB, so a step that waited seconds on the model
 // decides against the records as they are now.
 async function load(): Promise<LedgerData> {
-  const [orders, credits, customers, settlements] = await Promise.all([
-    getAll('orders'),
-    getAll('credits'),
-    getAll('customers'),
-    getAll('settlements'),
-  ])
+  const [orders, credits, customers, settlements, products] = await Promise.all(
+    [
+      getAll('orders'),
+      getAll('credits'),
+      getAll('customers'),
+      getAll('settlements'),
+      getAll('products'),
+    ],
+  )
   // Latest change first, so an order whose payment just landed rises to the top.
   orders.sort((a, b) => b.updatedAt - a.updatedAt)
   // Records saved before balances and part refunds existed lack those fields.
@@ -60,6 +70,7 @@ async function load(): Promise<LedgerData> {
       const c = credits.find((cr) => cr.id === x.id)
       return c ? [{ ...x, creditId: c.id, amountKobo: c.amountKobo }] : []
     }),
+    products: products.sort((a, b) => a.name.localeCompare(b.name)),
   }
 }
 
@@ -296,6 +307,19 @@ export function useLedger() {
     [],
   )
 
+  // The vendor's whole product list, as edited; rows left out are removed.
+  const saveProducts = useCallback(
+    async (next: Product[]) => {
+      const before = await getAll('products')
+      for (const p of before) {
+        if (!next.some((x) => x.id === p.id)) await remove('products', p.id)
+      }
+      await putAll({ products: next })
+      await reload()
+    },
+    [reload],
+  )
+
   const reset = useCallback(async () => {
     setJustPaid([])
     await clearAll()
@@ -317,6 +341,7 @@ export function useLedger() {
     justPaid,
     seen,
     recheck,
+    saveProducts,
     reset,
     config: verifyConfig(),
   }

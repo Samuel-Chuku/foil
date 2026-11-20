@@ -10,6 +10,13 @@ import { readReceiptImage } from '../ai/receipt'
 import type { Reading } from '../ai/run'
 import { draftPrompt, draftProblem } from '../capture/draft'
 import { toOrderFields } from '../capture/orderFields'
+import {
+  askedFor,
+  findProduct,
+  leftOf,
+  stockFacts,
+  withListPrices,
+} from '../capture/stock'
 import { transcript } from '../capture/transcript'
 import {
   confirmCredit,
@@ -44,6 +51,7 @@ import {
 } from './deliveryForm'
 import { ExtraMoney } from './ExtraMoney'
 import { ShopRulesCard } from './ShopRulesCard'
+import { StockCard } from './StockCard'
 import type { ShopRulesApi } from './useShopRules'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
@@ -334,14 +342,19 @@ export function Panel(props: {
       const chatText = transcript(lines)
       const reading = await readOrder(chatText, device.consent)
       const f = toOrderFields(reading.fields)
+      const items = withListPrices(f.items, ledger.data?.products ?? [])
+      const listTotal = items.every((i) => i.priceKobo !== null)
+        ? items.reduce((n, i) => n + i.qty * (i.priceKobo ?? 0), 0)
+        : null
+      const amountKobo = f.amountKobo ?? (listTotal || null)
       const form: OrderForm = {
         delivery: toDeliveryForm(planDelivery(f, shop.rules, chatText)),
         customerName: f.customerName || chat.contactName,
         address: f.address,
         landmark: f.landmark,
         area: f.area,
-        amount: f.amountKobo === null ? '' : String(f.amountKobo / 100),
-        items: f.items.map((i) => ({
+        amount: amountKobo === null ? '' : String(amountKobo / 100),
+        items: items.map((i) => ({
           name: i.name,
           qty: String(i.qty),
           price: i.priceKobo === null ? '' : String(i.priceKobo / 100),
@@ -642,6 +655,23 @@ export function Panel(props: {
               ? order.receipt.amountKobo
               : ((order && dueKobo(order)) ?? v?.receipt.amountKobo ?? null),
           items: order?.items ?? [],
+          // Before any payment only: once they have paid, stock is the
+          // vendor's matter, not news for the customer.
+          stock:
+            !order || order.payment.state === 'awaiting'
+              ? stockFacts(
+                  askedFor(
+                    order?.items ?? [],
+                    chat.messages
+                      .filter((m) => m.from === 'customer' && m.text)
+                      .map((m) => m.text)
+                      .join('\n'),
+                    data.products,
+                  ),
+                  data.products,
+                  (p) => leftOf(p, data.orders, data.products, order?.id),
+                )
+              : [],
           followUp: order
             ? followUpFacts(
                 order,
@@ -687,6 +717,24 @@ export function Panel(props: {
     } catch (error) {
       patch(phone, { draft: { status: 'error', message: errorText(error) } })
     }
+  }
+
+  // What the shop's stock says about an item while the vendor checks an
+  // order, so a sold-out item is caught before it is confirmed.
+  function stockNote(p: { name: string; qty: string }) {
+    const products = data?.products ?? []
+    const product = p.name.trim() ? findProduct(p.name, products) : null
+    if (products.length === 0 || !p.name.trim()) return null
+    if (!product) return <p className="hint">Not on your stock list.</p>
+    const left = leftOf(product, data?.orders ?? [], products)
+    if (left === null) return <p className="hint">{product.name}</p>
+    const want = Math.max(1, Number.parseInt(p.qty, 10) || 1)
+    return (
+      <p className={left < want ? 'error' : 'hint'}>
+        {product.name}: {left <= 0 ? 'sold out' : `${left} left`}
+        {left > 0 && left < want && `, fewer than ${want}`}
+      </p>
+    )
   }
 
   const v = current.verify
@@ -1089,6 +1137,7 @@ export function Panel(props: {
                         }
                       />
                     </label>
+                    {stockNote({ name: item.name, qty: item.qty })}
                   </fieldset>
                 ))}
                 <button
@@ -1193,6 +1242,8 @@ export function Panel(props: {
       </section>
 
       <ShopRulesCard shop={shop} device={device} />
+
+      <StockCard ledger={ledger} />
 
       <section className="card" aria-labelledby="app-h">
         <h3 id="app-h">Bank app screenshot</h3>

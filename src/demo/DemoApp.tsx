@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { drawHistory } from '../sample/historyImage'
 import {
   SAMPLE_CHATS,
@@ -6,6 +6,7 @@ import {
   SAMPLE_DAY_MS,
   SAMPLE_EMAILS,
   SAMPLE_HISTORY,
+  SAMPLE_PRODUCTS,
   SAMPLE_SHOP_RULES,
 } from '../sample/pack'
 import { drawReceipt } from '../sample/receiptImage'
@@ -63,6 +64,14 @@ export default function DemoApp() {
   useEffect(() => {
     if (stored === false) void saveRules(SAMPLE_SHOP_RULES)
   }, [stored, saveRules])
+  // And with its stock, once per visit if the list is empty.
+  const { data: ledgerData, saveProducts } = ledger
+  const stocked = useRef(false)
+  useEffect(() => {
+    if (!ledgerData || stocked.current) return
+    stocked.current = true
+    if (ledgerData.products.length === 0) void saveProducts(SAMPLE_PRODUCTS)
+  }, [ledgerData, saveProducts])
   const [view, setView] = useState<'chats' | 'inbox' | 'bank'>('chats')
   const [bankApp, setBankApp] = useState<
     | { status: 'running' }
@@ -130,6 +139,7 @@ export default function DemoApp() {
   async function reset() {
     await ledger.reset()
     await saveRules(SAMPLE_SHOP_RULES)
+    await saveProducts(SAMPLE_PRODUCTS)
     setAlerts({})
     setLater(false)
     setRound((r) => r + 1)

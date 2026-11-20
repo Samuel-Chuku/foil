@@ -382,6 +382,27 @@ button.link {
 .shop-rules .sub {
   margin: 0.25rem 0 0.5rem 1.4rem;
 }
+.stock-row {
+  display: grid;
+  grid-template-columns: 6rem 4rem minmax(0, 1fr) auto;
+  gap: 0.25rem 0.5rem;
+  align-items: end;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #8883;
+}
+/* The name gets the panel's full width; price, count and what is left sit
+   below it. */
+.stock-row > label:first-child {
+  grid-column: 1 / -1;
+}
+.stock-row .left {
+  font-size: 0.85rem;
+  padding-bottom: 0.35rem;
+}
+.stock-row .left[data-out='true'] {
+  color: #9a5b00;
+  font-weight: 600;
+}
 .park-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 5.5rem auto;
