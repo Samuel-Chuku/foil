@@ -4,6 +4,7 @@ import { readOrder } from '../ai/order'
 import { readRefundTo } from '../ai/refund'
 import { toRefundTo } from '../capture/refundDetails'
 import { rulesForDraft } from '../capture/shopRules'
+import { followUpFacts, formatWait, waitingMin } from '../capture/followUp'
 import { deliveryFacts, describePlan, planDelivery } from '../capture/delivery'
 import { readReceiptImage } from '../ai/receipt'
 import type { Reading } from '../ai/run'
@@ -634,9 +635,26 @@ export function Panel(props: {
       const prompt = draftPrompt(
         {
           payment: order?.payment.state ?? v?.verdict.kind ?? null,
+          // A transfer still being confirmed is spoken of by its own amount;
+          // the order's total, delivery included, once it is paid or asked for.
           amountKobo:
-            (order && dueKobo(order)) ?? v?.receipt.amountKobo ?? null,
+            order?.receipt && order.payment.state !== 'matched'
+              ? order.receipt.amountKobo
+              : ((order && dueKobo(order)) ?? v?.receipt.amountKobo ?? null),
           items: order?.items ?? [],
+          followUp: order
+            ? followUpFacts(
+                order,
+                host.now(),
+                shop.rules.paymentWaitMin,
+                config,
+                [
+                  ...new Set(
+                    data.credits.flatMap((c) => (c.bank ? [c.bank] : [])),
+                  ),
+                ],
+              )
+            : [],
           delivery: deliveryFacts(
             order?.deliveryPlan ?? null,
             shop.rules,
@@ -718,6 +736,12 @@ export function Panel(props: {
   // A shop that ticks no delivery option sells without delivery, so orders
   // carry no delivery line at all.
   const offersDelivery = shop.rules.methods.length > 0
+  // How long this customer has waited on money that has not landed.
+  const waited = order ? waitingMin(order, host.now()) : null
+  const canRecheck =
+    order?.receipt != null &&
+    (order.payment.state === 'not yet credited' ||
+      (order.payment.state === 'check' && order.payment.decidedBy !== 'vendor'))
   const paidWhileAway = order !== null && ledger.justPaid.includes(order.id)
 
   // Before a payment is confirmed, flag a receipt that does not cover the order.
@@ -841,6 +865,23 @@ export function Panel(props: {
                   </p>
                 )}
                 <p>{shown.text}</p>
+                {fromOrder && waited !== null && (
+                  <p className="hint">
+                    Waiting {formatWait(waited)}
+                    {waited > shop.rules.paymentWaitMin
+                      ? `, past your ${formatWait(shop.rules.paymentWaitMin)} wait. A draft will ask them to check with their bank.`
+                      : '.'}
+                  </p>
+                )}
+                {fromOrder && canRecheck && (
+                  <button
+                    type="button"
+                    className="quiet"
+                    onClick={() => void ledger.recheck()}
+                  >
+                    Check again
+                  </button>
+                )}
                 {current.notice && (
                   <p className="error" role="alert">
                     {current.notice}

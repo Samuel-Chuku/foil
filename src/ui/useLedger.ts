@@ -285,6 +285,12 @@ export function useLedger() {
     [reload],
   )
 
+  // Checks waiting orders against the credits now, without new money: the
+  // vendor's "Check again".
+  const recheck = useCallback(async () => {
+    await addCredits(await load(), [])
+  }, [addCredits])
+
   const seen = useCallback(
     (orderId: string) => setJustPaid((ids) => ids.filter((x) => x !== orderId)),
     [],
@@ -310,6 +316,7 @@ export function useLedger() {
     unsettle,
     justPaid,
     seen,
+    recheck,
     reset,
     config: verifyConfig(),
   }

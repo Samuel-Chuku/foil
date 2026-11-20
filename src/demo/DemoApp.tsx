@@ -87,6 +87,8 @@ export default function DemoApp() {
   const chat = chats.find((c) => c.phone === openPhone) ?? null
   const host: PanelHost = {
     insertDraft: (phone, text) => setDrafts((d) => ({ ...d, [phone]: text })),
+    // The sample day's clock: mid-afternoon, then later once time passes.
+    now: () => SAMPLE_DAY_MS + (later ? 16 * 60 + 10 : 15 * 60 + 30) * 60_000,
   }
 
   // Stands in for the extension's inbox watch: every alert that has arrived

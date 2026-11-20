@@ -7,6 +7,8 @@ export type DraftFacts = {
   items: OrderItem[]
   // What the reply must say about delivery (see delivery.ts).
   delivery?: string[]
+  // What to ask of a customer whose payment has not landed (followUp.ts).
+  followUp?: string[]
   // Extra money from this customer that pays no order, and what the shop decided.
   // `hasAccount`: the customer has already said where a refund should go.
   extra?: {
@@ -68,7 +70,7 @@ function extraLine(e: NonNullable<DraftFacts['extra']>[number]): string {
 export function draftPrompt(facts: DraftFacts, chat: string): string {
   const items = facts.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
   return `You run a small Lagos shop and are replying to a customer on WhatsApp.
-Facts to convey: ${[paymentLine(facts), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.delivery?.length ? `\nDelivery: ${facts.delivery.join(' ')}` : ''}${facts.rules?.length ? `\nShop rules. If the customer asks about anything these cover, such as a delivery fee, answer from them:\n${facts.rules.join('\n')}` : ''}
+Facts to convey: ${[paymentLine(facts), ...(facts.followUp ?? []), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.delivery?.length ? `\nDelivery: ${facts.delivery.join(' ')}` : ''}${facts.rules?.length ? `\nShop rules. If the customer asks about anything these cover, such as a delivery fee, answer from them:\n${facts.rules.join('\n')}` : ''}
 Write one short WhatsApp reply of one to three sentences that conveys the facts and answers any question in the customer's latest messages, in the same language the customer uses (English or Nigerian Pidgin). Be warm and plain. Do not add facts, prices, fees, hours or promises that are not given here. Output only the reply text.
 
 Chat:

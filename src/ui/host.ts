@@ -21,4 +21,7 @@ export type OpenChat = {
 export type PanelHost = {
   // Places text in the chat's message box. It is never sent.
   insertDraft(phone: string, text: string): void
+  // The time now, in Lagos wall-clock milliseconds. The demo runs its own
+  // clock on the sample day.
+  now(): number
 }
