@@ -82,3 +82,14 @@ export function sameSessionId(a: string, b: string): boolean {
   }
   return edits + (a.length - i) + (b.length - j) <= 1
 }
+
+// A truncated ID shown in a bank app agrees with a longer one when it is the
+// start of it, allowing the same one-digit slip as whole IDs. The slip may add
+// or drop a digit, so the start is compared at three lengths.
+export function prefixOf(prefix: string, full: string): boolean {
+  if (full.startsWith(prefix)) return true
+  const n = prefix.length
+  return [n - 1, n, n + 1].some(
+    (k) => k > 0 && k <= full.length && sameSessionId(prefix, full.slice(0, k)),
+  )
+}

@@ -6,6 +6,11 @@ import { applyReversals, freshCredits, matcherLedger } from '../ledger/ledger'
 import { applyRefunds, settle } from '../ledger/settle'
 import type { Customer, Order, Settlement } from '../ledger/types'
 import { parseAlert, type AlertEmail, type AlertResult } from '../verify/alerts'
+import {
+  historyCredits,
+  newHistoryCredits,
+  type RawHistoryRow,
+} from '../verify/history'
 import type { Credit } from '../verify/types'
 
 export type BooksSync =
@@ -106,14 +111,10 @@ export function useLedger() {
     [reload, syncBooks],
   )
 
-  const importAlerts = useCallback(
-    async (emails: AlertEmail[]): Promise<AlertResult[]> => {
-      const before = await load()
-      const results = emails.map((e) => parseAlert(e, config))
-      const credits = freshCredits(
-        before.credits,
-        results.flatMap((r) => (r.status === 'parsed' ? [r.credit] : [])),
-      )
+  // New money can cancel an order's payment (a reversal) or confirm a refund
+  // the vendor owed, so both are re-checked whenever credits arrive.
+  const addCredits = useCallback(
+    async (before: LedgerData, credits: Credit[]) => {
       const all = [
         ...before.credits.filter((c) => !credits.some((n) => n.id === c.id)),
         ...credits,
@@ -125,9 +126,40 @@ export function useLedger() {
       await putAll({ credits, orders: unpaid, settlements: refunded })
       await reload()
       syncBooks(unpaid)
-      return results
     },
     [reload, syncBooks],
+  )
+
+  const importAlerts = useCallback(
+    async (emails: AlertEmail[]): Promise<AlertResult[]> => {
+      const before = await load()
+      const results = emails.map((e) => parseAlert(e, config))
+      const credits = freshCredits(
+        before.credits,
+        results.flatMap((r) => (r.status === 'parsed' ? [r.credit] : [])),
+      )
+      await addCredits(before, credits)
+      return results
+    },
+    [addCredits],
+  )
+
+  // Rows from a bank-app screenshot. Rows the alerts or an earlier screenshot
+  // already showed are left out. Returns the credits that were new.
+  const importHistory = useCallback(
+    async (
+      rows: RawHistoryRow[],
+      opts: { bank: string | null; day: number },
+    ) => {
+      const before = await load()
+      const credits = newHistoryCredits(
+        before.credits,
+        historyCredits(rows, { ...opts, screenshotId: `h${Date.now()}` }),
+      )
+      await addCredits(before, credits)
+      return credits
+    },
+    [addCredits],
   )
 
   // The vendor's decision about money that pays no order. A refund owed is
@@ -169,6 +201,7 @@ export function useLedger() {
     books,
     saveOrder,
     importAlerts,
+    importHistory,
     settleCredit,
     reset,
     config,

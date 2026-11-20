@@ -21,6 +21,12 @@ import type { RawReceipt } from '../verify/receiptFields'
 import { toReceipt } from '../verify/receiptFields'
 import type { Receipt } from '../verify/types'
 import type { OpenChat, PanelHost } from './host'
+import {
+  fileToImage,
+  importBankApp,
+  lagosToday,
+  type BankAppResult,
+} from './bankApp'
 import { ExtraMoney, type ExtraRow } from './ExtraMoney'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
@@ -148,6 +154,8 @@ export function Panel(props: {
   const { chat, ledger, device, host } = props
   const { data, config } = ledger
   const [work, setWork] = useState<Record<string, Work>>({})
+  const [appBank, setAppBank] = useState('')
+  const [bankApp, setBankApp] = useState<Step<BankAppResult> | null>(null)
   const patch = (phone: string, next: Partial<Work>) =>
     setWork((w) => ({ ...w, [phone]: { ...w[phone], ...next } }))
 
@@ -198,6 +206,21 @@ export function Panel(props: {
     r.settlement
       ? r.settlement.customerId === customerId
       : payerExtra.has(r.credit.id),
+  )
+  // A payment counts as extra only once its payer has an order paid; before
+  // that it is simply money no order has been matched to yet.
+  const settleable = new Set(
+    data && dayLedger
+      ? data.orders.flatMap((o) => {
+          const paid =
+            o.payment.state === 'matched'
+              ? data.credits.find((x) => x.id === o.payment.creditId)
+              : undefined
+          return paid
+            ? moreFromPayer(paid, dayLedger, config).map((x) => x.id)
+            : []
+        })
+      : [],
   )
   const settle = (creditId: string, state: Settlement['state']) =>
     void ledger.settleCredit(creditId, state, customerId)
@@ -384,8 +407,45 @@ export function Panel(props: {
       ),
       at,
     )
-    if (result.ok) await ledger.saveOrder(result.order)
-    patch(chat.phone, { notice: result.ok ? undefined : result.reason })
+    if (!result.ok) {
+      patch(chat.phone, { notice: result.reason })
+      return
+    }
+    await ledger.saveOrder(result.order)
+    // The verdict card shows the vendor's choice, not the question it answered.
+    const v = current.verify
+    patch(chat.phone, {
+      notice: undefined,
+      verify:
+        v?.status === 'done'
+          ? {
+              status: 'done',
+              value: {
+                ...v.value,
+                verdict: {
+                  kind: 'matched',
+                  creditId,
+                  notes: ['Confirmed by you.'],
+                },
+              },
+            }
+          : v,
+    })
+  }
+
+  async function readBankAppFile(file: File) {
+    setBankApp({ status: 'running', note: 'Reading the screenshot…' })
+    try {
+      const value = await importBankApp(
+        await fileToImage(file),
+        { bank: appBank || null, day: lagosToday(Date.now()) },
+        device,
+        ledger,
+      )
+      setBankApp({ status: 'done', value })
+    } catch (error) {
+      setBankApp({ status: 'error', message: errorText(error) })
+    }
   }
 
   async function draft() {
@@ -561,7 +621,11 @@ export function Panel(props: {
                 <p>
                   <strong>Extra money from this customer</strong>
                 </p>
-                <ExtraMoney rows={chatRows} onSettle={settle} />
+                <ExtraMoney
+                  rows={chatRows}
+                  settleable={settleable}
+                  onSettle={settle}
+                />
               </div>
             )}
           </section>
@@ -758,6 +822,61 @@ export function Panel(props: {
         )}
       </section>
 
+      <section className="card" aria-labelledby="app-h">
+        <h3 id="app-h">Bank app screenshot</h3>
+        <p className="hint">
+          When an alert email is missing, add a screenshot of today&apos;s
+          history from your bank app. It is read on this computer, and only
+          money the alerts did not show is added.
+        </p>
+        <label>
+          Your bank{' '}
+          <select value={appBank} onChange={(e) => setAppBank(e.target.value)}>
+            <option value="">Not sure</option>
+            {config.banks.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="file">
+          Screenshot (PNG or JPEG){' '}
+          <input
+            type="file"
+            accept="image/png,image/jpeg"
+            disabled={bankApp?.status === 'running'}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) void readBankAppFile(file)
+            }}
+          />
+        </label>
+        {bankApp?.status === 'running' && (
+          <p aria-live="polite">{bankApp.note}</p>
+        )}
+        {bankApp?.status === 'error' && (
+          <p className="error" role="alert">
+            {bankApp.message}
+          </p>
+        )}
+        {bankApp?.status === 'done' && (
+          <>
+            <Badge
+              source={bankApp.value.reading.source}
+              ms={bankApp.value.reading.ms}
+            />
+            <p>
+              {bankApp.value.reading.fields.length} rows read;{' '}
+              {bankApp.value.added.length === 0
+                ? 'nothing new beyond the alerts.'
+                : `${bankApp.value.added.length} new added.`}
+            </p>
+          </>
+        )}
+      </section>
+
       <section className="card" aria-labelledby="extra-h">
         <h3 id="extra-h">Money not tied to an order</h3>
         {extraRows.length === 0 ? (
@@ -769,6 +888,7 @@ export function Panel(props: {
         ) : (
           <ExtraMoney
             rows={extraRows}
+            settleable={settleable}
             onSettle={(id, state) =>
               void ledger.settleCredit(
                 id,

@@ -1,9 +1,11 @@
 import { bankFromNipCode } from './banks'
+import { sessionPrefix } from './history'
 import { formatNaira } from './money'
 import { nameScore } from './names'
 import {
   decodeSessionId,
   digitRuns,
+  prefixOf,
   sameSessionId,
   type SessionIdResult,
 } from './sessionId'
@@ -167,6 +169,8 @@ export function verifyReceipt(
     credit: Credit
     byId: boolean
     nameOk: boolean
+    // A bank-app row shows no payer name, so a missing match proves nothing.
+    nameUnknown: boolean
     timeOk: boolean
   }
   const scored: Scored[] = []
@@ -177,16 +181,25 @@ export function verifyReceipt(
     if (session.ok && c.sessionId) {
       if (!sameSessionId(c.sessionId, session.value.digits)) continue
       byId = true
+    } else if (session.ok && c.source === 'history') {
+      // Bank apps cut the ID short; the part shown must start the receipt's ID.
+      const prefix = sessionPrefix(c.narration)
+      if (prefix) {
+        if (!prefixOf(prefix, session.value.digits)) continue
+        byId = true
+      }
     }
     const window = sameBank
       ? config.sameBankWindowMin
       : config.interbankWindowMin
+    const nameOk =
+      nameScore(receipt.sender, `${c.sender} ${c.narration}`) >=
+      config.nameThreshold
     scored.push({
       credit: c,
       byId,
-      nameOk:
-        nameScore(receipt.sender, `${c.sender} ${c.narration}`) >=
-        config.nameThreshold,
+      nameOk,
+      nameUnknown: !nameOk && c.source === 'history',
       timeOk: timeFits(receipt.at, c.at, window, config),
     })
   }
@@ -221,6 +234,17 @@ export function verifyReceipt(
     }
     // A different name is not proof of a problem: the model may have misread
     // it, or a relative or a business account paid. The vendor decides.
+    const unnamed = scored.filter(
+      (s) =>
+        s.timeOk && s.nameUnknown && !ledger.claimedCredits.has(s.credit.id),
+    )
+    if (unnamed.length > 0) {
+      return {
+        kind: 'check',
+        reason: `${unnamed.length === 1 ? 'A credit' : `${unnamed.length} credits`} of ${formatNaira(receipt.amountKobo)} in your bank app fit the time, but the screenshot shows no payer name. Confirm which pays for this order, if any.`,
+        candidates: unnamed.map((s) => s.credit.id),
+      }
+    }
     const otherName = scored.filter(
       (s) => s.timeOk && !s.nameOk && !ledger.claimedCredits.has(s.credit.id),
     )
@@ -273,13 +297,19 @@ export function verifyReceipt(
       candidates: [chosen.credit.id],
     }
   }
+  const fromApp = chosen.credit.source === 'history'
   if (chosen.byId)
-    notes.push('The session ID on the receipt matches the bank alert.')
-  if (chosen.byId && !chosen.nameOk) {
+    notes.push(
+      fromApp
+        ? 'The start of the session ID matches a row in your bank app.'
+        : 'The session ID on the receipt matches the bank alert.',
+    )
+  if (chosen.byId && !chosen.nameOk && !fromApp) {
     notes.push(
       'The sender name reads differently on the alert, but the session ID agrees.',
     )
   }
+  if (fromApp) notes.push('Confirmed against your bank app screenshot.')
   if (chosen.credit.strength === 'alert received') {
     notes.push(
       `Confirmed against ${config.banks.find((b) => b.id === chosen.credit.bank)?.name ?? 'a bank'} alert email.`,

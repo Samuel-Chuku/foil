@@ -27,6 +27,8 @@ function status(s: Settlement): string {
 // desk only records the decision; any refund is sent from the bank app.
 export function ExtraMoney(props: {
   rows: ExtraRow[]
+  // Credits whose payer already has a paid order, so they can be called extra.
+  settleable: Set<string>
   onSettle: (creditId: string, state: Settlement['state']) => void
 }) {
   return (
@@ -37,9 +39,13 @@ export function ExtraMoney(props: {
             {formatNaira(credit.amountKobo)} from{' '}
             {credit.sender || 'an unknown sender'}
             {credit.at && ` at ${clock(credit)}`}
-            {settlement ? ` · ${status(settlement)}` : ' · no order yet'}
+            {settlement
+              ? ` · ${status(settlement)}`
+              : props.settleable.has(credit.id)
+                ? ' · a second payment from someone whose order is paid'
+                : ' · no order matched yet'}
           </p>
-          {!settlement && (
+          {!settlement && props.settleable.has(credit.id) && (
             <p>
               <button
                 type="button"

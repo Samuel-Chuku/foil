@@ -1,6 +1,14 @@
 import { useMemo, useState } from 'react'
-import { SAMPLE_CHATS, SAMPLE_DAY, SAMPLE_EMAILS } from '../sample/pack'
+import { drawHistory } from '../sample/historyImage'
+import {
+  SAMPLE_CHATS,
+  SAMPLE_DAY,
+  SAMPLE_DAY_MS,
+  SAMPLE_EMAILS,
+  SAMPLE_HISTORY,
+} from '../sample/pack'
 import { drawReceipt } from '../sample/receiptImage'
+import { importBankApp, type BankAppResult } from '../ui/bankApp'
 import type { OpenChat, PanelHost } from '../ui/host'
 import { Panel } from '../ui/Panel'
 import { useDevice } from '../ui/useDevice'
@@ -36,9 +44,19 @@ function alertLine(r: AlertResult): string {
 
 export default function DemoApp() {
   const chats = useMemo(() => buildChats(), [])
+  const history = useMemo(
+    () => drawHistory('GTBank', SAMPLE_HISTORY.heading, SAMPLE_HISTORY.rows),
+    [],
+  )
   const ledger = useLedger()
   const device = useDevice()
-  const [view, setView] = useState<'chats' | 'inbox'>('chats')
+  const [view, setView] = useState<'chats' | 'inbox' | 'bank'>('chats')
+  const [bankApp, setBankApp] = useState<
+    | { status: 'running' }
+    | { status: 'done'; value: BankAppResult }
+    | { status: 'error'; message: string }
+    | null
+  >(null)
   const [openPhone, setOpenPhone] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [verifyRequest, setVerifyRequest] = useState<{
@@ -63,9 +81,28 @@ export default function DemoApp() {
     }
   }
 
+  async function readBankApp() {
+    setBankApp({ status: 'running' })
+    try {
+      const value = await importBankApp(
+        history,
+        { bank: SAMPLE_HISTORY.bank, day: SAMPLE_DAY_MS },
+        device,
+        ledger,
+      )
+      setBankApp({ status: 'done', value })
+    } catch (error) {
+      setBankApp({
+        status: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
   async function reset() {
     await ledger.reset()
     setAlerts(null)
+    setBankApp(null)
     setDrafts({})
     setOpenPhone(null)
   }
@@ -97,6 +134,13 @@ export default function DemoApp() {
             onClick={() => setView('inbox')}
           >
             Inbox
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === 'bank'}
+            onClick={() => setView('bank')}
+          >
+            Bank app
           </button>
         </nav>
 
@@ -217,6 +261,55 @@ export default function DemoApp() {
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+        {view === 'bank' && (
+          <section className="bank-app" aria-label="Sample bank app">
+            <div className="inbox-head">
+              <p>
+                A screenshot of the shop&apos;s bank app. Use it when an alert
+                email is missing: the desk adds only money the alerts did not
+                show.
+              </p>
+              <button
+                type="button"
+                disabled={bankApp?.status === 'running'}
+                onClick={() => void readBankApp()}
+              >
+                {bankApp?.status === 'running'
+                  ? 'Reading…'
+                  : 'Read this screenshot'}
+              </button>
+            </div>
+            {bankApp?.status === 'error' && (
+              <p className="error" role="alert">
+                {bankApp.message}
+              </p>
+            )}
+            {bankApp?.status === 'done' && (
+              <p className="alert-result" aria-live="polite">
+                <span
+                  className="badge"
+                  data-source={bankApp.value.reading.source}
+                >
+                  {bankApp.value.reading.source}
+                </span>{' '}
+                {(bankApp.value.reading.ms / 1000).toFixed(1)} s ·{' '}
+                {bankApp.value.reading.fields.length} rows read,{' '}
+                {bankApp.value.added.length === 0
+                  ? 'all already known from the alerts.'
+                  : `new: ${bankApp.value.added
+                      .map(
+                        (c) =>
+                          `${c.direction === 'credit' ? '+' : '-'}${formatNaira(c.amountKobo)}`,
+                      )
+                      .join(', ')}.`}
+              </p>
+            )}
+            <img
+              src={history.src}
+              alt="Bank app transaction history for the sample day"
+            />
           </section>
         )}
       </main>

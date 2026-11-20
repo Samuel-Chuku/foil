@@ -1,4 +1,5 @@
 import type { AlertEmail } from '../verify/alerts'
+import type { RawHistoryRow } from '../verify/history'
 import type { RawReceipt } from '../verify/receiptFields'
 
 // Synthetic sample data for the hosted demo and the tests. Every name, phone
@@ -278,6 +279,49 @@ export const SAMPLE_CHATS: SampleChat[] = [
       },
     ],
   },
+  {
+    // No alert email came for this transfer; only the bank app shows it.
+    id: 'femi',
+    contactName: 'Femi',
+    phone: '+234 800 000 0007',
+    expected: 'matched',
+    messages: [
+      {
+        id: 'f1',
+        from: 'customer',
+        time: '16:20',
+        text: 'Good evening. I need two of the plain black caps. How much?',
+      },
+      {
+        id: 'f2',
+        from: 'vendor',
+        time: '16:22',
+        text: '₦11,000 each, so ₦22,000 for two.',
+      },
+      {
+        id: 'f3',
+        from: 'customer',
+        time: '16:31',
+        receipt: {
+          issuer: 'Moniepoint',
+          amountText: '₦22,000.00',
+          statusText: 'Successful',
+          sender: 'FEMI ADEYEMI',
+          recipient: 'SAMPLE STORES',
+          recipientBank: 'GTBank',
+          sessionId: '090405261121163012448302716594',
+          reference: '',
+          dateTime: '21/11/2026 16:30',
+        },
+      },
+      {
+        id: 'f4',
+        from: 'customer',
+        time: '16:31',
+        text: 'Done. Send them to 14 Adeniran Ogunsanya Street, Surulere, by the shopping mall.',
+      },
+    ],
+  },
 ]
 
 const GTBANK = 'gens@gtbank.com'
@@ -409,3 +453,67 @@ Time of Transaction    :    04:05:10 PM
 Document Number    :    00001326112116045800`,
   },
 ]
+
+// The shop's GTBank app history for the day, newest first, as a vendor would
+// screenshot it. Rows show truncated session IDs, not payer names.
+export const SAMPLE_HISTORY: {
+  bank: string
+  heading: string
+  rows: RawHistoryRow[]
+} = {
+  bank: 'gtbank',
+  heading: 'Sat, 21 Nov 2026',
+  rows: [
+    {
+      amountText: '+₦22,000.00',
+      direction: 'Credit',
+      description: '090405261121163012448…',
+      dateTime: '4:31 PM',
+    },
+    {
+      amountText: '-₦5,000.00',
+      direction: 'Debit',
+      description: '000013261121160458391… TRF TO OLUWAKEMI',
+      dateTime: '4:05 PM',
+    },
+    {
+      amountText: '+₦5,000.00',
+      direction: 'Credit',
+      description: '100033261121142310274…',
+      dateTime: '3:23 PM',
+    },
+    {
+      amountText: '+₦5,000.00',
+      direction: 'Credit',
+      description: '100033261121142035602…',
+      dateTime: '3:20 PM',
+    },
+    {
+      amountText: '-₦7,000.00',
+      direction: 'Debit',
+      description: 'RVSL 090267261121130205518…',
+      dateTime: '2:41 PM',
+    },
+    {
+      amountText: '+₦7,000.00',
+      direction: 'Credit',
+      description: '090267261121130205518…',
+      dateTime: '2:02 PM',
+    },
+    {
+      amountText: '+₦9,000.00',
+      direction: 'Credit',
+      description: 'MOBILE TRF 0123456789',
+      dateTime: '1:11 PM',
+    },
+    {
+      amountText: '+₦18,500.00',
+      direction: 'Credit',
+      description: '100004261121100212384…',
+      dateTime: '11:02 AM',
+    },
+  ],
+}
+
+// Midnight of the sample day, for history rows that print only a time.
+export const SAMPLE_DAY_MS = Date.UTC(2026, 10, 21)

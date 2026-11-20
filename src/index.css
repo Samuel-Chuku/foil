@@ -323,3 +323,13 @@ button.link {
 .extra-here {
   margin-top: 0.75rem;
 }
+.bank-app {
+  padding: 0.75rem;
+  overflow: auto;
+}
+.bank-app img {
+  display: block;
+  max-width: 100%;
+  border: 1px solid #8884;
+  border-radius: 6px;
+}
