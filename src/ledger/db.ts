@@ -1,23 +1,32 @@
 import type { Credit } from '../verify/types'
-import type { Customer, Order } from './types'
+import type { Customer, Order, Settlement } from './types'
 
 // Customers, orders and credits stay in this browser's IndexedDB. Only books
 // entries (see books.ts) ever leave the device.
 
-type Stores = { orders: Order; customers: Customer; credits: Credit }
+type Stores = {
+  orders: Order
+  customers: Customer
+  credits: Credit
+  settlements: Settlement
+}
 export type StoreName = keyof Stores
 
 const NAME = 'vendor-desk'
-const VERSION = 1
+const VERSION = 2
+const STORES: StoreName[] = ['orders', 'customers', 'credits', 'settlements']
 
 let opening: Promise<IDBDatabase> | null = null
 
 function open(): Promise<IDBDatabase> {
   opening ??= new Promise((resolve, reject) => {
     const req = indexedDB.open(NAME, VERSION)
+    // Version 2 added settlements; existing stores are kept as they are.
     req.onupgradeneeded = () => {
-      for (const store of ['orders', 'customers', 'credits'] as const) {
-        req.result.createObjectStore(store, { keyPath: 'id' })
+      for (const store of STORES) {
+        if (!req.result.objectStoreNames.contains(store)) {
+          req.result.createObjectStore(store, { keyPath: 'id' })
+        }
       }
     }
     req.onsuccess = () => {
@@ -95,8 +104,7 @@ export async function putAll(rows: {
 // Empties every store on this device, for the demo's reset and for a shop
 // laptop the vendor shares.
 export async function clearAll(): Promise<void> {
-  const stores: StoreName[] = ['orders', 'customers', 'credits']
-  await run(stores, 'readwrite', (tx) => {
-    for (const s of stores) tx.objectStore(s).clear()
+  await run(STORES, 'readwrite', (tx) => {
+    for (const s of STORES) tx.objectStore(s).clear()
   })
 }

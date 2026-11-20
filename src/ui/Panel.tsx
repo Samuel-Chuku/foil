@@ -13,13 +13,15 @@ import {
   normalisePhone,
   recordVerdict,
 } from '../ledger/ledger'
-import type { Order, PaymentState } from '../ledger/types'
+import { moreFromPayer, unclaimedCredits } from '../ledger/settle'
+import type { Order, PaymentState, Settlement } from '../ledger/types'
 import { verifyReceipt, type Verdict } from '../verify/match'
 import { formatNaira, parseNairaKobo } from '../verify/money'
 import type { RawReceipt } from '../verify/receiptFields'
 import { toReceipt } from '../verify/receiptFields'
 import type { Receipt } from '../verify/types'
 import type { OpenChat, PanelHost } from './host'
+import { ExtraMoney, type ExtraRow } from './ExtraMoney'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
 
@@ -155,6 +157,51 @@ export function Panel(props: {
   const order = data ? openOrder(data.orders, customerId) : null
   const current = chat ? (work[chat.phone] ?? {}) : {}
 
+  // Money that pays no order: the open list for the whole day, and the part
+  // that belongs with this chat (the customer's own decided extras, plus any
+  // undecided payment from whoever paid their order).
+  const settled = (id: string) =>
+    data?.settlements.find((x) => x.id === id) ?? null
+  const dayLedger = data
+    ? matcherLedger(
+        data.orders,
+        data.credits,
+        config,
+        undefined,
+        data.settlements,
+      )
+    : null
+  const extraRows: ExtraRow[] = data
+    ? [
+        ...(dayLedger ? unclaimedCredits(dayLedger) : []).map((c) => ({
+          credit: c,
+          settlement: settled(c.id),
+        })),
+        ...data.settlements
+          .filter((x) => x.state !== 'kept')
+          .flatMap((x) => {
+            const c = data.credits.find((cr) => cr.id === x.id)
+            return c ? [{ credit: c, settlement: x }] : []
+          }),
+      ]
+    : []
+  const paidWith =
+    order?.payment.state === 'matched'
+      ? (data?.credits.find((x) => x.id === order.payment.creditId) ?? null)
+      : null
+  const payerExtra = new Set(
+    paidWith && dayLedger
+      ? moreFromPayer(paidWith, dayLedger, config).map((x) => x.id)
+      : [],
+  )
+  const chatRows = extraRows.filter((r) =>
+    r.settlement
+      ? r.settlement.customerId === customerId
+      : payerExtra.has(r.credit.id),
+  )
+  const settle = (creditId: string, state: Settlement['state']) =>
+    void ledger.settleCredit(creditId, state, customerId)
+
   async function verify(messageId?: string) {
     if (!chat) return
     const phone = chat.phone
@@ -174,7 +221,13 @@ export function Panel(props: {
       const mine = openOrder(now.orders, normalisePhone(phone))
       const verdict = verifyReceipt(
         receipt,
-        matcherLedger(now.orders, now.credits, config, mine?.id),
+        matcherLedger(
+          now.orders,
+          now.credits,
+          config,
+          mine?.id,
+          now.settlements,
+        ),
         config,
       )
       if (mine) {
@@ -283,7 +336,13 @@ export function Panel(props: {
     if (v?.status === 'done') {
       const verdict = verifyReceipt(
         v.value.receipt,
-        matcherLedger(data.orders, data.credits, config, fresh.id),
+        matcherLedger(
+          data.orders,
+          data.credits,
+          config,
+          fresh.id,
+          data.settlements,
+        ),
         config,
       )
       fresh = recordVerdict(fresh, v.value.receipt, verdict, at)
@@ -316,7 +375,13 @@ export function Panel(props: {
     const result = confirmCredit(
       mine,
       creditId,
-      matcherLedger(data.orders, data.credits, config, mine.id),
+      matcherLedger(
+        data.orders,
+        data.credits,
+        config,
+        mine.id,
+        data.settlements,
+      ),
       at,
     )
     if (result.ok) await ledger.saveOrder(result.order)
@@ -338,6 +403,12 @@ export function Panel(props: {
           amountKobo: order?.amountKobo ?? v?.receipt.amountKobo ?? null,
           items: order?.items ?? [],
           pickup: Boolean(customer && !customer.address),
+          extra: extraRows
+            .filter((r) => r.settlement?.customerId === customerId)
+            .map((r) => ({
+              state: r.settlement!.state,
+              amountKobo: r.credit.amountKobo,
+            })),
         },
         transcript(
           chat.messages.map((m) => ({
@@ -484,6 +555,14 @@ export function Panel(props: {
                     ))}
                 </div>
               </>
+            )}
+            {chatRows.length > 0 && (
+              <div className="extra-here">
+                <p>
+                  <strong>Extra money from this customer</strong>
+                </p>
+                <ExtraMoney rows={chatRows} onSettle={settle} />
+              </div>
             )}
           </section>
 
@@ -677,15 +756,41 @@ export function Panel(props: {
             ))}
           </ul>
         )}
-        <p className="privacy">
-          Customer names, phone numbers and addresses stay on this computer.
-          Your books in the cloud hold only amounts and payment states.
-          {ledger.books.state === 'syncing' && ' Updating your books…'}
-          {ledger.books.state === 'synced' && ' Books up to date.'}
-          {ledger.books.state === 'failed' &&
-            ` Books not updated yet (${ledger.books.message}); orders are safe on this computer.`}
+      </section>
+
+      <section className="card" aria-labelledby="extra-h">
+        <h3 id="extra-h">Money not tied to an order</h3>
+        {extraRows.length === 0 ? (
+          <p className="empty">
+            {data?.credits.length
+              ? 'Every credit read so far pays for an order.'
+              : 'No bank alerts read yet.'}
+          </p>
+        ) : (
+          <ExtraMoney
+            rows={extraRows}
+            onSettle={(id, state) =>
+              void ledger.settleCredit(
+                id,
+                state,
+                settled(id)?.customerId ?? null,
+              )
+            }
+          />
+        )}
+        <p className="hint">
+          The desk records what you decide. Refunds are sent from your bank app.
         </p>
       </section>
+
+      <p className="privacy">
+        Customer names, phone numbers and addresses stay on this computer. Your
+        books in the cloud hold only amounts and payment states.
+        {ledger.books.state === 'syncing' && ' Updating your books…'}
+        {ledger.books.state === 'synced' && ' Books up to date.'}
+        {ledger.books.state === 'failed' &&
+          ` Books not updated yet (${ledger.books.message}); orders are safe on this computer.`}
+      </p>
     </aside>
   )
 }

@@ -99,6 +99,19 @@ describe('draft', () => {
     expect(p).not.toMatch(/fake|fraud/i)
   })
 
+  it('tells the customer what happens to money they sent twice', () => {
+    const p = draftPrompt(
+      {
+        ...facts,
+        payment: 'matched',
+        extra: [{ state: 'refund owed', amountKobo: 500_000 }],
+      },
+      'Customer (15:25): I send again.',
+    )
+    expect(p).toContain('extra ₦5,000')
+    expect(p).toContain('sent back')
+  })
+
   it('throws away accusing drafts', () => {
     expect(draftProblem('This receipt is fake.')).not.toBeNull()
     expect(draftProblem('Thank you, e don land!')).toBeNull()

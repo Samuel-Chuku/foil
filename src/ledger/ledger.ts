@@ -1,7 +1,7 @@
 import { findReversedCredits, type Ledger, type Verdict } from '../verify/match'
 import { decodeSessionId } from '../verify/sessionId'
 import type { Credit, Receipt, VerifyConfig } from '../verify/types'
-import type { BookEntry, Order, Payment } from './types'
+import type { BookEntry, Order, Payment, Settlement } from './types'
 
 // Nigerian numbers arrive as 0803..., +234 803..., 234803... or with spaces and
 // dashes; all become 234803... so one customer is one record.
@@ -51,7 +51,12 @@ export function matcherLedger(
   credits: Credit[],
   config: VerifyConfig,
   forOrderId?: string,
+  settlements: Settlement[] = [],
 ): Ledger {
+  // Money being refunded, or already refunded, can never pay an order.
+  const refunds = new Set(
+    settlements.filter((s) => s.state !== 'kept').map((s) => s.id),
+  )
   const claimedCredits = new Map<string, string>()
   const usedSessionIds = new Map<string, string>()
   for (const o of orders) {
@@ -60,7 +65,7 @@ export function matcherLedger(
     if (o.payment.sessionId) usedSessionIds.set(o.payment.sessionId, o.code)
   }
   return {
-    credits,
+    credits: credits.filter((c) => !refunds.has(c.id)),
     claimedCredits,
     usedSessionIds,
     reversedCredits: findReversedCredits(credits, config),
@@ -124,6 +129,27 @@ export function confirmCredit(
       updatedAt: now,
     },
   }
+}
+
+// The same alert can be imported twice: forwarded, re-sent by the bank or
+// pasted again. A second copy has a new email id but the same session ID or
+// document number, and must not become a second credit.
+export function freshCredits(existing: Credit[], incoming: Credit[]): Credit[] {
+  const keys = (c: Credit) =>
+    [
+      c.sessionId && `s ${c.direction} ${c.reversal} ${c.sessionId}`,
+      c.reference && `r ${c.bank} ${c.direction} ${c.reference}`,
+    ].filter((k): k is string => Boolean(k))
+  const seen = new Map<string, string>()
+  for (const c of existing) for (const k of keys(c)) seen.set(k, c.id)
+  const kept: Credit[] = []
+  for (const c of incoming) {
+    const ks = keys(c)
+    if (ks.some((k) => seen.has(k) && seen.get(k) !== c.id)) continue
+    for (const k of ks) seen.set(k, c.id)
+    kept.push(c)
+  }
+  return kept
 }
 
 // A reversal alert can arrive after an order was marked paid; that order is

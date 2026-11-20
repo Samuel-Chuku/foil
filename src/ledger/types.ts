@@ -55,3 +55,17 @@ export type BookEntry = {
   updatedAt: number
   paidAt: number | null
 }
+
+// What the vendor decided about money that pays no order, usually a customer
+// paying twice. Recorded only; the desk never moves money.
+export type Settlement = {
+  // The credit this is about.
+  id: string
+  state: 'refund owed' | 'refunded' | 'kept'
+  // Whose money it is, when the vendor decided from that customer's chat.
+  customerId: string | null
+  // The outgoing debit alert that showed the refund was sent.
+  refundId: string | null
+  decidedBy: 'rules' | 'vendor'
+  updatedAt: number
+}

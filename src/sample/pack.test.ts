@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_VERIFY as config } from '../config/defaults'
-import { matcherLedger, newOrder, recordVerdict } from '../ledger/ledger'
+import {
+  confirmCredit,
+  matcherLedger,
+  newOrder,
+  recordVerdict,
+} from '../ledger/ledger'
+import { applyRefunds, moreFromPayer, settle } from '../ledger/settle'
 import type { Order } from '../ledger/types'
 import { parseAlert } from '../verify/alerts'
 import { verifyReceipt } from '../verify/match'
@@ -20,6 +26,7 @@ describe('sample pack', () => {
     expect(results.map((r) => r.status)).toEqual([
       'parsed',
       'untrusted',
+      'parsed',
       'parsed',
       'parsed',
       'parsed',
@@ -57,4 +64,29 @@ describe('sample pack', () => {
       if (verdict.kind === 'check') expect(verdict.candidates).toHaveLength(2)
     })
   }
+
+  // Kemi paid twice: the vendor picks one credit, owes her the other back,
+  // and the transfer out in the alerts confirms the refund.
+  it('kemi gets her second payment refunded', () => {
+    const kemi = orders.at(-1)!
+    const before = orders.slice(0, -1)
+    const paid = confirmCredit(
+      kemi,
+      'e6',
+      matcherLedger(before, credits, config, kemi.id),
+      0,
+    )
+    if (!paid.ok) throw new Error(paid.reason)
+    const day = matcherLedger([...before, paid.order], credits, config)
+    const extra = moreFromPayer(
+      credits.find((c) => c.id === 'e6')!,
+      day,
+      config,
+    )
+    expect(extra.map((c) => c.id)).toEqual(['e7'])
+    const owed = settle(extra[0]!, 'refund owed', kemi.customerId, 0)
+    expect(applyRefunds([owed], credits, config, 1)).toMatchObject([
+      { id: 'e7', state: 'refunded', refundId: 'e8' },
+    ])
+  })
 })

@@ -1,4 +1,4 @@
-import type { OrderItem, PaymentState } from '../ledger/types'
+import type { OrderItem, PaymentState, Settlement } from '../ledger/types'
 import { formatNaira } from '../verify/money'
 
 export type DraftFacts = {
@@ -6,6 +6,8 @@ export type DraftFacts = {
   amountKobo: number | null
   items: OrderItem[]
   pickup: boolean
+  // Extra money from this customer that pays no order, and what the shop decided.
+  extra?: { state: Settlement['state']; amountKobo: number }[]
 }
 
 // The engine decides; the model only words the decision. Each state becomes a
@@ -29,10 +31,22 @@ function paymentLine(facts: DraftFacts): string {
   }
 }
 
+function extraLine(e: NonNullable<DraftFacts['extra']>[number]): string {
+  const amount = formatNaira(e.amountKobo)
+  switch (e.state) {
+    case 'refund owed':
+      return `They also sent an extra ${amount} that pays for nothing. Say it will be sent back to them.`
+    case 'refunded':
+      return `They had sent an extra ${amount}; it has been sent back to them.`
+    case 'kept':
+      return `They also sent an extra ${amount}; the shop is keeping it as credit for their next order.`
+  }
+}
+
 export function draftPrompt(facts: DraftFacts, chat: string): string {
   const items = facts.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
   return `You run a small Lagos shop and are replying to a customer on WhatsApp.
-Facts to convey: ${paymentLine(facts)}${items ? `\nOrder: ${items}.` : ''}${facts.pickup ? '\nThe customer will pick up from the shop.' : ''}
+Facts to convey: ${[paymentLine(facts), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.pickup ? '\nThe customer will pick up from the shop.' : ''}
 Write one short WhatsApp reply of one to three sentences, in the same language the customer uses (English or Nigerian Pidgin). Be warm and plain. Do not add facts, prices or promises that are not given here. Output only the reply text.
 
 Chat:

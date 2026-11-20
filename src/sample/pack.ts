@@ -391,4 +391,21 @@ Value Date    :    2026-11-21
 Time of Transaction    :    03:23:15 PM
 Document Number    :    10003326112114231000`,
   },
+  {
+    // The vendor sends Kemi's second payment back from the bank app.
+    id: 'e8',
+    from: GTBANK,
+    subject: 'GeNS Transaction Alert [Debit: NGN 5,000.00]',
+    time: '16:05',
+    receivedAt: at(16, 5, 10),
+    inSpam: false,
+    body: `We wish to inform you that a DEBIT transaction occurred on your account with us.
+Account Number    :    ******0001
+Description    :    000013261121160458391027465813-TRF TO OLUWAKEMI JOHNSON
+Amount    :    NGN 5000
+Value Date    :    2026-11-21
+Remarks    :    REFUND
+Time of Transaction    :    04:05:10 PM
+Document Number    :    00001326112116045800`,
+  },
 ]

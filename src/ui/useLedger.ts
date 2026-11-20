@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { DEFAULT_VERIFY } from '../config/defaults'
 import { syncBook, vendorId } from '../ledger/books'
 import { clearAll, getAll, putAll } from '../ledger/db'
-import { applyReversals, matcherLedger } from '../ledger/ledger'
-import type { Customer, Order } from '../ledger/types'
+import { applyReversals, freshCredits, matcherLedger } from '../ledger/ledger'
+import { applyRefunds, settle } from '../ledger/settle'
+import type { Customer, Order, Settlement } from '../ledger/types'
 import { parseAlert, type AlertEmail, type AlertResult } from '../verify/alerts'
 import type { Credit } from '../verify/types'
 
@@ -17,6 +18,7 @@ export type LedgerData = {
   orders: Order[]
   credits: Credit[]
   customers: Customer[]
+  settlements: Settlement[]
 }
 
 const config = DEFAULT_VERIFY
@@ -24,13 +26,14 @@ const config = DEFAULT_VERIFY
 // Read straight from IndexedDB, so a step that waited seconds on the model
 // decides against the records as they are now.
 async function load(): Promise<LedgerData> {
-  const [orders, credits, customers] = await Promise.all([
+  const [orders, credits, customers, settlements] = await Promise.all([
     getAll('orders'),
     getAll('credits'),
     getAll('customers'),
+    getAll('settlements'),
   ])
   orders.sort((a, b) => b.createdAt - a.createdAt)
-  return { orders, credits, customers }
+  return { orders, credits, customers, settlements }
 }
 
 function errorText(error: unknown): string {
@@ -107,21 +110,50 @@ export function useLedger() {
     async (emails: AlertEmail[]): Promise<AlertResult[]> => {
       const before = await load()
       const results = emails.map((e) => parseAlert(e, config))
-      const credits = results.flatMap((r) =>
-        r.status === 'parsed' ? [r.credit] : [],
+      const credits = freshCredits(
+        before.credits,
+        results.flatMap((r) => (r.status === 'parsed' ? [r.credit] : [])),
       )
       const all = [
         ...before.credits.filter((c) => !credits.some((n) => n.id === c.id)),
         ...credits,
       ]
+      const now = Date.now()
       const reversed = matcherLedger([], all, config).reversedCredits
-      const unpaid = applyReversals(before.orders, reversed, Date.now())
-      await putAll({ credits, orders: unpaid })
+      const unpaid = applyReversals(before.orders, reversed, now)
+      const refunded = applyRefunds(before.settlements, all, config, now)
+      await putAll({ credits, orders: unpaid, settlements: refunded })
       await reload()
       syncBooks(unpaid)
       return results
     },
     [reload, syncBooks],
+  )
+
+  // The vendor's decision about money that pays no order. A refund owed is
+  // confirmed at once if the transfer out was already in the alerts.
+  const settleCredit = useCallback(
+    async (
+      creditId: string,
+      state: Settlement['state'],
+      customerId: string | null,
+    ) => {
+      const before = await load()
+      const credit = before.credits.find((c) => c.id === creditId)
+      if (!credit) return
+      const now = Date.now()
+      const decided = settle(credit, state, customerId, now)
+      const others = before.settlements.filter((x) => x.id !== creditId)
+      const confirmed = applyRefunds(
+        [...others, decided],
+        before.credits,
+        config,
+        now,
+      ).find((x) => x.id === creditId)
+      await putAll({ settlements: [confirmed ?? decided] })
+      await reload()
+    },
+    [reload],
   )
 
   const reset = useCallback(async () => {
@@ -137,6 +169,7 @@ export function useLedger() {
     books,
     saveOrder,
     importAlerts,
+    settleCredit,
     reset,
     config,
   }
