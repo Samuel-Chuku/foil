@@ -73,7 +73,7 @@ address: the delivery address; empty if they will pick up
 landmark: a landmark near the address
 area: the Lagos area or neighbourhood, such as Yaba or Ikeja
 deliveryChoice: how the customer wants to receive it, in their words, such as pickup, sending their own rider, or a park
-state: the Nigerian state for delivery, if outside Lagos
+state: the Nigerian state or city for delivery, as written, including short forms such as PH or Abj
 park: the motor park they chose in that state
 payOnDelivery: yes if they will pay the delivery fee to the rider on delivery, otherwise empty
 

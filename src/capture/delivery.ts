@@ -1,7 +1,8 @@
 import type { DeliveryPlan } from '../ledger/types'
 import { formatNaira } from '../verify/money'
 import type { OrderFields } from './orderFields'
-import type { ShopRules } from './shopRules'
+import { chatNames, placeIn, sameState, stateOf, type State } from './places'
+import { homeOf, type ShopRules } from './shopRules'
 
 const OWN_RIDER =
   /\b(my|our) (own )?(rider|dispatch|driver|courier)\b|\bsend (my|a|our) (rider|dispatch|driver|person|someone)\b|\bi('ll| will) send (someone|a rider|my)\b/i
@@ -12,65 +13,6 @@ const same = (a: string, b: string) => {
   return x !== '' && y !== '' && (x.includes(y) || y.includes(x))
 }
 
-// States, and the cities people name instead of them, outside Lagos. Lagos
-// is home; anywhere here means a park delivery.
-const ELSEWHERE = [
-  'akwa ibom',
-  'cross river',
-  'port harcourt',
-  'abia',
-  'adamawa',
-  'anambra',
-  'bauchi',
-  'bayelsa',
-  'benue',
-  'borno',
-  'delta',
-  'ebonyi',
-  'edo',
-  'ekiti',
-  'enugu',
-  'gombe',
-  'imo',
-  'jigawa',
-  'kaduna',
-  'kano',
-  'katsina',
-  'kebbi',
-  'kogi',
-  'kwara',
-  'nasarawa',
-  'niger',
-  'ogun',
-  'ondo',
-  'osun',
-  'oyo',
-  'plateau',
-  'rivers',
-  'sokoto',
-  'taraba',
-  'yobe',
-  'zamfara',
-  'fct',
-  'abuja',
-  'ibadan',
-  'benin',
-  'owerri',
-  'jos',
-  'calabar',
-  'uyo',
-  'warri',
-  'abeokuta',
-  'ilorin',
-  'onitsha',
-  'asaba',
-  'akure',
-  'aba',
-  'nsukka',
-  'makurdi',
-  'minna',
-]
-
 const escape = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 // Whole words only: "Ogun" is not in "Ogunlana Drive".
@@ -78,17 +20,6 @@ function findWord(word: string, text: string): string {
   const w = word.trim()
   if (!w) return ''
   return new RegExp(`\\b${escape(w)}\\b`, 'i').exec(text)?.[0] ?? ''
-}
-
-// The first place outside Lagos named in these texts, as written.
-function placeElsewhere(...texts: string[]): string {
-  for (const t of texts) {
-    for (const p of ELSEWHERE) {
-      const hit = findWord(p, t)
-      if (hit) return hit
-    }
-  }
-  return ''
 }
 
 // The plan the chat supports, using the shop's own rules for fees. Returns
@@ -111,13 +42,26 @@ export function planDelivery(
   chat?: string,
 ): DeliveryPlan | null {
   if (rules.methods.length === 0) return null
-  const grounded = (x: string) =>
-    !chat ? x.trim() : findWord(x, chat) ? x.trim() : ''
-  const named = grounded(f.state)
-  const state =
-    (named && !/lagos/i.test(named) ? named : '') ||
-    placeElsewhere(f.area, f.address)
-  const park = grounded(f.park)
+  const park = !chat || findWord(f.park, chat) ? f.park.trim() : ''
+  // The first place the customer named, in the model's fields or the address,
+  // that the chat really mentions ("PH" counts for Rivers).
+  let found: State | null = null
+  for (const text of [f.state, park, f.area, f.address, f.deliveryChoice]) {
+    const place = placeIn(text)
+    if (place && (!chat || chatNames(place.state, chat))) {
+      found = place.state
+      break
+    }
+  }
+  // Another state than the shop's own means a park. With no home known, a
+  // state the shop sends parks to is taken as another state.
+  const home = homeOf(rules)
+  const away =
+    found !== null &&
+    (home
+      ? found !== home
+      : rules.parks.some((p) => stateOf(p.state) === found))
+  const state = away && found ? (found === 'FCT' ? 'Abuja' : found) : ''
   const plan: DeliveryPlan = {
     method: null,
     area: f.area,
@@ -131,7 +75,7 @@ export function planDelivery(
     return { ...plan, method: 'customer-rider', paidTo: null }
   }
   if (state || park) {
-    const parks = rules.parks.filter((p) => same(p.state, state))
+    const parks = rules.parks.filter((p) => sameState(p.state, state))
     const chosen = park ? parks.find((p) => same(p.park, park)) : undefined
     // With no park chosen yet, the fee is still known if every park in that
     // state costs the same.
@@ -190,7 +134,9 @@ export function ruleFee(
     )
   }
   if (plan.method === 'nationwide') {
-    const parks = rules.parks.filter((p) => same(p.state, plan.state))
+    const parks = rules.parks.filter(
+      (p) => sameState(p.state, plan.state) || same(p.state, plan.state),
+    )
     const chosen = plan.park
       ? parks.find((p) => same(p.park, plan.park))
       : undefined
@@ -255,7 +201,9 @@ export function deliveryFacts(
         `The customer's own rider will collect the order${rules.pickupAddress ? ` from ${rules.pickupAddress}` : ''}; the customer pays their rider.`,
       ]
     case 'nationwide': {
-      const parks = rules.parks.filter((p) => same(p.state, plan.state))
+      const parks = rules.parks.filter(
+        (p) => sameState(p.state, plan.state) || same(p.state, plan.state),
+      )
       if (!plan.park && parks.length > 1) {
         return [
           `Delivery to ${plan.state} goes to a park. Ask which park they want: ${parks.map((p) => `${p.park} (${formatNaira(p.feeKobo)})`).join(', ')}.`,

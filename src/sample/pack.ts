@@ -434,6 +434,28 @@ export const SAMPLE_CHATS: SampleChat[] = [
       },
     ],
   },
+  {
+    // Writes "Ph" for Port Harcourt, a state the shop has no park price for.
+    id: 'ebi',
+    contactName: 'Ebi',
+    phone: '+234 800 000 0010',
+    expected: 'awaiting',
+    messages: [
+      {
+        id: 'eb1',
+        from: 'customer',
+        time: '18:02',
+        text: 'Hi, how much for the brown leather sandals in size 41?',
+      },
+      { id: 'eb2', from: 'vendor', time: '18:04', text: '₦9,500.' },
+      {
+        id: 'eb3',
+        from: 'customer',
+        time: '18:06',
+        text: 'Oya. I dey for Ph, Rumuokoro side. Una fit send am come?',
+      },
+    ],
+  },
 ]
 
 const GTBANK = 'gens@gtbank.com'
@@ -665,6 +687,7 @@ export const SAMPLE_DAY_MS = Date.UTC(2026, 10, 21)
 
 // The sample shop's own terms, as a vendor would type them.
 export const SAMPLE_SHOP_RULES: ShopRules = {
+  homeState: 'Lagos',
   methods: ['own-rider', 'courier', 'pickup', 'nationwide'],
   areaFees: [
     { area: 'Yaba', feeKobo: 150_000 },

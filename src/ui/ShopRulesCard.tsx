@@ -8,15 +8,18 @@ import {
   MAX_POLICY_CHARS,
   mergeRead,
   METHOD_LABEL,
+  homeOf,
   type DeliveryMethod,
   type ShopRules,
 } from '../capture/shopRules'
+import { STATES, type State } from '../capture/places'
 import { parseNairaKobo } from '../verify/money'
 import { fileToImage } from './bankApp'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { ShopRulesApi } from './useShopRules'
 
 type Form = {
+  homeState: ShopRules['homeState']
   methods: DeliveryMethod[]
   areas: { area: string; fee: string }[]
   otherFee: string
@@ -32,6 +35,7 @@ type Form = {
 const naira = (kobo: number) => String(kobo / 100)
 
 const toForm = (r: ShopRules): Form => ({
+  homeState: r.homeState,
   methods: r.methods,
   areas: r.areaFees.map((f) => ({ area: f.area, fee: naira(f.feeKobo) })),
   otherFee: r.otherAreasFeeKobo === null ? '' : naira(r.otherAreasFeeKobo),
@@ -49,6 +53,7 @@ const toForm = (r: ShopRules): Form => ({
 })
 
 const fromForm = (f: Form): ShopRules => ({
+  homeState: f.homeState,
   methods: f.methods,
   areaFees: f.areas.flatMap((x) => {
     const feeKobo = parseNairaKobo(x.fee)
@@ -171,6 +176,8 @@ export function ShopRulesCard(props: {
   }
 
   const uses = (m: DeliveryMethod) => f.methods.includes(m)
+  // What the address says when the vendor has not chosen a state.
+  const inferred = homeOf({ ...fromForm(f), homeState: '' })
   const r = shop.rules
   const summary = [
     r.methods.length > 0 && `${r.methods.length} delivery options`,
@@ -211,6 +218,29 @@ export function ShopRulesCard(props: {
             deliver, for example for services or digital goods.
           </p>
           <Checked field="methods" form={f} />
+          <label>
+            Where is your shop?{' '}
+            <select
+              value={f.homeState}
+              onChange={(e) =>
+                edit({ homeState: e.target.value as State | '' })
+              }
+            >
+              <option value="">
+                {inferred
+                  ? `Not chosen (looks like ${inferred === 'FCT' ? 'Abuja' : inferred}, from your address)`
+                  : 'Not chosen'}
+              </option>
+              {STATES.map((st) => (
+                <option key={st} value={st}>
+                  {st === 'FCT' ? 'Abuja (FCT)' : st}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="hint">
+            A customer in any other state is offered your nationwide option.
+          </p>
           {DELIVERY_METHODS.map((m) => (
             <label key={m} className="check">
               <input

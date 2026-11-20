@@ -42,10 +42,12 @@ function paymentLine(facts: DraftFacts): string {
       return `The payment could not be confirmed against the shop's account. Ask politely whether they can check with their bank and resend the receipt.`
     case 'check':
       return `The shop is still confirming the payment. Say you will confirm shortly.`
+    // Before any payment, the customer is still asking; telling them they
+    // have not paid reads as a complaint.
     default:
       return facts.amountKobo === null
-        ? 'No payment has been sent yet. Answer their latest message.'
-        : `No payment has been sent yet. The total is ${formatNaira(facts.amountKobo)}; answer their latest message and give the total.`
+        ? 'Answer their latest message. Do not mention payment.'
+        : `Answer their latest message and give the price of ${formatNaira(facts.amountKobo)}. Do not say that they have not paid.`
   }
 }
 

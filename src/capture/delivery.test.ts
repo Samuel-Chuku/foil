@@ -122,6 +122,51 @@ describe('places the model reads', () => {
   })
 })
 
+describe("the shop's own state", () => {
+  it('sends a customer in Ph to a park when the shop is in Lagos', () => {
+    const chat = 'Abeg send am to Ph, Rumuokoro side.'
+    expect(
+      planDelivery(said({ area: 'Ph', address: 'Rumuokoro' }), rules, chat),
+    ).toMatchObject({ method: 'nationwide', state: 'Rivers' })
+  })
+
+  it('treats Lagos as another state for a shop in Abuja', () => {
+    const abuja = {
+      ...rules,
+      homeState: 'FCT' as const,
+      areaFees: [{ area: 'Wuse', feeKobo: 100_000 }],
+      parks: [{ state: 'Lagos', park: 'Jibowu', feeKobo: 800_000 }],
+    }
+    expect(
+      planDelivery(
+        said({ area: 'Lag', address: 'Yaba' }),
+        abuja,
+        'I dey Lag, Yaba',
+      ),
+    ).toMatchObject({ method: 'nationwide', state: 'Lagos', feeKobo: 800_000 })
+    expect(
+      planDelivery(said({ area: 'Wuse 2' }), abuja, 'Wuse 2 abeg'),
+    ).toMatchObject({ method: 'own-rider', feeKobo: 100_000 })
+  })
+
+  it('works out the home state from the pickup address when not chosen', () => {
+    // rules has no homeState but its pickup address is in Yaba, Lagos.
+    expect(
+      planDelivery(said({ area: 'Mowe' }), rules, 'Send it to Mowe'),
+    ).toMatchObject({ method: 'nationwide', state: 'Ogun' })
+  })
+
+  it('ignores a state the chat never mentions', () => {
+    expect(
+      planDelivery(
+        said({ state: 'Rivers', area: 'Yaba' }),
+        rules,
+        'Deliver to Yaba',
+      ),
+    ).toMatchObject({ method: 'own-rider', area: 'Yaba' })
+  })
+})
+
 describe('delivery in drafts and balances', () => {
   const plan = planDelivery(said({ area: 'Yaba' }), rules)
 

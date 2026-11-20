@@ -1,5 +1,6 @@
 import { formatNaira, parseNairaKobo } from '../verify/money'
 import { clean } from '../verify/receiptFields'
+import { stateOf, STATES, type State } from './places'
 
 // The shop's own terms, entered by the vendor or read from their documents.
 // Kept on the device; drafts quote them so the model never invents a fee, an
@@ -26,6 +27,9 @@ export type AreaFee = { area: string; feeKobo: number }
 export type ParkFee = { state: string; park: string; feeKobo: number }
 
 export type ShopRules = {
+  // The state the shop is in. Any other state a customer names means a park
+  // delivery. Empty when the vendor has not chosen; see homeOf.
+  homeState: State | ''
   methods: DeliveryMethod[]
   areaFees: AreaFee[]
   // Own-rider fee for areas not listed; null when quoted each time.
@@ -44,6 +48,7 @@ export type ShopRules = {
 }
 
 export const EMPTY_RULES: ShopRules = {
+  homeState: '',
   methods: [],
   areaFees: [],
   otherAreasFeeKobo: null,
@@ -83,6 +88,9 @@ export function normaliseRules(raw: unknown): ShopRules {
     DELIVERY_METHODS.includes(m as DeliveryMethod),
   )
   return {
+    homeState: STATES.includes(r.homeState as State)
+      ? (r.homeState as State)
+      : '',
     methods:
       methods.length > 0 || 'methods' in r
         ? methods
@@ -104,6 +112,16 @@ export function normaliseRules(raw: unknown): ShopRules {
     policies: text(r.policies),
     fromFile: list(r.fromFile, (f): f is string => typeof f === 'string'),
   }
+}
+
+// The shop's state: the one the vendor chose, or else the one its pickup
+// address or delivery areas point to. Null when nothing says.
+export function homeOf(rules: ShopRules): State | null {
+  return (
+    rules.homeState ||
+    stateOf(rules.pickupAddress) ||
+    stateOf(rules.areaFees.map((a) => a.area).join(', '))
+  )
 }
 
 // What the model copies from a policy document or screenshot, as written.

@@ -192,6 +192,15 @@ describe('draft', () => {
     expect(tidyDraft('She said "yes" today.')).toBe('She said "yes" today.')
   })
 
+  it('answers a customer who has not paid yet without mentioning it', () => {
+    const p = draftPrompt(
+      { ...facts, payment: null, amountKobo: 950_000 },
+      'Customer (18:06): Una fit send am come?',
+    )
+    expect(p).toContain('give the price of ₦9,500')
+    expect(p).toContain('Do not say that they have not paid')
+  })
+
   it('throws away accusing drafts', () => {
     expect(draftProblem('This receipt is fake.')).not.toBeNull()
     expect(draftProblem('Thank you, e don land!')).toBeNull()
