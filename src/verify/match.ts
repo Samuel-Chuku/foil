@@ -1,7 +1,11 @@
 import { bankFromNipCode } from './banks'
 import { formatNaira } from './money'
 import { nameScore } from './names'
-import { decodeSessionId, sameSessionId } from './sessionId'
+import {
+  decodeSessionId,
+  sameSessionId,
+  type SessionIdResult,
+} from './sessionId'
 import type { Credit, Receipt, Stamp, VerifyConfig } from './types'
 
 const MIN = 60_000
@@ -72,7 +76,15 @@ export function verifyReceipt(
     }
   }
 
-  const session = decodeSessionId(receipt.reference)
+  const decoded = decodeSessionId(receipt.reference)
+  // One misread digit can move the date inside an ID by decades. Such an ID is
+  // unreadable, not evidence: it must lead to "check", never to a mismatch.
+  const session: SessionIdResult =
+    decoded.ok &&
+    receipt.at &&
+    Math.abs(decoded.value.stampedMs - receipt.at.ms) > 366 * 86_400_000
+      ? { ok: false, reason: 'date' }
+      : decoded
   const notes: string[] = []
 
   if (session.ok) {
@@ -157,6 +169,23 @@ export function verifyReceipt(
       return {
         kind: 'mismatch',
         reason: `The matching credit already pays for order ${ledger.claimedCredits.get(taken.credit.id)}.`,
+      }
+    }
+    // Without this the vendor would read "not arrived yet" and keep waiting
+    // for money the bank has already taken back.
+    const reversed = ledger.credits.find(
+      (c) =>
+        ledger.reversedCredits.has(c.id) &&
+        c.amountKobo === receipt.amountKobo &&
+        (session.ok && c.sessionId
+          ? sameSessionId(c.sessionId, session.value.digits)
+          : nameScore(receipt.sender, `${c.sender} ${c.narration}`) >=
+            config.nameThreshold),
+    )
+    if (reversed) {
+      return {
+        kind: 'not yet credited',
+        reason: `A credit of ${formatNaira(receipt.amountKobo)} arrived for this receipt, but the bank later reversed it, so it is not paid.`,
       }
     }
     const wrongName = scored.find((s) => s.timeOk && !s.nameOk)

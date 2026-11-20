@@ -45,6 +45,10 @@ describe('order fields', () => {
     })
     expect(pickOrder('nonsense').items).toEqual([])
     expect(pickOrder({ customerName: 'null' }).customerName).toBe('')
+    expect(pickOrder({ area: 'unknown', landmark: 'absent' })).toMatchObject({
+      area: '',
+      landmark: '',
+    })
   })
 
   it('prefers the stated total', () => {
@@ -58,6 +62,14 @@ describe('order fields', () => {
     })
     expect(f.amountKobo).toBe(1_850_000)
     expect(f.items[1]).toEqual({ name: 'Headwrap', qty: 1, priceKobo: 350_000 })
+  })
+
+  it('treats a pickup written as an address as no address', () => {
+    const f = toOrderFields({
+      ...pickOrder({}),
+      address: 'pick up at your shop',
+    })
+    expect(f.address).toBe('')
   })
 
   it('sums only when every item has a price', () => {

@@ -31,7 +31,9 @@ export const RAW_RECEIPT_FIELDS: readonly (keyof RawReceipt)[] = [
 // Models fill absent fields with placeholders instead of leaving them empty.
 export function clean(text: string): string {
   const t = text.trim()
-  return /^(n\/?a|none|null|nil|not (shown|available|found)|-+)$/i.test(t)
+  return /^(n\/?a|none|null|nil|unknown|absent|empty|not (shown|available|found|given|stated|provided|mentioned|specified)|-+)$/i.test(
+    t,
+  )
     ? ''
     : t
 }

@@ -78,7 +78,7 @@ export const SAMPLE_CHATS: SampleChat[] = [
           sender: 'ADAEZE OKAFOR',
           recipient: 'SAMPLE STORES',
           recipientBank: 'Guaranty Trust Bank',
-          sessionId: '100004261121100212000000000123',
+          sessionId: '100004261121100212384915207642',
           reference: '261121010200871234',
           dateTime: 'Nov 21, 2026 11:02 AM',
         },
@@ -116,7 +116,7 @@ export const SAMPLE_CHATS: SampleChat[] = [
           sender: 'TUNDE BAKARE',
           recipient: 'SAMPLE STORES',
           recipientBank: 'GTBank',
-          sessionId: '000014261121124501000000000456',
+          sessionId: '000014261121124501730268159843',
           reference: '',
           dateTime: '21/11/2026 12:45',
         },
@@ -166,6 +166,118 @@ export const SAMPLE_CHATS: SampleChat[] = [
       },
     ],
   },
+  {
+    // Verify after Adaeze: this is her receipt, forwarded for another order.
+    id: 'emeka',
+    contactName: 'Emeka',
+    phone: '+234 800 000 0004',
+    expected: 'mismatch',
+    messages: [
+      {
+        id: 'e1',
+        from: 'customer',
+        time: '13:40',
+        text: 'Good afternoon. I want the brown leather bag, ₦18,500.',
+      },
+      { id: 'e2', from: 'vendor', time: '13:42', text: 'Available. ₦18,500.' },
+      {
+        id: 'e3',
+        from: 'customer',
+        time: '13:47',
+        receipt: {
+          issuer: 'OPay',
+          amountText: '₦18,500.00',
+          statusText: 'Successful',
+          sender: 'ADAEZE OKAFOR',
+          recipient: 'SAMPLE STORES',
+          recipientBank: 'Guaranty Trust Bank',
+          sessionId: '100004261121100212384915207642',
+          reference: '261121010200871234',
+          dateTime: 'Nov 21, 2026 11:02 AM',
+        },
+      },
+      {
+        id: 'e4',
+        from: 'customer',
+        time: '13:47',
+        text: 'Paid. Please send it to 3 Ogunlana Drive, Surulere.',
+      },
+    ],
+  },
+  {
+    id: 'bisi',
+    contactName: 'Bisi',
+    phone: '+234 800 000 0005',
+    expected: 'not yet credited',
+    messages: [
+      {
+        id: 'b1',
+        from: 'customer',
+        time: '13:55',
+        text: 'Hello! Do you still have the beaded necklace? How much?',
+      },
+      { id: 'b2', from: 'vendor', time: '13:57', text: 'Yes, ₦7,000.' },
+      {
+        id: 'b3',
+        from: 'customer',
+        time: '14:03',
+        receipt: {
+          issuer: 'Kuda',
+          amountText: '₦7,000.00',
+          statusText: 'Successful',
+          sender: 'BISI ADEOLA',
+          recipient: 'SAMPLE STORES',
+          recipientBank: 'GTBank',
+          sessionId: '090267261121130205518264093771',
+          reference: '',
+          dateTime: '21/11/2026 14:02',
+        },
+      },
+      {
+        id: 'b4',
+        from: 'customer',
+        time: '14:03',
+        text: 'Sent. I will pick it up tomorrow.',
+      },
+    ],
+  },
+  {
+    id: 'kemi',
+    contactName: 'Kemi J',
+    phone: '+234 800 000 0006',
+    expected: 'check',
+    messages: [
+      {
+        id: 'k1',
+        from: 'customer',
+        time: '15:10',
+        text: 'Abeg how much for the silk scarf?',
+      },
+      { id: 'k2', from: 'vendor', time: '15:12', text: '₦5,000.' },
+      {
+        id: 'k3',
+        from: 'customer',
+        time: '15:24',
+        receipt: {
+          issuer: 'PalmPay',
+          amountText: '₦5,000.00',
+          statusText: 'Successful',
+          sender: 'OLUWAKEMI JOHNSON',
+          recipient: 'SAMPLE STORES',
+          recipientBank: 'GTBank',
+          sessionId: '',
+          reference: 'PP2611211520000123',
+          dateTime: '21/11/2026 15:20',
+        },
+      },
+      {
+        id: 'k4',
+        from: 'customer',
+        time: '15:25',
+        text: 'The first one show pending so I send again. Abeg check am. Deliver to 9 Admiralty Way, Lekki.',
+      },
+    ],
+  },
 ]
 
 const GTBANK = 'gens@gtbank.com'
@@ -180,7 +292,7 @@ export const SAMPLE_EMAILS: SampleEmail[] = [
     inSpam: false,
     body: `We wish to inform you that a CREDIT transaction occurred on your account with us.
 Account Number    :    ******0001
-Description    :    100004261121100212000000000123-ADAEZE OKAFOR
+Description    :    100004261121100212384915207642-ADAEZE OKAFOR
 Amount    :    NGN 18500
 Value Date    :    2026-11-21
 Remarks    :    ADAEZE OKAFOR GOWN
@@ -196,7 +308,7 @@ Document Number    :    10000426112110021200`,
     inSpam: false,
     body: `We wish to inform you that a CREDIT transaction occurred on your account with us.
 Account Number    :    ******0001
-Description    :    000014261121124501000000000456-TUNDE BAKARE
+Description    :    000014261121124501730268159843-TUNDE BAKARE
 Amount    :    NGN 12000
 Value Date    :    2026-11-21
 Time of Transaction    :    12:46:40 PM`,
@@ -216,5 +328,67 @@ Value Date    :    2026-11-21
 Remarks    :    SNEAKERS
 Time of Transaction    :    01:11:20 PM
 Document Number    :    0123456789`,
+  },
+  {
+    id: 'e4',
+    from: GTBANK,
+    subject: 'GeNS Transaction Alert [Credit: NGN 7,000.00]',
+    time: '14:02',
+    receivedAt: at(14, 2, 40),
+    inSpam: false,
+    body: `We wish to inform you that a CREDIT transaction occurred on your account with us.
+Account Number    :    ******0001
+Description    :    090267261121130205518264093771-BISI ADEOLA
+Amount    :    NGN 7000
+Value Date    :    2026-11-21
+Remarks    :    NECKLACE
+Time of Transaction    :    02:02:40 PM
+Document Number    :    09026726112113020500`,
+  },
+  {
+    id: 'e5',
+    from: GTBANK,
+    subject: 'GeNS Transaction Alert [Debit: NGN 7,000.00]',
+    time: '14:41',
+    receivedAt: at(14, 41, 0),
+    inSpam: false,
+    body: `We wish to inform you that a DEBIT transaction occurred on your account with us.
+Account Number    :    ******0001
+Description    :    090267261121130205518264093771-REVERSAL BISI ADEOLA
+Amount    :    NGN 7000
+Value Date    :    2026-11-21
+Remarks    :    RVSL
+Time of Transaction    :    02:41:00 PM
+Document Number    :    09026726112113020599`,
+  },
+  {
+    id: 'e6',
+    from: GTBANK,
+    subject: 'GeNS Transaction Alert [Credit: NGN 5,000.00]',
+    time: '15:20',
+    receivedAt: at(15, 20, 40),
+    inSpam: false,
+    body: `We wish to inform you that a CREDIT transaction occurred on your account with us.
+Account Number    :    ******0001
+Description    :    100033261121142035602947318256-OLUWAKEMI JOHNSON
+Amount    :    NGN 5000
+Value Date    :    2026-11-21
+Time of Transaction    :    03:20:40 PM
+Document Number    :    10003326112114203500`,
+  },
+  {
+    id: 'e7',
+    from: GTBANK,
+    subject: 'GeNS Transaction Alert [Credit: NGN 5,000.00]',
+    time: '15:23',
+    receivedAt: at(15, 23, 15),
+    inSpam: false,
+    body: `We wish to inform you that a CREDIT transaction occurred on your account with us.
+Account Number    :    ******0001
+Description    :    100033261121142310274819605338-OLUWAKEMI JOHNSON
+Amount    :    NGN 5000
+Value Date    :    2026-11-21
+Time of Transaction    :    03:23:15 PM
+Document Number    :    10003326112114231000`,
   },
 ]

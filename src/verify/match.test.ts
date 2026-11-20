@@ -271,3 +271,30 @@ describe('receipt status, reversals', () => {
     }
   })
 })
+
+describe('verifyReceipt: reversals', () => {
+  it('says a reversed credit is not paid, not that it has yet to arrive', () => {
+    const v = verifyReceipt(
+      receipt(),
+      ledger([credit({ sessionId: OPAY_ID })], {
+        reversedCredits: new Set(['c1']),
+      }),
+      config,
+    )
+    expect(v).toMatchObject({ kind: 'not yet credited' })
+    expect(v.kind === 'not yet credited' && v.reason).toContain('reversed')
+  })
+})
+
+describe('verifyReceipt: misread session IDs', () => {
+  it('treats an ID whose date is decades off as unreadable, not a mismatch', () => {
+    // OPAY_ID with its first zero dropped and a digit added: dated 2061.
+    const misread = '100042611121100212000000000123'
+    const v = verifyReceipt(
+      receipt({ reference: misread }),
+      ledger([credit()]),
+      config,
+    )
+    expect(v.kind).toBe('check')
+  })
+})

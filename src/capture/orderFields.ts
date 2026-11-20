@@ -65,7 +65,8 @@ export function toOrderFields(raw: RawOrder): OrderFields {
     items,
     amountKobo: parseNairaKobo(raw.total) ?? (summed || null),
     customerName: raw.customerName,
-    address: raw.address,
+    // Models sometimes write the pickup itself into the address field.
+    address: /\bpick(ing)?[\s-]?up\b/i.test(raw.address) ? '' : raw.address,
     landmark: raw.landmark,
     area: raw.area,
   }
