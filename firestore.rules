@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// The books hold amounts, states and times for a signed-in vendor, and only
+// that vendor can read or write them. The field list is closed, so a client
+// that tried to add a name, phone or address would be refused here too.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /vendors/{uid}/books/{orderId} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && isBookEntry(request.resource.data, orderId);
+    }
+
+    function isBookEntry(d, orderId) {
+      return d.keys().hasOnly(['orderId', 'mode', 'amountKobo', 'payment',
+          'decidedBy', 'delivery', 'createdAt', 'updatedAt', 'paidAt'])
+        && d.orderId == orderId
+        && d.mode in ['everyday', 'drop']
+        && (d.amountKobo == null || d.amountKobo is int)
+        && d.payment in ['awaiting', 'matched', 'not yet credited',
+          'mismatch', 'check']
+        && (d.decidedBy == null || d.decidedBy in ['rules', 'vendor'])
+        && d.delivery in ['pending', 'out', 'delivered', 'collected']
+        && d.createdAt is int
+        && d.updatedAt is int
+        && (d.paidAt == null || d.paidAt is int);
+    }
+  }
+}
