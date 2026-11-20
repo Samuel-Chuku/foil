@@ -63,7 +63,7 @@ describe('sample pack', () => {
   // working down the list would: Emeka's receipt is only "already used" once
   // Adaeze's order holds it.
   const orders: Order[] = []
-  for (const chat of SAMPLE_CHATS) {
+  for (const chat of SAMPLE_CHATS.filter((c) => c.expected !== 'awaiting')) {
     it(`${chat.id} is ${chat.expected}`, () => {
       const sample = chat.messages.find((m) => m.receipt)!.receipt!
       const receipt = toReceipt(sample, config)

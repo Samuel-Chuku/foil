@@ -14,6 +14,7 @@ import { parseAlert, type AlertEmail, type AlertResult } from '../verify/alerts'
 import {
   historyCredits,
   newHistoryCredits,
+  supersededRows,
   type RawHistoryRow,
 } from '../verify/history'
 import type { Credit } from '../verify/types'
@@ -187,7 +188,28 @@ export function useLedger() {
         before.credits,
         results.flatMap((r) => (r.status === 'parsed' ? [r.credit] : [])),
       )
-      await addCredits(before, credits)
+      // Screenshot rows for the same money give way to the alert, unless an
+      // order or a decision already rests on them.
+      const day = matcherLedger(
+        before.orders,
+        before.credits,
+        verifyConfig(),
+        undefined,
+        before.settlements,
+      )
+      const replaced = supersededRows(before.credits, credits).filter(
+        (id) =>
+          !day.claimedCredits.has(id) &&
+          !before.settlements.some((s) => s.creditId === id),
+      )
+      for (const id of replaced) await remove('credits', id)
+      await addCredits(
+        {
+          ...before,
+          credits: before.credits.filter((c) => !replaced.includes(c.id)),
+        },
+        credits,
+      )
       return results
     },
     [addCredits],

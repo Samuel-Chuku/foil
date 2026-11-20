@@ -4,6 +4,7 @@ import {
   historyCredits,
   newHistoryCredits,
   sessionPrefix,
+  supersededRows,
   type RawHistoryRow,
 } from './history'
 import { verifyReceipt, type Ledger } from './match'
@@ -141,5 +142,28 @@ describe('verifyReceipt with bank-app rows', () => {
     const plain = row({ description: 'Via Airt Via' })
     const v = verifyReceipt(receipt(), ledger(read([plain])), config)
     expect(v).toMatchObject({ kind: 'check', candidates: ['h1-1'] })
+  })
+})
+
+describe('alerts after a screenshot', () => {
+  it('replace the screenshot row for the same money, and only that row', () => {
+    const [appRow, other] = read([
+      row(),
+      row({
+        amountText: '+₦9,000.00',
+        description: 'MOBILE TRF',
+        dateTime: '1:11 PM',
+      }),
+    ])
+    const alert: Credit = {
+      ...appRow!,
+      id: 'e9',
+      sender: 'FEMI ADEYEMI',
+      sessionId: MONIEPOINT_ID,
+      source: 'alert',
+      strength: 'alert received',
+      at: { ms: at(16, 30, 40), precision: 'second' },
+    }
+    expect(supersededRows([appRow!, other!], [alert])).toEqual([appRow!.id])
   })
 })

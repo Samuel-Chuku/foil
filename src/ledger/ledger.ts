@@ -5,6 +5,7 @@ import {
   type Verdict,
 } from '../verify/match'
 import { decodeSessionId } from '../verify/sessionId'
+import { deliveryDueKobo } from '../capture/delivery'
 import type { Credit, Receipt, VerifyConfig } from '../verify/types'
 import type { BookEntry, Order, Payment, Settlement } from './types'
 
@@ -26,10 +27,12 @@ export function nextOrderCode(orders: Order[]): string {
 
 export function newOrder(
   orders: Order[],
-  fields: Pick<Order, 'mode' | 'customerId' | 'items' | 'amountKobo'>,
+  fields: Pick<Order, 'mode' | 'customerId' | 'items' | 'amountKobo'> &
+    Partial<Pick<Order, 'deliveryPlan'>>,
   now: number,
 ): Order {
   return {
+    deliveryPlan: null,
     ...fields,
     id: crypto.randomUUID(),
     code: nextOrderCode(orders),
@@ -160,12 +163,19 @@ export function paidKobo(order: Order, credits: Credit[]): number {
   )
 }
 
+// What the shop collects: the items, plus delivery when the customer pays it
+// to the shop rather than to the rider.
+export function dueKobo(order: Order): number | null {
+  if (order.amountKobo === null) return null
+  return order.amountKobo + deliveryDueKobo(order.deliveryPlan)
+}
+
 // Positive when the customer still owes money, negative when they paid more.
 // Null until the order has a total and a payment.
 export function balanceKobo(order: Order, credits: Credit[]): number | null {
-  if (order.amountKobo === null || order.payment.state !== 'matched')
-    return null
-  return order.amountKobo - paidKobo(order, credits)
+  const due = dueKobo(order)
+  if (due === null || order.payment.state !== 'matched') return null
+  return due - paidKobo(order, credits)
 }
 
 // Records a verdict on an order that may already be paid. A second receipt on

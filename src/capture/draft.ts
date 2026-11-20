@@ -5,7 +5,8 @@ export type DraftFacts = {
   payment: PaymentState | null
   amountKobo: number | null
   items: OrderItem[]
-  pickup: boolean
+  // What the reply must say about delivery (see delivery.ts).
+  delivery?: string[]
   // Extra money from this customer that pays no order, and what the shop decided.
   // `hasAccount`: the customer has already said where a refund should go.
   extra?: {
@@ -15,6 +16,10 @@ export type DraftFacts = {
   }[]
   // What is still owed after a payment that fell short.
   shortKobo?: number | null
+  // The items are paid and only the delivery fee is still owed.
+  deliveryOwed?: boolean
+  // The shop's own terms that may bear on this reply (see shopRules.ts).
+  rules?: string[]
 }
 
 // The engine decides; the model only words the decision. Each state becomes a
@@ -22,6 +27,9 @@ export type DraftFacts = {
 function paymentLine(facts: DraftFacts): string {
   const amount =
     facts.amountKobo === null ? '' : ` of ${formatNaira(facts.amountKobo)}`
+  if (facts.payment === 'matched' && facts.shortKobo && facts.deliveryOwed) {
+    return `The payment for the items has arrived. Thank the customer and ask them to send the delivery fee of ${formatNaira(facts.shortKobo)}, which is still to pay.`
+  }
   if (facts.payment === 'matched' && facts.shortKobo) {
     return `A payment has arrived, but it is ${formatNaira(facts.shortKobo)} short of the total${amount}. Thank the customer and ask politely for the balance of ${formatNaira(facts.shortKobo)}.`
   }
@@ -58,11 +66,18 @@ function extraLine(e: NonNullable<DraftFacts['extra']>[number]): string {
 export function draftPrompt(facts: DraftFacts, chat: string): string {
   const items = facts.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
   return `You run a small Lagos shop and are replying to a customer on WhatsApp.
-Facts to convey: ${[paymentLine(facts), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.pickup ? '\nThe customer will pick up from the shop.' : ''}
-Write one short WhatsApp reply of one to three sentences, in the same language the customer uses (English or Nigerian Pidgin). Be warm and plain. Do not add facts, prices or promises that are not given here. Output only the reply text.
+Facts to convey: ${[paymentLine(facts), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.delivery?.length ? `\nDelivery: ${facts.delivery.join(' ')}` : ''}${facts.rules?.length ? `\nShop rules. If the customer asks about anything these cover, such as a delivery fee, answer from them:\n${facts.rules.join('\n')}` : ''}
+Write one short WhatsApp reply of one to three sentences that conveys the facts and answers any question in the customer's latest messages, in the same language the customer uses (English or Nigerian Pidgin). Be warm and plain. Do not add facts, prices, fees, hours or promises that are not given here. Output only the reply text.
 
 Chat:
 ${chat}`
+}
+
+// Models sometimes wrap the whole reply in quotation marks.
+export function tidyDraft(text: string): string {
+  const t = text.trim()
+  const m = /^["“'‘]([\s\S]*)["”'’]$/.exec(t)
+  return (m ? m[1]! : t).trim()
 }
 
 // Customers are never accused. A draft that slips into that language is

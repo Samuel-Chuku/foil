@@ -10,6 +10,11 @@ export type RawOrder = {
   address: string
   landmark: string
   area: string
+  // How the customer wants it, in their words, and where.
+  deliveryChoice: string
+  state: string
+  park: string
+  payOnDelivery: string
 }
 
 export type OrderFields = {
@@ -19,6 +24,11 @@ export type OrderFields = {
   address: string
   landmark: string
   area: string
+  deliveryChoice: string
+  state: string
+  park: string
+  payOnDelivery: boolean
+  pickup: boolean
 }
 
 const text = (v: unknown) =>
@@ -45,8 +55,16 @@ export function pickOrder(json: unknown): RawOrder {
     address: text(o.address),
     landmark: text(o.landmark),
     area: text(o.area),
+    deliveryChoice: text(o.deliveryChoice),
+    state: text(o.state),
+    park: text(o.park),
+    payOnDelivery: text(o.payOnDelivery),
   }
 }
+
+// "pick up", "pickup", "pick it up", "pick them up", "pick am up".
+const PICKUP =
+  /\bpick(ing)?[\s-]?((it|them|am|the \w+)\s)?up\b|\bcollect (it|them|am) (from|at)\b/i
 
 // Arithmetic happens here, not in the model: a stated total wins, otherwise
 // the items are summed only when every one of them has a price.
@@ -66,8 +84,13 @@ export function toOrderFields(raw: RawOrder): OrderFields {
     amountKobo: parseNairaKobo(raw.total) ?? (summed || null),
     customerName: raw.customerName,
     // Models sometimes write the pickup itself into the address field.
-    address: /\bpick(ing)?[\s-]?up\b/i.test(raw.address) ? '' : raw.address,
+    address: PICKUP.test(raw.address) ? '' : raw.address,
     landmark: raw.landmark,
     area: raw.area,
+    deliveryChoice: raw.deliveryChoice,
+    state: raw.state,
+    park: raw.park,
+    payOnDelivery: /^(yes|true|y)\b/i.test(raw.payOnDelivery),
+    pickup: PICKUP.test(`${raw.address} ${raw.deliveryChoice}`),
   }
 }

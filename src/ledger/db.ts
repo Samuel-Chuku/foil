@@ -1,4 +1,5 @@
 import type { Credit } from '../verify/types'
+import type { ShopRules } from '../capture/shopRules'
 import type { Customer, Order, Settlement } from './types'
 
 // Customers, orders and credits stay in this browser's IndexedDB. Only books
@@ -9,19 +10,27 @@ type Stores = {
   customers: Customer
   credits: Credit
   settlements: Settlement
+  // One record per setting, such as the shop's rules.
+  settings: { id: 'shop-rules' } & ShopRules
 }
 export type StoreName = keyof Stores
 
 const NAME = 'vendor-desk'
-const VERSION = 2
-const STORES: StoreName[] = ['orders', 'customers', 'credits', 'settlements']
+const VERSION = 3
+const STORES: StoreName[] = [
+  'orders',
+  'customers',
+  'credits',
+  'settlements',
+  'settings',
+]
 
 let opening: Promise<IDBDatabase> | null = null
 
 function open(): Promise<IDBDatabase> {
   opening ??= new Promise((resolve, reject) => {
     const req = indexedDB.open(NAME, VERSION)
-    // Version 2 added settlements; existing stores are kept as they are.
+    // Version 2 added settlements and 3 settings; existing stores are kept.
     req.onupgradeneeded = () => {
       for (const store of STORES) {
         if (!req.result.objectStoreNames.contains(store)) {

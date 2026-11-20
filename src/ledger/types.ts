@@ -1,4 +1,5 @@
 import type { Verdict } from '../verify/match'
+import type { DeliveryMethod } from '../capture/shopRules'
 import type { Receipt } from '../verify/types'
 
 // Everything in this file lives in IndexedDB on the vendor's device only.
@@ -45,6 +46,9 @@ export type Order = {
   // the order can be checked again when new money arrives. It holds the
   // payer's name and never goes into the books.
   receipt: Receipt | null
+  // How this order travels, once the customer has said. Null until delivery
+  // comes up in the chat: nothing is added to an order by default.
+  deliveryPlan: DeliveryPlan | null
   delivery: 'pending' | 'out' | 'delivered' | 'collected'
   createdAt: number
   updatedAt: number
@@ -86,4 +90,19 @@ export type RefundTo = {
   accountNumber: string
   bank: string
   accountName: string
+}
+
+export type DeliveryPlan = {
+  // Null while the customer has not chosen.
+  method: DeliveryMethod | null
+  // A city area for a rider or courier.
+  area: string
+  // Another state and its park, for nationwide delivery.
+  state: string
+  park: string
+  // Null until known: a courier quote, or a state with no set price.
+  feeKobo: number | null
+  // Who collects the fee: the shop, with the order's payment, or the rider on
+  // delivery. Null when nobody has said.
+  paidTo: 'shop' | 'rider' | null
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { draftProblem, draftPrompt } from './draft'
+import { draftProblem, draftPrompt, tidyDraft } from './draft'
 import { pickOrder, toOrderFields } from './orderFields'
 import { transcript } from './transcript'
 import { toRefundTo } from './refundDetails'
@@ -44,6 +44,10 @@ describe('order fields', () => {
       address: '',
       landmark: '',
       area: '7',
+      deliveryChoice: '',
+      state: '',
+      park: '',
+      payOnDelivery: '',
     })
     expect(pickOrder('nonsense').items).toEqual([])
     expect(pickOrder({ customerName: 'null' }).customerName).toBe('')
@@ -51,6 +55,23 @@ describe('order fields', () => {
       area: '',
       landmark: '',
     })
+  })
+
+  it('recognises pickup however it is phrased', () => {
+    for (const choice of [
+      'pickup',
+      "I'll pick them up at your shop",
+      'I will pick it up tomorrow',
+      'I go pick am up',
+    ]) {
+      expect(
+        toOrderFields({ ...pickOrder({}), deliveryChoice: choice }).pickup,
+      ).toBe(true)
+    }
+    expect(
+      toOrderFields({ ...pickOrder({}), deliveryChoice: 'deliver to Yaba' })
+        .pickup,
+    ).toBe(false)
   })
 
   it('prefers the stated total', () => {
@@ -142,6 +163,33 @@ describe('draft', () => {
     )
     expect(p).toContain('₦500 short')
     expect(p).not.toContain('has arrived in the shop')
+  })
+
+  it('asks only for the delivery fee once the items are paid', () => {
+    const p = draftPrompt(
+      { ...facts, payment: 'matched', shortKobo: 150_000, deliveryOwed: true },
+      'Customer (16:31): Done.',
+    )
+    expect(p).toContain('payment for the items has arrived')
+    expect(p).toContain('delivery fee of ₦1,500')
+    expect(p).not.toContain('short of the total')
+  })
+
+  it("gives the shop's rules and forbids inventing others", () => {
+    const p = draftPrompt(
+      { ...facts, rules: ['Delivery to Ikeja costs ₦2,000.'] },
+      'Customer (12:47): How much is delivery?',
+    )
+    expect(p).toContain('Delivery to Ikeja costs ₦2,000.')
+    expect(p).toContain('fees, hours or promises that are not given here')
+  })
+
+  it('removes quotation marks around the whole reply only', () => {
+    expect(tidyDraft('"Thank you, it don land."')).toBe(
+      'Thank you, it don land.',
+    )
+    expect(tidyDraft('“Thank you.”')).toBe('Thank you.')
+    expect(tidyDraft('She said "yes" today.')).toBe('She said "yes" today.')
   })
 
   it('throws away accusing drafts', () => {

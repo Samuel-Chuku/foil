@@ -4,15 +4,17 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 GlobalWorkerOptions.workerSrc = workerUrl
 
 // Receipts are one or two pages; a long statement is cut short so the text
-// stays well inside the on-device request limit.
-const MAX_PAGES = 2
-
-export async function pdfText(data: ArrayBuffer): Promise<string> {
+// stays well inside the on-device request limit. A shop's policy document is
+// read further, since only its relevant paragraphs reach the model.
+export async function pdfText(
+  data: ArrayBuffer,
+  maxPages = 2,
+): Promise<string> {
   const task = getDocument({ data: new Uint8Array(data) })
   const doc = await task.promise
   try {
     const pages: string[] = []
-    for (let n = 1; n <= Math.min(doc.numPages, MAX_PAGES); n++) {
+    for (let n = 1; n <= Math.min(doc.numPages, maxPages); n++) {
       const page = await doc.getPage(n)
       const content = await page.getTextContent()
       // Items on one printed line share a y position; join those with spaces.

@@ -340,3 +340,51 @@ button.link {
   margin: 0;
   padding-left: 1.1rem;
 }
+.shop-rules summary {
+  cursor: pointer;
+  list-style: revert;
+}
+.shop-rules summary h3 {
+  display: inline;
+  margin-right: 0.5rem;
+}
+.shop-rules summary .hint {
+  display: block;
+  margin-top: 0.25rem;
+}
+.order-form textarea {
+  font: inherit;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.order-form fieldset {
+  border: 1px solid #8884;
+  margin: 0.4rem 0;
+}
+.fee-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem auto;
+  gap: 0.5rem;
+  align-items: end;
+}
+.from-file {
+  display: inline-block;
+  font-size: 0.8rem;
+  padding: 0 0.35rem;
+  border: 1px solid #9a5b00;
+  border-radius: 4px;
+  color: #9a5b00;
+}
+.order-form label.check {
+  display: block;
+}
+.shop-rules .sub {
+  margin: 0.25rem 0 0.5rem 1.4rem;
+}
+.park-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 5.5rem auto;
+  gap: 0.5rem;
+  align-items: end;
+}

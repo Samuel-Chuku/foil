@@ -138,3 +138,15 @@ export function newHistoryCredits(
   }
   return kept
 }
+
+// When an alert arrives for money a screenshot already showed, the alert is
+// better evidence (it names the payer), so the screenshot row gives way.
+// Returns the ids of the rows the alerts replace.
+export function supersededRows(existing: Credit[], alerts: Credit[]): string[] {
+  return existing
+    .filter((c) => c.source === 'history')
+    .filter((row) =>
+      alerts.some((a) => newHistoryCredits([a], [row]).length === 0),
+    )
+    .map((row) => row.id)
+}

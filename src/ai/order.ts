@@ -3,7 +3,17 @@ import { pickOrder, type RawOrder } from '../capture/orderFields'
 import { privateModels, TEXT_ONLY } from './device'
 import { generateJson, type Reading } from './run'
 
-const FIELDS = ['total', 'customerName', 'address', 'landmark', 'area'] as const
+const FIELDS = [
+  'total',
+  'customerName',
+  'address',
+  'landmark',
+  'area',
+  'deliveryChoice',
+  'state',
+  'park',
+  'payOnDelivery',
+] as const
 
 // Prices and quantities are strings for the same reason as on receipts: the
 // model copies "₦15,000" faithfully but mangles it when forced into a number.
@@ -62,6 +72,10 @@ customerName: the customer's name, if they gave it
 address: the delivery address; empty if they will pick up
 landmark: a landmark near the address
 area: the Lagos area or neighbourhood, such as Yaba or Ikeja
+deliveryChoice: how the customer wants to receive it, in their words, such as pickup, sending their own rider, or a park
+state: the Nigerian state for delivery, if outside Lagos
+park: the motor park they chose in that state
+payOnDelivery: yes if they will pay the delivery fee to the rider on delivery, otherwise empty
 
 Chat:
 `

@@ -3,6 +3,8 @@ import { writeDraft } from '../ai/draft'
 import { readOrder } from '../ai/order'
 import { readRefundTo } from '../ai/refund'
 import { toRefundTo } from '../capture/refundDetails'
+import { rulesForDraft } from '../capture/shopRules'
+import { deliveryFacts, describePlan, planDelivery } from '../capture/delivery'
 import { readReceiptImage } from '../ai/receipt'
 import type { Reading } from '../ai/run'
 import { draftPrompt, draftProblem } from '../capture/draft'
@@ -15,7 +17,8 @@ import {
   normalisePhone,
   applyVerdict,
   balanceKobo,
-  recordVerdict,
+  dueKobo,
+  paidKobo,
   undoCreditPick,
 } from '../ledger/ledger'
 import { extraMoney, moreFromPayer, type ExtraRow } from '../ledger/settle'
@@ -32,7 +35,15 @@ import {
   lagosToday,
   type BankAppResult,
 } from './bankApp'
+import { DeliveryFields } from './DeliveryFields'
+import {
+  fromDeliveryForm,
+  toDeliveryForm,
+  type DeliveryForm,
+} from './deliveryForm'
 import { ExtraMoney } from './ExtraMoney'
+import { ShopRulesCard } from './ShopRulesCard'
+import type { ShopRulesApi } from './useShopRules'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
 
@@ -49,6 +60,7 @@ type Verified = {
 }
 
 type OrderForm = {
+  delivery: DeliveryForm
   customerName: string
   address: string
   landmark: string
@@ -65,6 +77,11 @@ type Work = {
     form: OrderForm
   }>
   draft?: Step<Reading<string>>
+  // Every receipt read in this chat, by message id, so saving an order can
+  // apply them all in order: a first payment, then its balance.
+  receipts?: Record<string, Receipt>
+  // A change to a saved order's delivery, until it is saved.
+  deliveryEdit?: DeliveryForm
   // The refund account read from the chat, for the vendor to check and save.
   refund?: Step<{
     key: string
@@ -87,6 +104,14 @@ const PAYMENT_LABEL: Record<PaymentState, string> = {
 // The state label, sharpened by what has actually arrived against the total.
 function paymentText(order: Order, credits: Credit[]): string {
   const balance = balanceKobo(order, credits)
+  if (
+    balance !== null &&
+    balance > 0 &&
+    order.amountKobo !== null &&
+    paidKobo(order, credits) >= order.amountKobo
+  ) {
+    return `Items paid, delivery ${formatNaira(balance)} to pay`
+  }
   if (balance !== null && balance > 0) return `Short by ${formatNaira(balance)}`
   if (balance !== null && balance < 0) {
     return `Paid, ${formatNaira(-balance)} over`
@@ -173,8 +198,9 @@ export function Panel(props: {
   ledger: LedgerApi
   device: DeviceApi
   host: PanelHost
+  shop: ShopRulesApi
 }) {
-  const { chat, ledger, device, host } = props
+  const { chat, ledger, device, host, shop } = props
   const { data, config } = ledger
   const [work, setWork] = useState<Record<string, Work>>({})
   const [appBank, setAppBank] = useState('')
@@ -255,6 +281,13 @@ export function Panel(props: {
       const next =
         mine && applyVerdict(mine, receipt, verdict, now.credits, Date.now())
       if (next) await ledger.saveOrder(next)
+      setWork((w) => ({
+        ...w,
+        [phone]: {
+          ...w[phone],
+          receipts: { ...w[phone]?.receipts, [message.id]: receipt },
+        },
+      }))
       patch(phone, {
         verify: {
           status: 'done',
@@ -297,9 +330,11 @@ export function Panel(props: {
         text: m.text,
         image: Boolean(m.image),
       }))
-      const reading = await readOrder(transcript(lines), device.consent)
+      const chatText = transcript(lines)
+      const reading = await readOrder(chatText, device.consent)
       const f = toOrderFields(reading.fields)
       const form: OrderForm = {
+        delivery: toDeliveryForm(planDelivery(f, shop.rules, chatText)),
         customerName: f.customerName || chat.contactName,
         address: f.address,
         landmark: f.landmark,
@@ -317,9 +352,11 @@ export function Panel(props: {
           value: { source: reading.source, ms: reading.ms, form },
         },
       })
-      // Capturing is the vendor's go-ahead to read this chat, so its latest
-      // receipt is checked too, while they look over the order.
-      if (hasReceipt && current.verify?.status !== 'done') await verify()
+      // Capturing is the vendor's go-ahead to read this chat, so its receipts
+      // are checked too, oldest first, while they look over the order.
+      for (const m of chat.messages) {
+        if (m.image && !current.receipts?.[m.id]) await verify(m.id)
+      }
     } catch (error) {
       patch(phone, { capture: { status: 'error', message: errorText(error) } })
     }
@@ -355,13 +392,16 @@ export function Panel(props: {
         customerId: id,
         items,
         amountKobo: parseNairaKobo(form.amount),
+        deliveryPlan: fromDeliveryForm(form.delivery),
       },
       at,
     )
-    const v = current.verify
-    if (v?.status === 'done') {
+    // Receipts in chat order: a later one can pay the balance of an earlier.
+    for (const m of chat.messages) {
+      const receipt = current.receipts?.[m.id]
+      if (!receipt) continue
       const verdict = verifyReceipt(
-        v.value.receipt,
+        receipt,
         matcherLedger(
           data.orders,
           data.credits,
@@ -371,7 +411,7 @@ export function Panel(props: {
         ),
         config,
       )
-      fresh = recordVerdict(fresh, v.value.receipt, verdict, at)
+      fresh = applyVerdict(fresh, receipt, verdict, data.credits, at) ?? fresh
     }
     await ledger.saveOrder(
       fresh,
@@ -429,6 +469,19 @@ export function Panel(props: {
     if (!undone) return
     await ledger.saveOrder(undone)
     patch(chat.phone, { notice: undefined })
+  }
+
+  async function saveDelivery() {
+    if (!chat || !order || !current.deliveryEdit) return
+    // Runs on a click, not during render (see pickCredit).
+    // oxlint-disable-next-line react/purity
+    const at = Date.now()
+    await ledger.saveOrder({
+      ...order,
+      deliveryPlan: fromDeliveryForm(current.deliveryEdit),
+      updatedAt: at,
+    })
+    patch(chat.phone, { deliveryEdit: undefined })
   }
 
   async function readBankAppFile(file: File) {
@@ -569,13 +622,26 @@ export function Panel(props: {
       await device.ready()
       patch(phone, { draft: { status: 'running', note: 'Writing a reply…' } })
       const v = current.verify?.status === 'done' ? current.verify.value : null
-      const customer = data.customers.find((c) => c.id === customerId)
+      const chatText = transcript(
+        chat.messages.map((m) => ({
+          from: m.from,
+          time: m.time,
+          text: m.text,
+          image: Boolean(m.image),
+        })),
+        2000,
+      )
       const prompt = draftPrompt(
         {
           payment: order?.payment.state ?? v?.verdict.kind ?? null,
-          amountKobo: order?.amountKobo ?? v?.receipt.amountKobo ?? null,
+          amountKobo:
+            (order && dueKobo(order)) ?? v?.receipt.amountKobo ?? null,
           items: order?.items ?? [],
-          pickup: Boolean(customer && !customer.address),
+          delivery: deliveryFacts(
+            order?.deliveryPlan ?? null,
+            shop.rules,
+            order?.amountKobo ?? null,
+          ),
           extra: extraRows
             .filter((r) => r.settlement?.customerId === customerId)
             .map((r) => ({
@@ -584,16 +650,15 @@ export function Panel(props: {
               hasAccount: Boolean(r.settlement!.refundTo?.accountNumber),
             })),
           shortKobo: balance !== null && balance > 0 ? balance : null,
+          deliveryOwed:
+            !!order &&
+            order.amountKobo !== null &&
+            balance !== null &&
+            balance > 0 &&
+            paidKobo(order, data.credits) >= order.amountKobo,
+          rules: rulesForDraft(shop.rules, chatText),
         },
-        transcript(
-          chat.messages.map((m) => ({
-            from: m.from,
-            time: m.time,
-            text: m.text,
-            image: Boolean(m.image),
-          })),
-          2000,
-        ),
+        chatText,
       )
       const reading = await writeDraft(prompt, device.consent)
       const problem = draftProblem(reading.fields)
@@ -650,6 +715,9 @@ export function Panel(props: {
                 : [],
           }
         : null
+  // A shop that ticks no delivery option sells without delivery, so orders
+  // carry no delivery line at all.
+  const offersDelivery = shop.rules.methods.length > 0
   const paidWhileAway = order !== null && ledger.justPaid.includes(order.id)
 
   // Before a payment is confirmed, flag a receipt that does not cover the order.
@@ -851,6 +919,49 @@ export function Panel(props: {
                   {order.items.map((i) => `${i.qty} × ${i.name}`).join(', ') ||
                     'No items listed'}
                 </p>
+                {!offersDelivery &&
+                !order.deliveryPlan ? null : current.deliveryEdit ? (
+                  <form
+                    className="order-form"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      void saveDelivery()
+                    }}
+                  >
+                    <DeliveryFields
+                      form={current.deliveryEdit}
+                      rules={shop.rules}
+                      onChange={(deliveryEdit) =>
+                        patch(chat.phone, { deliveryEdit })
+                      }
+                    />
+                    <button type="submit">Save delivery</button>{' '}
+                    <button
+                      type="button"
+                      className="quiet"
+                      onClick={() =>
+                        patch(chat.phone, { deliveryEdit: undefined })
+                      }
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <p>
+                    Delivery: {describePlan(order.deliveryPlan)}{' '}
+                    <button
+                      type="button"
+                      className="link"
+                      onClick={() =>
+                        patch(chat.phone, {
+                          deliveryEdit: toDeliveryForm(order.deliveryPlan),
+                        })
+                      }
+                    >
+                      Change
+                    </button>
+                  </p>
+                )}
                 {balance !== null && balance > 0 && (
                   <p className="hint">
                     Ask for the balance of {formatNaira(balance)}. When the
@@ -955,7 +1066,7 @@ export function Panel(props: {
                 </button>
                 {(
                   [
-                    ['amount', 'Total (₦)'],
+                    ['amount', 'Items total (₦)'],
                     ['customerName', 'Customer name'],
                     ['address', 'Delivery address (empty for pickup)'],
                     ['landmark', 'Landmark'],
@@ -970,6 +1081,13 @@ export function Panel(props: {
                     />
                   </label>
                 ))}
+                {offersDelivery && (
+                  <DeliveryFields
+                    form={c.value.form.delivery}
+                    rules={shop.rules}
+                    onChange={(delivery) => editForm({ delivery })}
+                  />
+                )}
                 <button type="submit">Save order</button>{' '}
                 <button
                   type="button"
@@ -1032,6 +1150,8 @@ export function Panel(props: {
           </ul>
         )}
       </section>
+
+      <ShopRulesCard shop={shop} device={device} />
 
       <section className="card" aria-labelledby="app-h">
         <h3 id="app-h">Bank app screenshot</h3>

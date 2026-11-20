@@ -1,3 +1,4 @@
+import type { ShopRules } from '../capture/shopRules'
 import type { AlertEmail } from '../verify/alerts'
 import type { RawHistoryRow } from '../verify/history'
 import type { RawReceipt } from '../verify/receiptFields'
@@ -23,7 +24,8 @@ export type SampleChat = {
   phone: string
   messages: SampleMessage[]
   // What the engine should conclude, for tests and the evaluation harness.
-  expected: 'matched' | 'not yet credited' | 'mismatch' | 'check'
+  // 'awaiting' for a chat with no receipt yet.
+  expected: 'matched' | 'not yet credited' | 'mismatch' | 'check' | 'awaiting'
 }
 
 // `later`: arrives only when the demo lets time pass, to show what happens
@@ -330,7 +332,7 @@ export const SAMPLE_CHATS: SampleChat[] = [
         id: 'f4',
         from: 'customer',
         time: '16:31',
-        text: 'Done. Send them to 14 Adeniran Ogunsanya Street, Surulere, by the shopping mall.',
+        text: 'Done. Send them to 14 Adeniran Ogunsanya Street, Surulere, by the shopping mall. How much is delivery?',
       },
     ],
   },
@@ -402,6 +404,33 @@ export const SAMPLE_CHATS: SampleChat[] = [
         from: 'customer',
         time: '17:23',
         text: "Sorry about that, I've sent the balance.",
+      },
+    ],
+  },
+  {
+    // Outside Lagos, with no park chosen yet: the draft offers the parks.
+    id: 'halima',
+    contactName: 'Halima',
+    phone: '+234 800 000 0009',
+    expected: 'awaiting',
+    messages: [
+      {
+        id: 'h1',
+        from: 'customer',
+        time: '17:40',
+        text: 'Good evening. I want the black abaya in size M. How much?',
+      },
+      {
+        id: 'h2',
+        from: 'vendor',
+        time: '17:42',
+        text: 'Good evening! The black abaya in M is ₦16,000.',
+      },
+      {
+        id: 'h3',
+        from: 'customer',
+        time: '17:45',
+        text: "I'm in Abuja. Can you send it to me here? How much will it cost?",
       },
     ],
   },
@@ -633,3 +662,32 @@ export const SAMPLE_HISTORY: {
 
 // Midnight of the sample day, for history rows that print only a time.
 export const SAMPLE_DAY_MS = Date.UTC(2026, 10, 21)
+
+// The sample shop's own terms, as a vendor would type them.
+export const SAMPLE_SHOP_RULES: ShopRules = {
+  methods: ['own-rider', 'courier', 'pickup', 'nationwide'],
+  areaFees: [
+    { area: 'Yaba', feeKobo: 150_000 },
+    { area: 'Surulere', feeKobo: 150_000 },
+    { area: 'Ikeja', feeKobo: 200_000 },
+  ],
+  otherAreasFeeKobo: null,
+  parks: [
+    { state: 'Abuja', park: 'Jabi', feeKobo: 600_000 },
+    { state: 'Abuja', park: 'Utako', feeKobo: 600_000 },
+    { state: 'Enugu', park: 'Holy Ghost', feeKobo: 500_000 },
+    { state: 'Ibadan', park: 'Iwo Road', feeKobo: 350_000 },
+  ],
+  pickupAddress: '3 Herbert Macaulay Way, Yaba',
+  pickupHours: 'Monday to Saturday, 10am to 6pm',
+  paymentWaitMin: 60,
+  refundTerms:
+    'Exchanges within 3 days if the item is unworn with its tag. Money is refunded only for items that are out of stock or sent wrongly.',
+  policies: [
+    'Lekki, Ajah and other areas go by courier; we send you the quote, and you can pay it to us or to the rider on delivery.',
+    'Orders confirmed before 2pm are sent the same day; later orders go out the next morning.',
+    'We do not deliver on Sundays.',
+    'Custom sizes and tailoring take 5 working days and need full payment first.',
+  ].join('\n\n'),
+  fromFile: [],
+}

@@ -1,3 +1,4 @@
+import { tidyDraft } from '../capture/draft'
 import { privateModels, TEXT_ONLY } from './device'
 import { generateText, type Reading } from './run'
 
@@ -10,5 +11,5 @@ export async function writeDraft(
   cloudConsent: boolean,
 ): Promise<Reading<string>> {
   const { text, source, ms } = await generateText(model(cloudConsent), [prompt])
-  return { fields: text.trim(), source, ms }
+  return { fields: tidyDraft(text), source, ms }
 }

@@ -6,6 +6,7 @@ import {
   SAMPLE_DAY_MS,
   SAMPLE_EMAILS,
   SAMPLE_HISTORY,
+  SAMPLE_SHOP_RULES,
 } from '../sample/pack'
 import { drawReceipt } from '../sample/receiptImage'
 import { importBankApp, type BankAppResult } from '../ui/bankApp'
@@ -13,6 +14,7 @@ import type { OpenChat, PanelHost } from '../ui/host'
 import { Panel } from '../ui/Panel'
 import { useDevice } from '../ui/useDevice'
 import { useLedger } from '../ui/useLedger'
+import { useShopRules } from '../ui/useShopRules'
 import { formatNaira } from '../verify/money'
 import type { AlertResult } from '../verify/alerts'
 
@@ -55,6 +57,12 @@ export default function DemoApp() {
   )
   const ledger = useLedger()
   const device = useDevice()
+  const shop = useShopRules()
+  // The sample shop comes with its rules filled in, so drafts can quote them.
+  const { stored, save: saveRules } = shop
+  useEffect(() => {
+    if (stored === false) void saveRules(SAMPLE_SHOP_RULES)
+  }, [stored, saveRules])
   const [view, setView] = useState<'chats' | 'inbox' | 'bank'>('chats')
   const [bankApp, setBankApp] = useState<
     | { status: 'running' }
@@ -119,6 +127,7 @@ export default function DemoApp() {
 
   async function reset() {
     await ledger.reset()
+    await saveRules(SAMPLE_SHOP_RULES)
     setAlerts({})
     setLater(false)
     setRound((r) => r + 1)
@@ -344,6 +353,7 @@ export default function DemoApp() {
         ledger={ledger}
         device={device}
         host={host}
+        shop={shop}
       />
     </div>
   )
