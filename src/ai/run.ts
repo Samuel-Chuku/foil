@@ -7,20 +7,28 @@ export type Reading<T> = { fields: T; source: Source | 'Rules'; ms: number }
 
 // Every result carries where it ran, taken from the SDK's own field so the
 // badge can never claim "On device" for a cloud answer.
-export async function generateJson(
+export async function generateText(
   model: GenerativeModel,
   parts: (string | Part)[],
-): Promise<{ json: unknown; source: Source; ms: number }> {
+): Promise<{ text: string; source: Source; ms: number }> {
   const started = performance.now()
   const result = await model.generateContent(parts)
   return {
-    json: JSON.parse(result.response.text()) as unknown,
+    text: result.response.text(),
     source:
       result.response.inferenceSource === InferenceSource.ON_DEVICE
         ? 'On device'
         : 'Cloud',
     ms: Math.round(performance.now() - started),
   }
+}
+
+export async function generateJson(
+  model: GenerativeModel,
+  parts: (string | Part)[],
+): Promise<{ json: unknown; source: Source; ms: number }> {
+  const { text, ...rest } = await generateText(model, parts)
+  return { json: JSON.parse(text) as unknown, ...rest }
 }
 
 // The model's JSON is untrusted input: keep only the expected keys, as text.

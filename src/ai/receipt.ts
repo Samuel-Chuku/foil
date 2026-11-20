@@ -1,13 +1,7 @@
-import {
-  getGenerativeModel,
-  InferenceMode,
-  Schema,
-  type GenerativeModel,
-} from 'firebase/ai'
-import { DEFAULTS } from '../config/defaults'
-import { ai } from '../firebase'
+import { Schema, type GenerativeModel } from 'firebase/ai'
 import { parsePdfReceiptText } from '../verify/pdfReceipt'
 import { RAW_RECEIPT_FIELDS, type RawReceipt } from '../verify/receiptFields'
+import { privateModels, TEXT_AND_IMAGE } from './device'
 import { pdfText } from './pdfText'
 import { generateJson, pickStrings, type Reading } from './run'
 
@@ -38,36 +32,14 @@ sessionId: the value labelled Session ID, digits and letters only
 reference: any other transaction reference or number, digits and letters only
 dateTime: the transaction date and time as printed`
 
-const createOptions = {
-  expectedInputs: [
-    { type: 'text' as const, languages: ['en'] },
-    { type: 'image' as const },
-  ],
-  expectedOutputs: [{ type: 'text' as const, languages: ['en'] }],
-}
-
 // Receipts hold customer and bank details, so the default path never leaves
 // the device. The cloud path exists only for a vendor who has consented.
-const onDevice = getGenerativeModel(ai, {
-  mode: InferenceMode.ONLY_ON_DEVICE,
-  onDeviceParams: {
-    createOptions,
-    promptOptions: { responseConstraint: onDeviceSchema },
-  },
-})
-
-const consented = getGenerativeModel(ai, {
-  mode: InferenceMode.PREFER_ON_DEVICE,
-  onDeviceParams: {
-    createOptions,
-    promptOptions: { responseConstraint: onDeviceSchema },
-  },
-  inCloudParams: {
-    model: DEFAULTS.cloudModel,
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: cloudSchema,
-    },
+const { onDevice, consented } = privateModels({
+  createOptions: TEXT_AND_IMAGE,
+  onDeviceSchema,
+  cloudConfig: {
+    responseMimeType: 'application/json',
+    responseSchema: cloudSchema,
   },
 })
 

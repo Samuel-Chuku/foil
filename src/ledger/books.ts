@@ -6,6 +6,7 @@ import {
   setDoc,
   type Firestore,
 } from 'firebase/firestore'
+import { getAuth, signInAnonymously } from 'firebase/auth'
 import { firebaseApp } from '../firebase'
 import { toBookEntry } from './ledger'
 import type { Order } from './types'
@@ -30,4 +31,12 @@ export function syncBook(uid: string, order: Order): Promise<void> {
     doc(books(), 'vendors', uid, 'books', order.id),
     toBookEntry(order),
   )
+}
+
+// Vendors sign in anonymously: the books need an owner for the security rules,
+// and a vendor (or a judge trying the demo) should not need an account first.
+export async function vendorId(): Promise<string> {
+  const auth = getAuth(firebaseApp)
+  await auth.authStateReady()
+  return auth.currentUser?.uid ?? (await signInAnonymously(auth)).user.uid
 }

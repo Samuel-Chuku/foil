@@ -91,3 +91,12 @@ export async function putAll(rows: {
     }
   })
 }
+
+// Empties every store on this device, for the demo's reset and for a shop
+// laptop the vendor shares.
+export async function clearAll(): Promise<void> {
+  const stores: StoreName[] = ['orders', 'customers', 'credits']
+  await run(stores, 'readwrite', (tx) => {
+    for (const s of stores) tx.objectStore(s).clear()
+  })
+}

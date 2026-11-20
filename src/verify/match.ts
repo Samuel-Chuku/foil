@@ -212,7 +212,7 @@ export function verifyReceipt(
   }
   if (chosen.credit.strength === 'alert received') {
     notes.push(
-      `Confirmed against a ${chosen.credit.bank ?? 'bank'} alert email.`,
+      `Confirmed against ${config.banks.find((b) => b.id === chosen.credit.bank)?.name ?? 'a bank'} alert email.`,
     )
   }
   return { kind: 'matched', creditId: chosen.credit.id, notes }
