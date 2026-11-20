@@ -58,6 +58,7 @@ import {
 import { ExtraMoney } from './ExtraMoney'
 import { ShopRulesCard } from './ShopRulesCard'
 import { StockCard } from './StockCard'
+import { MoneyFlowCard } from './MoneyFlowCard'
 import type { ShopRulesApi } from './useShopRules'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
@@ -1309,6 +1310,8 @@ export function Panel(props: {
           </>
         )}
       </section>
+
+      <MoneyFlowCard ledger={ledger} />
 
       <section className="card" aria-labelledby="extra-h">
         <h3 id="extra-h">Money not tied to an order</h3>
