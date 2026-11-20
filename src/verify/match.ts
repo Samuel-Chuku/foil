@@ -219,11 +219,21 @@ export function verifyReceipt(
         reason: `A credit of ${formatNaira(receipt.amountKobo)} arrived for this receipt, but the bank later reversed it, so it is not paid.`,
       }
     }
-    const wrongName = scored.find((s) => s.timeOk && !s.nameOk)
-    if (wrongName) {
+    // A different name is not proof of a problem: the model may have misread
+    // it, or a relative or a business account paid. The vendor decides.
+    const otherName = scored.filter(
+      (s) => s.timeOk && !s.nameOk && !ledger.claimedCredits.has(s.credit.id),
+    )
+    if (otherName.length > 0) {
+      const amount = formatNaira(receipt.amountKobo)
+      const onReceipt = receipt.sender || 'the name on the receipt'
       return {
-        kind: 'mismatch',
-        reason: `A credit of ${formatNaira(receipt.amountKobo)} arrived at the right time, but it came from ${wrongName.credit.sender || 'a different name'}, not ${receipt.sender || 'the name on the receipt'}.`,
+        kind: 'check',
+        reason:
+          otherName.length === 1
+            ? `A credit of ${amount} arrived at the right time from ${otherName[0]!.credit.sender || 'a different name'}, not ${onReceipt}. Confirm it is this customer's payment.`
+            : `${otherName.length} credits of ${amount} arrived at the right time from names other than ${onReceipt}. Pick the one that pays for this order, if any.`,
+        candidates: otherName.map((s) => s.credit.id),
       }
     }
     return {

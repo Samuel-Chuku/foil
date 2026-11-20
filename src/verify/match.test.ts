@@ -122,13 +122,25 @@ describe('verifyReceipt: interbank', () => {
     expect(v.kind).toBe('check')
   })
 
-  it('reports a credit that came from a different name', () => {
+  it('asks the vendor about a credit that came from a different name', () => {
     const v = verifyReceipt(
-      receipt(),
+      receipt({ reference: '' }),
       ledger([credit({ sender: 'IFEOMA NWOSU' })]),
       config,
     )
-    expect(v.kind).toBe('mismatch')
+    expect(v).toMatchObject({ kind: 'check', candidates: ['c1'] })
+    expect(v.kind === 'check' && v.reason).toContain('IFEOMA NWOSU')
+  })
+
+  it('does not offer a different-name credit that pays another order', () => {
+    const v = verifyReceipt(
+      receipt({ reference: '' }),
+      ledger([credit({ sender: 'IFEOMA NWOSU' })], {
+        claimedCredits: new Map([['c1', 'A3']]),
+      }),
+      config,
+    )
+    expect(v.kind).toBe('not yet credited')
   })
 
   it('rejects an alert whose session ID belongs to another transfer', () => {
