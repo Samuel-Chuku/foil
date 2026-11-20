@@ -1,4 +1,5 @@
 import type { Verdict } from '../verify/match'
+import type { Receipt } from '../verify/types'
 
 // Everything in this file lives in IndexedDB on the vendor's device only.
 // Firestore receives a BookEntry, which carries none of the people fields.
@@ -40,6 +41,10 @@ export type Order = {
   items: OrderItem[]
   amountKobo: number | null
   payment: Payment
+  // The receipt the payment was last checked against, kept on the device so
+  // the order can be checked again when new money arrives. It holds the
+  // payer's name and never goes into the books.
+  receipt: Receipt | null
   delivery: 'pending' | 'out' | 'delivered' | 'collected'
   createdAt: number
   updatedAt: number

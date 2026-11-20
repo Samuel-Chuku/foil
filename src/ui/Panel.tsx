@@ -45,6 +45,7 @@ type Verified = {
   reading: Reading<RawReceipt>
   receipt: Receipt
   verdict: Verdict
+  checkedAt: number
 }
 
 type OrderForm = {
@@ -182,6 +183,7 @@ export function Panel(props: {
     setWork((w) => ({ ...w, [phone]: { ...w[phone], ...next } }))
 
   const customerId = chat ? normalisePhone(chat.phone) : null
+  const hasReceipt = chat?.messages.some((m) => m.image) ?? false
   const openOrder = (orders: Order[], id: string | null) =>
     orders.find((o) => o.customerId === id && o.delivery === 'pending') ?? null
   const order = data ? openOrder(data.orders, customerId) : null
@@ -254,7 +256,10 @@ export function Panel(props: {
         mine && applyVerdict(mine, receipt, verdict, now.credits, Date.now())
       if (next) await ledger.saveOrder(next)
       patch(phone, {
-        verify: { status: 'done', value: { reading, receipt, verdict } },
+        verify: {
+          status: 'done',
+          value: { reading, receipt, verdict, checkedAt: Date.now() },
+        },
       })
     } catch (error) {
       patch(phone, { verify: { status: 'error', message: errorText(error) } })
@@ -312,6 +317,9 @@ export function Panel(props: {
           value: { source: reading.source, ms: reading.ms, form },
         },
       })
+      // Capturing is the vendor's go-ahead to read this chat, so its latest
+      // receipt is checked too, while they look over the order.
+      if (hasReceipt && current.verify?.status !== 'done') await verify()
     } catch (error) {
       patch(phone, { capture: { status: 'error', message: errorText(error) } })
     }
@@ -407,25 +415,7 @@ export function Panel(props: {
       return
     }
     await ledger.saveOrder(result.order)
-    // The verdict card shows the vendor's choice, not the question it answered.
-    const v = current.verify
-    patch(chat.phone, {
-      notice: undefined,
-      verify:
-        v?.status === 'done'
-          ? {
-              status: 'done',
-              value: {
-                ...v.value,
-                verdict: {
-                  kind: 'matched',
-                  creditId,
-                  notes: ['Confirmed by you.'],
-                },
-              },
-            }
-          : v,
-    })
+    patch(chat.phone, { notice: undefined })
   }
 
   async function undoPick() {
@@ -438,24 +428,7 @@ export function Panel(props: {
     const undone = mine && undoCreditPick(mine, at)
     if (!undone) return
     await ledger.saveOrder(undone)
-    const v = current.verify
-    patch(chat.phone, {
-      notice: undefined,
-      verify:
-        v?.status === 'done'
-          ? {
-              status: 'done',
-              value: {
-                ...v.value,
-                verdict: {
-                  kind: 'check',
-                  reason: undone.payment.reason ?? '',
-                  candidates: undone.payment.candidates,
-                },
-              },
-            }
-          : v,
-    })
+    patch(chat.phone, { notice: undefined })
   }
 
   async function readBankAppFile(file: File) {
@@ -626,6 +599,7 @@ export function Panel(props: {
       const problem = draftProblem(reading.fields)
       if (problem) throw new Error(`${problem} Try again.`)
       host.insertDraft(phone, reading.fields)
+      if (order) ledger.seen(order.id)
       patch(phone, { draft: { status: 'done', value: reading } })
     } catch (error) {
       patch(phone, { draft: { status: 'error', message: errorText(error) } })
@@ -637,9 +611,47 @@ export function Panel(props: {
   const d = current.draft
   const bankName = (id: string | null) =>
     config.banks.find((b) => b.id === id)?.name ?? 'Not recognised'
-  const hasReceipt = chat?.messages.some((m) => m.image) ?? false
   const customerName = (id: string | null) =>
     data?.customers.find((x) => x.id === id)?.name || 'Customer'
+  // The order's own payment wins once it is newer than the receipt read in
+  // this chat: the rules re-check orders when money arrives, and the vendor
+  // may have picked a credit since.
+  const fromOrder =
+    order?.receipt &&
+    order.payment.checkedAt !== null &&
+    (v?.status !== 'done' || order.payment.checkedAt > v.value.checkedAt)
+  const shown: {
+    kind: Verdict['kind']
+    text: string
+    candidates: string[]
+  } | null =
+    fromOrder && order.payment.state !== 'awaiting'
+      ? {
+          kind: order.payment.state,
+          text:
+            order.payment.reason ??
+            (order.payment.state === 'matched'
+              ? 'The money is in your account.'
+              : ''),
+          candidates:
+            order.payment.state === 'check' ? order.payment.candidates : [],
+        }
+      : v?.status === 'done'
+        ? {
+            kind: v.value.verdict.kind,
+            text:
+              v.value.verdict.kind === 'matched'
+                ? v.value.verdict.notes.join(' ') ||
+                  'The money is in your account.'
+                : v.value.verdict.reason,
+            candidates:
+              v.value.verdict.kind === 'check'
+                ? v.value.verdict.candidates
+                : [],
+          }
+        : null
+  const paidWhileAway = order !== null && ledger.justPaid.includes(order.id)
+
   // Before a payment is confirmed, flag a receipt that does not cover the order.
   const amountGap =
     balance === null &&
@@ -654,6 +666,36 @@ export function Panel(props: {
         <h2>Payment desk</h2>
         <DeviceStatus device={device} />
       </header>
+
+      {ledger.justPaid.length > 0 && data && (
+        <section
+          className="card now-paid"
+          aria-label="Now paid"
+          aria-live="polite"
+        >
+          <h3>Now paid</h3>
+          <ul>
+            {ledger.justPaid.map((id) => {
+              const o = data.orders.find((x) => x.id === id)
+              if (!o) return null
+              return (
+                <li key={id}>
+                  Order {o.code} for {customerName(o.customerId)}
+                  {o.amountKobo !== null && `, ${formatNaira(o.amountKobo)}`}:
+                  the money arrived. Open the chat to send a confirmation.{' '}
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => ledger.seen(id)}
+                  >
+                    Dismiss
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
 
       {ledger.loadError && (
         <p className="error" role="alert">
@@ -683,8 +725,8 @@ export function Panel(props: {
             )}
             {data?.credits.length === 0 && (
               <p className="hint">
-                No bank alerts have been read yet, so nothing can match. Read
-                your alerts from the inbox first.
+                No bank alerts have arrived yet, so nothing can match. The order
+                is checked again as soon as one does.
               </p>
             )}
             {v?.status === 'running' && <p aria-live="polite">{v.note}</p>}
@@ -717,48 +759,52 @@ export function Panel(props: {
                   <dt>Time</dt>
                   <dd>{v.value.reading.fields.dateTime || 'Not read'}</dd>
                 </dl>
-                <div className="verdict" data-kind={v.value.verdict.kind}>
-                  <strong>{PAYMENT_LABEL[v.value.verdict.kind]}</strong>
-                  <p>
-                    {v.value.verdict.kind === 'matched'
-                      ? v.value.verdict.notes.join(' ') ||
-                        'The money is in your account.'
-                      : v.value.verdict.reason}
-                  </p>
-                  {current.notice && (
-                    <p className="error" role="alert">
-                      {current.notice}
-                    </p>
-                  )}
-                  {v.value.verdict.kind === 'check' &&
-                    v.value.verdict.candidates.length > 0 &&
-                    (order ? (
-                      <ul className="candidates">
-                        {v.value.verdict.candidates.map((id) => {
-                          const cr = data?.credits.find((x) => x.id === id)
-                          return (
-                            <li key={id}>
-                              {cr
-                                ? `${formatNaira(cr.amountKobo)} from ${cr.sender}`
-                                : id}{' '}
-                              <button
-                                type="button"
-                                onClick={() => void pickCredit(id)}
-                              >
-                                This one
-                              </button>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    ) : (
-                      <p className="hint">
-                        Save the order first, then choose the credit that pays
-                        for it.
-                      </p>
-                    ))}
-                </div>
               </>
+            )}
+            {shown && (
+              <div className="verdict" data-kind={shown.kind}>
+                <strong>{PAYMENT_LABEL[shown.kind]}</strong>
+                {paidWhileAway && (
+                  <p>
+                    <strong>
+                      Paid while you waited: the alert arrived after the receipt
+                      was checked.
+                    </strong>
+                  </p>
+                )}
+                <p>{shown.text}</p>
+                {current.notice && (
+                  <p className="error" role="alert">
+                    {current.notice}
+                  </p>
+                )}
+                {shown.candidates.length > 0 &&
+                  (order ? (
+                    <ul className="candidates">
+                      {shown.candidates.map((id) => {
+                        const cr = data?.credits.find((x) => x.id === id)
+                        return (
+                          <li key={id}>
+                            {cr
+                              ? `${formatNaira(cr.amountKobo)} from ${cr.sender || 'an unknown sender'}`
+                              : id}{' '}
+                            <button
+                              type="button"
+                              onClick={() => void pickCredit(id)}
+                            >
+                              This one
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="hint">
+                      Save the order first, then choose the credit that pays for
+                      it.
+                    </p>
+                  ))}
+              </div>
             )}
             {chatRows.length > 0 && (
               <div className="extra-here">

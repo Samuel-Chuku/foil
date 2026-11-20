@@ -333,3 +333,10 @@ button.link {
   border: 1px solid #8884;
   border-radius: 6px;
 }
+.now-paid {
+  border-color: #1b7a3a;
+}
+.now-paid ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}

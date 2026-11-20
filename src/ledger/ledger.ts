@@ -1,4 +1,9 @@
-import { findReversedCredits, type Ledger, type Verdict } from '../verify/match'
+import {
+  findReversedCredits,
+  verifyReceipt,
+  type Ledger,
+  type Verdict,
+} from '../verify/match'
 import { decodeSessionId } from '../verify/sessionId'
 import type { Credit, Receipt, VerifyConfig } from '../verify/types'
 import type { BookEntry, Order, Payment, Settlement } from './types'
@@ -38,6 +43,7 @@ export function newOrder(
       decidedBy: null,
       checkedAt: null,
     },
+    receipt: null,
     delivery: 'pending',
     createdAt: now,
     updatedAt: now,
@@ -99,7 +105,49 @@ export function recordVerdict(
     decidedBy: 'rules',
     checkedAt: now,
   }
-  return { ...order, payment, updatedAt: now }
+  return { ...order, payment, receipt, updatedAt: now }
+}
+
+const WAITING = new Set<Order['payment']['state']>([
+  'not yet credited',
+  'check',
+])
+
+const sameIds = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((x) => b.includes(x))
+
+// Checks every order still waiting on its money against the credits as they
+// are now, oldest order first so it has first claim on a credit. Rules only,
+// no model. Orders the vendor decided are left alone. Returns the orders whose
+// verdict changed.
+export function recheckOrders(
+  orders: Order[],
+  credits: Credit[],
+  config: VerifyConfig,
+  settlements: Settlement[],
+  now: number,
+): Order[] {
+  let current = orders
+  const changed: Order[] = []
+  const oldestFirst = [...orders].sort((a, b) => a.createdAt - b.createdAt)
+  for (const o of oldestFirst) {
+    if (!o.receipt || !WAITING.has(o.payment.state)) continue
+    if (o.payment.decidedBy === 'vendor') continue
+    const verdict = verifyReceipt(
+      o.receipt,
+      matcherLedger(current, credits, config, o.id, settlements),
+      config,
+    )
+    const same =
+      verdict.kind === o.payment.state &&
+      (verdict.kind !== 'check' ||
+        sameIds(verdict.candidates, o.payment.candidates))
+    if (same) continue
+    const next = recordVerdict(o, o.receipt, verdict, now)
+    current = current.map((x) => (x.id === o.id ? next : x))
+    changed.push(next)
+  }
+  return changed
 }
 
 // What has arrived for an order: its credit plus any balance paid later.

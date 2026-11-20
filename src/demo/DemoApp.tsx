@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { drawHistory } from '../sample/historyImage'
 import {
   SAMPLE_CHATS,
@@ -73,22 +73,31 @@ export default function DemoApp() {
   const [later, setLater] = useState(false)
   const emails = SAMPLE_EMAILS.filter((e) => later || !e.later)
   const [openEmail, setOpenEmail] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  // Bumped on reset so the inbox is read again from scratch.
+  const [round, setRound] = useState(0)
 
   const chat = chats.find((c) => c.phone === openPhone) ?? null
   const host: PanelHost = {
     insertDraft: (phone, text) => setDrafts((d) => ({ ...d, [phone]: text })),
   }
 
-  async function readAlerts() {
-    setBusy(true)
-    try {
-      const results = await ledger.importAlerts(emails)
-      setAlerts(Object.fromEntries(emails.map((e, n) => [e.id, results[n]!])))
-    } finally {
-      setBusy(false)
+  // Stands in for the extension's inbox watch: every alert that has arrived
+  // is read without a click, and waiting orders are checked again.
+  const { importAlerts } = ledger
+  useEffect(() => {
+    let live = true
+    const arrived = SAMPLE_EMAILS.filter((e) => later || !e.later)
+    void importAlerts(arrived).then((results) => {
+      if (live) {
+        setAlerts(
+          Object.fromEntries(arrived.map((e, n) => [e.id, results[n]!])),
+        )
+      }
+    })
+    return () => {
+      live = false
     }
-  }
+  }, [importAlerts, later, round])
 
   async function readBankApp() {
     setBankApp({ status: 'running' })
@@ -112,6 +121,7 @@ export default function DemoApp() {
     await ledger.reset()
     setAlerts({})
     setLater(false)
+    setRound((r) => r + 1)
     setBankApp(null)
     setDrafts({})
     setOpenPhone(null)
@@ -236,21 +246,13 @@ export default function DemoApp() {
         {view === 'inbox' && (
           <section className="inbox" aria-label="Sample inbox">
             <div className="inbox-head">
-              <p>Bank alert emails for the shop&apos;s GTBank account.</p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void readAlerts()}
-              >
-                {busy ? 'Reading…' : 'Read bank alerts'}
-              </button>
+              <p>
+                Bank alert emails for the shop&apos;s GTBank account. The desk
+                watches this inbox and reads each alert as it arrives.
+              </p>
               {!later && (
-                <button
-                  type="button"
-                  className="quiet"
-                  onClick={() => setLater(true)}
-                >
-                  Let time pass to 16:10
+                <button type="button" onClick={() => setLater(true)}>
+                  Let time pass: late alerts arrive
                 </button>
               )}
             </div>

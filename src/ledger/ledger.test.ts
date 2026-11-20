@@ -8,6 +8,7 @@ import {
   matcherLedger,
   newOrder,
   normalisePhone,
+  recheckOrders,
   recordVerdict,
   toBookEntry,
   undoCreditPick,
@@ -192,5 +193,40 @@ describe('undo', () => {
     const matched = verify(order(), [], [credit({ sessionId: OPAY_ID })])
     expect(matched.payment.state).toBe('matched')
     expect(undoCreditPick(matched, NOW)).toBeNull()
+  })
+})
+
+describe('recheckOrders', () => {
+  it('turns a waiting order paid once its credit arrives', () => {
+    const waiting = verify(order(), [], [])
+    expect(waiting.payment.state).toBe('not yet credited')
+    expect(waiting.receipt).toEqual(receipt)
+    expect(recheckOrders([waiting], [], config, [], NOW)).toEqual([])
+    const [paid] = recheckOrders([waiting], [credit()], config, [], NOW + 1)
+    expect(paid?.payment).toMatchObject({ state: 'matched', creditId: 'c1' })
+  })
+
+  it('gives one credit to the older of two waiting orders', () => {
+    const older = verify(order(), [], [])
+    const newer = { ...verify(order([older]), [], []), createdAt: NOW + 5 }
+    const changed = recheckOrders([newer, older], [credit()], config, [], NOW)
+    expect(changed.map((o) => [o.id, o.payment.state])).toEqual([
+      [older.id, 'matched'],
+      [newer.id, 'mismatch'],
+    ])
+  })
+
+  it('leaves paid orders and orders the vendor decided alone', () => {
+    const paid = verify(order(), [], [credit()])
+    const decided = {
+      ...verify(order(), [], []),
+      payment: {
+        ...verify(order(), [], []).payment,
+        decidedBy: 'vendor' as const,
+      },
+    }
+    expect(recheckOrders([paid, decided], [credit()], config, [], NOW)).toEqual(
+      [],
+    )
   })
 })

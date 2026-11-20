@@ -2,7 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { appConfig } from '../config/active'
 import { syncBook, vendorId } from '../ledger/books'
 import { clearAll, getAll, putAll, remove } from '../ledger/db'
-import { applyReversals, freshCredits, matcherLedger } from '../ledger/ledger'
+import {
+  applyReversals,
+  freshCredits,
+  matcherLedger,
+  recheckOrders,
+} from '../ledger/ledger'
 import { applyRefunds, settle, type ExtraRow } from '../ledger/settle'
 import type { Customer, Order, RefundTo, Settlement } from '../ledger/types'
 import { parseAlert, type AlertEmail, type AlertResult } from '../verify/alerts'
@@ -42,11 +47,11 @@ async function load(): Promise<LedgerData> {
   orders.sort((a, b) => b.updatedAt - a.updatedAt)
   // Records saved before balances and part refunds existed lack those fields.
   return {
-    orders: orders.map((o) =>
-      o.payment.topUpIds
-        ? o
-        : { ...o, payment: { ...o.payment, topUpIds: [] } },
-    ),
+    orders: orders.map((o) => ({
+      ...o,
+      payment: { ...o.payment, topUpIds: o.payment.topUpIds ?? [] },
+      receipt: o.receipt ?? null,
+    })),
     credits,
     customers,
     settlements: settlements.flatMap((x) => {
@@ -81,6 +86,9 @@ export function useLedger() {
   const [data, setData] = useState<LedgerData | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [books, setBooks] = useState<BooksSync>({ state: 'idle' })
+  // Orders that turned paid on their own when new money arrived, until the
+  // vendor has seen them.
+  const [justPaid, setJustPaid] = useState<string[]>([])
 
   const reload = useCallback(
     () =>
@@ -138,15 +146,35 @@ export function useLedger() {
       const now = Date.now()
       const reversed = matcherLedger([], all, verifyConfig()).reversedCredits
       const unpaid = applyReversals(before.orders, reversed, now)
+      const afterReversals = before.orders.map(
+        (o) => unpaid.find((u) => u.id === o.id) ?? o,
+      )
+      const rechecked = recheckOrders(
+        afterReversals,
+        all,
+        verifyConfig(),
+        before.settlements,
+        now,
+      )
+      const changed = [
+        ...unpaid.filter((u) => !rechecked.some((r) => r.id === u.id)),
+        ...rechecked,
+      ]
       const refunded = applyRefunds(
         before.settlements,
         all,
         verifyConfig(),
         now,
       )
-      await putAll({ credits, orders: unpaid, settlements: refunded })
+      await putAll({ credits, orders: changed, settlements: refunded })
       await reload()
-      syncBooks(unpaid)
+      syncBooks(changed)
+      const paid = rechecked
+        .filter((o) => o.payment.state === 'matched')
+        .map((o) => o.id)
+      if (paid.length > 0) {
+        setJustPaid((ids) => [...new Set([...ids, ...paid])])
+      }
     },
     [reload, syncBooks],
   )
@@ -235,7 +263,13 @@ export function useLedger() {
     [reload],
   )
 
+  const seen = useCallback(
+    (orderId: string) => setJustPaid((ids) => ids.filter((x) => x !== orderId)),
+    [],
+  )
+
   const reset = useCallback(async () => {
+    setJustPaid([])
     await clearAll()
     setBooks({ state: 'idle' })
     await reload()
@@ -252,6 +286,8 @@ export function useLedger() {
     settleCredit,
     setRefundTo,
     unsettle,
+    justPaid,
+    seen,
     reset,
     config: verifyConfig(),
   }

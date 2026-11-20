@@ -441,7 +441,9 @@ Value Date    :    2026-11-21
 Time of Transaction    :    12:46:40 PM`,
   },
   {
+    // Same-bank alerts can lag; this one arrives after Chioma's receipt.
     id: 'e3',
+    later: true,
     from: GTBANK,
     subject: 'GeNS Transaction Alert [Credit: NGN 9,000.00]',
     time: '13:11',
