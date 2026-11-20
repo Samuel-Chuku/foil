@@ -12,6 +12,7 @@ import {
   newOrder,
   normalisePhone,
   recordVerdict,
+  undoCreditPick,
 } from '../ledger/ledger'
 import { moreFromPayer, unclaimedCredits } from '../ledger/settle'
 import type { Order, PaymentState, Settlement } from '../ledger/types'
@@ -433,6 +434,36 @@ export function Panel(props: {
     })
   }
 
+  async function undoPick() {
+    if (!chat) return
+    const data = await ledger.load()
+    const mine = openOrder(data.orders, customerId)
+    // Runs on a click, not during render (see pickCredit).
+    // oxlint-disable-next-line react/purity
+    const at = Date.now()
+    const undone = mine && undoCreditPick(mine, at)
+    if (!undone) return
+    await ledger.saveOrder(undone)
+    const v = current.verify
+    patch(chat.phone, {
+      notice: undefined,
+      verify:
+        v?.status === 'done'
+          ? {
+              status: 'done',
+              value: {
+                ...v.value,
+                verdict: {
+                  kind: 'check',
+                  reason: undone.payment.reason ?? '',
+                  candidates: undone.payment.candidates,
+                },
+              },
+            }
+          : v,
+    })
+  }
+
   async function readBankAppFile(file: File) {
     setBankApp({ status: 'running', note: 'Reading the screenshot…' })
     try {
@@ -625,6 +656,7 @@ export function Panel(props: {
                   rows={chatRows}
                   settleable={settleable}
                   onSettle={settle}
+                  onUndo={(id) => void ledger.unsettle(id)}
                 />
               </div>
             )}
@@ -642,6 +674,19 @@ export function Panel(props: {
                   · {PAYMENT_LABEL[order.payment.state]}
                   {order.payment.decidedBy === 'vendor' &&
                     ' (confirmed by you)'}
+                  {order.payment.decidedBy === 'vendor' &&
+                    order.payment.state === 'matched' && (
+                      <>
+                        {' '}
+                        <button
+                          type="button"
+                          className="link"
+                          onClick={() => void undoPick()}
+                        >
+                          Undo my choice
+                        </button>
+                      </>
+                    )}
                 </p>
                 <p>
                   {order.items.map((i) => `${i.qty} × ${i.name}`).join(', ') ||
@@ -889,6 +934,7 @@ export function Panel(props: {
           <ExtraMoney
             rows={extraRows}
             settleable={settleable}
+            onUndo={(id) => void ledger.unsettle(id)}
             onSettle={(id, state) =>
               void ledger.settleCredit(
                 id,

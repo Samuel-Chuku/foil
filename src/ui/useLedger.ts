@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { appConfig } from '../config/active'
 import { syncBook, vendorId } from '../ledger/books'
-import { clearAll, getAll, putAll } from '../ledger/db'
+import { clearAll, getAll, putAll, remove } from '../ledger/db'
 import { applyReversals, freshCredits, matcherLedger } from '../ledger/ledger'
 import { applyRefunds, settle } from '../ledger/settle'
 import type { Customer, Order, Settlement } from '../ledger/types'
@@ -195,6 +195,15 @@ export function useLedger() {
     [reload],
   )
 
+  // Takes back a refund or credit decision; the money is undecided again.
+  const unsettle = useCallback(
+    async (creditId: string) => {
+      await remove('settlements', creditId)
+      await reload()
+    },
+    [reload],
+  )
+
   const reset = useCallback(async () => {
     await clearAll()
     setBooks({ state: 'idle' })
@@ -210,6 +219,7 @@ export function useLedger() {
     importAlerts,
     importHistory,
     settleCredit,
+    unsettle,
     reset,
     config: verifyConfig(),
   }

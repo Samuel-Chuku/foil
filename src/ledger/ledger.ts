@@ -122,7 +122,8 @@ export function confirmCredit(
         state: 'matched',
         reason: 'Confirmed by you.',
         creditId,
-        candidates: [],
+        // Kept so the choice can be undone and made again.
+        candidates: order.payment.candidates,
         decidedBy: 'vendor',
         checkedAt: now,
       },
@@ -150,6 +151,27 @@ export function freshCredits(existing: Credit[], incoming: Credit[]): Credit[] {
     kept.push(c)
   }
   return kept
+}
+
+// Undoes the vendor's pick of a credit: the order goes back to "check this"
+// with the same candidates, and the credit is free again. Rule decisions are
+// not undone here; "Verify again" re-runs them.
+export function undoCreditPick(order: Order, now: number): Order | null {
+  const p = order.payment
+  if (p.decidedBy !== 'vendor' || p.state !== 'matched') return null
+  return {
+    ...order,
+    payment: {
+      ...p,
+      state: 'check',
+      reason:
+        'Your choice was undone. Pick the credit that pays for this order.',
+      creditId: null,
+      decidedBy: 'rules',
+      checkedAt: now,
+    },
+    updatedAt: now,
+  }
 }
 
 // A reversal alert can arrive after an order was marked paid; that order is

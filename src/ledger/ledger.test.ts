@@ -10,6 +10,7 @@ import {
   normalisePhone,
   recordVerdict,
   toBookEntry,
+  undoCreditPick,
 } from './ledger'
 import type { Order } from './types'
 
@@ -154,5 +155,42 @@ describe('toBookEntry', () => {
     expect(text).not.toContain('Ankara')
     expect(text).not.toContain(OPAY_ID)
     expect(entry.paidAt).toBe(NOW)
+  })
+})
+
+describe('undo', () => {
+  it("undoes the vendor's credit pick and frees the credit", () => {
+    const o = {
+      ...order(),
+      payment: {
+        ...order().payment,
+        state: 'check' as const,
+        candidates: ['c1', 'c2'],
+      },
+    }
+    const picked = confirmCredit(
+      o,
+      'c1',
+      matcherLedger([], [credit()], config),
+      NOW,
+    )
+    if (!picked.ok) throw new Error(picked.reason)
+    const undone = undoCreditPick(picked.order, NOW + 1)!
+    expect(undone.payment).toMatchObject({
+      state: 'check',
+      creditId: null,
+      candidates: ['c1', 'c2'],
+      decidedBy: 'rules',
+    })
+    expect(toBookEntry(undone).paidAt).toBeNull()
+    expect(
+      matcherLedger([undone], [credit()], config).claimedCredits.size,
+    ).toBe(0)
+  })
+
+  it('leaves decisions made by the rules alone', () => {
+    const matched = verify(order(), [], [credit({ sessionId: OPAY_ID })])
+    expect(matched.payment.state).toBe('matched')
+    expect(undoCreditPick(matched, NOW)).toBeNull()
   })
 })

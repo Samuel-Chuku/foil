@@ -101,6 +101,12 @@ export async function putAll(rows: {
   })
 }
 
+export async function remove(store: StoreName, id: string): Promise<void> {
+  await run([store], 'readwrite', (tx) => {
+    tx.objectStore(store).delete(id)
+  })
+}
+
 // Empties every store on this device, for the demo's reset and for a shop
 // laptop the vendor shares.
 export async function clearAll(): Promise<void> {

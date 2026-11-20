@@ -30,6 +30,7 @@ export function ExtraMoney(props: {
   // Credits whose payer already has a paid order, so they can be called extra.
   settleable: Set<string>
   onSettle: (creditId: string, state: Settlement['state']) => void
+  onUndo: (creditId: string) => void
 }) {
   return (
     <ul className="extra">
@@ -62,14 +63,25 @@ export function ExtraMoney(props: {
               </button>
             </p>
           )}
-          {settlement?.state === 'refund owed' && (
+          {settlement && (
             <p>
+              {settlement.state === 'refund owed' && (
+                <>
+                  <button
+                    type="button"
+                    className="quiet"
+                    onClick={() => props.onSettle(credit.id, 'refunded')}
+                  >
+                    Mark refunded
+                  </button>{' '}
+                </>
+              )}
               <button
                 type="button"
-                className="quiet"
-                onClick={() => props.onSettle(credit.id, 'refunded')}
+                className="link"
+                onClick={() => props.onUndo(credit.id)}
               >
-                Mark refunded
+                Undo
               </button>
             </p>
           )}
