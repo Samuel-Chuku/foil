@@ -47,6 +47,7 @@ function alertLine(r: AlertResult): string {
     return `${c.direction === 'credit' ? 'Credit' : 'Debit'} of ${formatNaira(c.amountKobo)} from ${c.sender || 'unknown sender'}`
   }
   if (r.status === 'untrusted') return `Ignored: ${r.reason}`
+  if (r.status === 'not-a-transfer') return 'Not a transfer alert.'
   return 'Not a format the rules know yet.'
 }
 

@@ -120,3 +120,12 @@ export type Product = {
   countedAt: number
   updatedAt: number
 }
+
+// Which Gmail accounts the extension reads bank alerts from, and how the
+// search is limited. Kept on the device; access tokens are never stored.
+export type GmailSettings = {
+  accounts: { email: string }[]
+  // A Gmail label the vendor files alerts under; empty means the known bank
+  // sender addresses instead.
+  label: string
+}

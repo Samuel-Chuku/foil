@@ -409,3 +409,13 @@ button.link {
   gap: 0.5rem;
   align-items: end;
 }
+.accounts {
+  margin: 0.5rem 0;
+  padding-left: 1.1rem;
+}
+.accounts li {
+  display: grid;
+  gap: 0.2rem;
+  margin-bottom: 0.6rem;
+  overflow-wrap: anywhere;
+}

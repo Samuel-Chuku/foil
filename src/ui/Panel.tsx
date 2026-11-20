@@ -1,4 +1,10 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { writeDraft } from '../ai/draft'
 import { readOrder } from '../ai/order'
 import { readRefundTo } from '../ai/refund'
@@ -208,6 +214,8 @@ export function Panel(props: {
   device: DeviceApi
   host: PanelHost
   shop: ShopRulesApi
+  // Where alerts come from in this host: the extension's Gmail accounts.
+  inbox?: ReactNode
 }) {
   const { chat, ledger, device, host, shop } = props
   const { data, config } = ledger
@@ -1244,6 +1252,8 @@ export function Panel(props: {
       <ShopRulesCard shop={shop} device={device} />
 
       <StockCard ledger={ledger} />
+
+      {props.inbox}
 
       <section className="card" aria-labelledby="app-h">
         <h3 id="app-h">Bank app screenshot</h3>

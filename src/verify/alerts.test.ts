@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_VERIFY } from '../config/defaults'
-import { parseAlert, type AlertEmail } from './alerts'
+import { looksLikeTransfer, parseAlert, type AlertEmail } from './alerts'
 import type { VerifyConfig } from './types'
 
 // Synthetic alerts in each bank's layout. Names, numbers and addresses are invented.
@@ -282,9 +282,30 @@ Outward Transfer to VENDOR. 000013261121110140000000000555`,
   })
 
   it('hands an unfamiliar layout from a trusted bank to the model', () => {
-    expect(parseAlert(email('zenith', 'Something new'), config)).toEqual({
-      status: 'unknown-format',
-      bank: 'zenith',
-    })
+    expect(
+      parseAlert(
+        email('zenith', 'You received NGN 2,500.00 in a new layout'),
+        config,
+      ),
+    ).toEqual({ status: 'unknown-format', bank: 'zenith' })
+  })
+
+  it("sets aside a trusted bank's mail that is not a transfer", () => {
+    expect(
+      parseAlert(email('zenith', 'Welcome back! You logged in.'), config),
+    ).toEqual({ status: 'not-a-transfer', bank: 'zenith' })
+  })
+})
+
+describe('looksLikeTransfer', () => {
+  it('tells transfers from a bank’s other mail', () => {
+    expect(
+      looksLikeTransfer('Your account has been credited with NGN 5,000.00'),
+    ).toBe(true)
+    expect(looksLikeTransfer('Debit alert! Amount: ₦1,200')).toBe(true)
+    expect(
+      looksLikeTransfer('Welcome back! You logged in to your app at 3:23 PM.'),
+    ).toBe(false)
+    expect(looksLikeTransfer('Get 10% off when you transfer today')).toBe(false)
   })
 })

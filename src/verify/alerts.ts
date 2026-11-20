@@ -17,6 +17,8 @@ export type AlertResult =
   | { status: 'untrusted'; reason: string }
   // A trusted bank sent a format the rules do not know; the model reads it.
   | { status: 'unknown-format'; bank: string }
+  // A bank's other mail: login notices, offers, statements.
+  | { status: 'not-a-transfer'; bank: string }
 
 type Parsed = Pick<
   Credit,
@@ -208,6 +210,15 @@ const PARSERS: Record<string, (body: string) => Parsed | null> = {
   },
 }
 
+// Banks send login notices and offers from the same address as alerts. Mail
+// with no credit or debit and no amount is not a transfer the rules missed.
+export function looksLikeTransfer(body: string): boolean {
+  return (
+    /\b(credit(ed)?|debit(ed)?|transfer(red)?|received)\b/i.test(body) &&
+    /(?:NGN|₦|\bN)\s?\d[\d,]*(?:\.\d{1,2})?/i.test(body)
+  )
+}
+
 export function parseAlert(
   email: AlertEmail,
   config: VerifyConfig,
@@ -223,7 +234,11 @@ export function parseAlert(
     }
   }
   const p = PARSERS[bank.id]?.(email.body)
-  if (!p) return { status: 'unknown-format', bank: bank.id }
+  if (!p) {
+    return looksLikeTransfer(email.body)
+      ? { status: 'unknown-format', bank: bank.id }
+      : { status: 'not-a-transfer', bank: bank.id }
+  }
   const session = decodeSessionId(p.narration)
   const written = p.time ? parseLagosStamp(p.time) : null
   return {

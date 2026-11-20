@@ -1,6 +1,12 @@
 import type { Credit } from '../verify/types'
 import type { ShopRules } from '../capture/shopRules'
-import type { Customer, Order, Product, Settlement } from './types'
+import type {
+  Customer,
+  GmailSettings,
+  Order,
+  Product,
+  Settlement,
+} from './types'
 
 // Customers, orders and credits stay in this browser's IndexedDB. Only books
 // entries (see books.ts) ever leave the device.
@@ -11,8 +17,9 @@ type Stores = {
   credits: Credit
   settlements: Settlement
   products: Product
-  // One record per setting, such as the shop's rules.
-  settings: { id: 'shop-rules' } & ShopRules
+  // One record per setting: the shop's rules, the Gmail accounts to read.
+  settings:
+    ({ id: 'shop-rules' } & ShopRules) | ({ id: 'gmail' } & GmailSettings)
 }
 export type StoreName = keyof Stores
 
