@@ -297,4 +297,41 @@ describe('verifyReceipt: misread session IDs', () => {
     )
     expect(v.kind).toBe('check')
   })
+
+  // OPAY_ID with an extra 1 inside the date, as the model often reads it.
+  const extraDigit = '1000042611211100212000000000123'
+
+  it('recovers an ID one digit away from exactly one alert', () => {
+    const v = verifyReceipt(
+      receipt({ reference: extraDigit, sender: 'ADAEZE OKAFFOR' }),
+      ledger([credit({ sessionId: OPAY_ID })]),
+      config,
+    )
+    expect(v).toMatchObject({ kind: 'matched', creditId: 'c1' })
+    expect(v.kind === 'matched' && v.notes.join(' ')).toContain('misread')
+  })
+
+  it('does not recover when two alert IDs are equally close', () => {
+    const near = '100004261121100212000000000124'
+    const v = verifyReceipt(
+      receipt({ reference: extraDigit }),
+      ledger([
+        credit({ sessionId: OPAY_ID }),
+        credit({ id: 'c2', sessionId: near }),
+      ]),
+      config,
+    )
+    expect(v.kind).toBe('check')
+  })
+
+  it('still catches a recovered ID already used on another order', () => {
+    const v = verifyReceipt(
+      receipt({ reference: extraDigit }),
+      ledger([credit({ sessionId: OPAY_ID })], {
+        usedSessionIds: new Map([[OPAY_ID, 'A1']]),
+      }),
+      config,
+    )
+    expect(v).toMatchObject({ kind: 'mismatch' })
+  })
 })

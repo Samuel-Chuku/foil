@@ -16,7 +16,7 @@ export type SessionIdResult =
 // Digit runs that could be a NIP session ID. Receipts sometimes prefix the ID
 // with letters ("NXG...") or space it out, so unbroken runs are tried first and
 // spaced-out ones second, without gluing two separate IDs together.
-function digitRuns(text: string): string[] {
+export function digitRuns(text: string): string[] {
   const plain = text.match(/\d+/g) ?? []
   const spaced =
     text.match(/\d[\d -]*\d/g)?.map((r) => r.replace(/[ -]/g, '')) ?? []

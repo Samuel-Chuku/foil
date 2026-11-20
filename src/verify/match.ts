@@ -3,6 +3,7 @@ import { formatNaira } from './money'
 import { nameScore } from './names'
 import {
   decodeSessionId,
+  digitRuns,
   sameSessionId,
   type SessionIdResult,
 } from './sessionId'
@@ -51,6 +52,29 @@ function timeFits(
   )
 }
 
+// The model sometimes adds or drops one digit when reading a long ID, which
+// leaves 29 or 31 digits that cannot be decoded. When such a reading is one
+// edit away from exactly one alert's ID, it is that ID. Two or more close IDs
+// prove nothing, so the reading stays unreadable.
+function recoverSessionId(
+  receipt: Receipt,
+  ledger: Ledger,
+): SessionIdResult | null {
+  const runs = digitRuns(receipt.reference).filter(
+    (r) => r.length >= 29 && r.length <= 31,
+  )
+  if (runs.length === 0) return null
+  const close = new Set<string>()
+  for (const c of ledger.credits) {
+    if (c.direction !== 'credit' || c.reversal || !c.sessionId) continue
+    if (runs.some((r) => sameSessionId(r, c.sessionId!))) close.add(c.sessionId)
+  }
+  if (close.size !== 1) return null
+  const [id] = close
+  const value = decodeSessionId(id!)
+  return value.ok ? value : null
+}
+
 export function verifyReceipt(
   receipt: Receipt,
   ledger: Ledger,
@@ -79,13 +103,20 @@ export function verifyReceipt(
   const decoded = decodeSessionId(receipt.reference)
   // One misread digit can move the date inside an ID by decades. Such an ID is
   // unreadable, not evidence: it must lead to "check", never to a mismatch.
-  const session: SessionIdResult =
+  const readable: SessionIdResult =
     decoded.ok &&
     receipt.at &&
     Math.abs(decoded.value.stampedMs - receipt.at.ms) > 366 * 86_400_000
       ? { ok: false, reason: 'date' }
       : decoded
   const notes: string[] = []
+  const recovered = readable.ok ? null : recoverSessionId(receipt, ledger)
+  const session: SessionIdResult = recovered ?? readable
+  if (recovered) {
+    notes.push(
+      'One digit of the session ID was misread; the rest agrees with the bank alert.',
+    )
+  }
 
   if (session.ok) {
     const sid = session.value
