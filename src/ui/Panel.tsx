@@ -1,6 +1,8 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { writeDraft } from '../ai/draft'
 import { readOrder } from '../ai/order'
+import { readRefundTo } from '../ai/refund'
+import { toRefundTo } from '../capture/refundDetails'
 import { readReceiptImage } from '../ai/receipt'
 import type { Reading } from '../ai/run'
 import { draftPrompt, draftProblem } from '../capture/draft'
@@ -17,7 +19,7 @@ import {
   undoCreditPick,
 } from '../ledger/ledger'
 import { extraMoney, moreFromPayer, type ExtraRow } from '../ledger/settle'
-import type { Order, PaymentState, Settlement } from '../ledger/types'
+import type { Order, PaymentState, RefundTo, Settlement } from '../ledger/types'
 import { verifyReceipt, type Verdict } from '../verify/match'
 import { formatNaira, parseNairaKobo } from '../verify/money'
 import type { RawReceipt } from '../verify/receiptFields'
@@ -62,6 +64,13 @@ type Work = {
     form: OrderForm
   }>
   draft?: Step<Reading<string>>
+  // The refund account read from the chat, for the vendor to check and save.
+  refund?: Step<{
+    key: string
+    source: Reading<unknown>['source']
+    ms: number
+    form: RefundTo
+  }> & { key: string }
   // Why the vendor's choice of credit was refused.
   notice?: string
 }
@@ -464,6 +473,121 @@ export function Panel(props: {
     }
   }
 
+  async function readRefund(key: string) {
+    if (!chat) return
+    const phone = chat.phone
+    patch(phone, {
+      refund: { key, status: 'running', note: 'Reading the chat…' },
+    })
+    try {
+      await device.ready()
+      const reading = await readRefundTo(
+        transcript(
+          chat.messages.map((m) => ({
+            from: m.from,
+            time: m.time,
+            text: m.text,
+            image: Boolean(m.image),
+          })),
+        ),
+        device.consent,
+      )
+      patch(phone, {
+        refund: {
+          key,
+          status: 'done',
+          value: {
+            key,
+            source: reading.source,
+            ms: reading.ms,
+            form: toRefundTo(reading.fields, config),
+          },
+        },
+      })
+    } catch (error) {
+      patch(phone, {
+        refund: { key, status: 'error', message: errorText(error) },
+      })
+    }
+  }
+
+  function editRefund(form: RefundTo) {
+    const r = current.refund
+    if (!chat || r?.status !== 'done') return
+    patch(chat.phone, {
+      refund: { ...r, value: { ...r.value, form } },
+    })
+  }
+
+  // Under a refund owed in this chat: read the account from the chat, let the
+  // vendor check it, then keep it with the refund on this computer.
+  function refundControls(row: ExtraRow) {
+    if (row.settlement?.state !== 'refund owed' || !chat) return null
+    const r = current.refund?.key === row.key ? current.refund : undefined
+    if (r?.status === 'running') return <p aria-live="polite">{r.note}</p>
+    if (r?.status === 'done') {
+      const form = r.value.form
+      return (
+        <form
+          className="order-form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void ledger
+              .setRefundTo(row.key, form)
+              .then(() => patch(chat.phone, { refund: undefined }))
+          }}
+        >
+          <Badge source={r.value.source} ms={r.value.ms} />
+          <p className="hint">
+            Check these against the chat before you send any money.
+          </p>
+          {(
+            [
+              ['accountNumber', 'Account number'],
+              ['bank', 'Bank'],
+              ['accountName', 'Account name'],
+            ] as const
+          ).map(([k, label]) => (
+            <label key={k}>
+              {label}
+              <input
+                value={form[k]}
+                inputMode={k === 'accountNumber' ? 'numeric' : undefined}
+                onChange={(e) => editRefund({ ...form, [k]: e.target.value })}
+              />
+            </label>
+          ))}
+          <button type="submit">Save account</button>{' '}
+          <button
+            type="button"
+            className="quiet"
+            onClick={() => patch(chat.phone, { refund: undefined })}
+          >
+            Discard
+          </button>
+        </form>
+      )
+    }
+    return (
+      <>
+        {r?.status === 'error' && (
+          <p className="error" role="alert">
+            {r.message}
+          </p>
+        )}
+        <button
+          type="button"
+          className="quiet"
+          onClick={() => void readRefund(row.key)}
+        >
+          {row.settlement.refundTo
+            ? 'Read the account again'
+            : 'Read refund account from chat'}
+        </button>
+      </>
+    )
+  }
+
   async function draft() {
     if (!chat || !data) return
     const phone = chat.phone
@@ -484,6 +608,7 @@ export function Panel(props: {
             .map((r) => ({
               state: r.settlement!.state,
               amountKobo: r.amountKobo,
+              hasAccount: Boolean(r.settlement!.refundTo?.accountNumber),
             })),
           shortKobo: balance !== null && balance > 0 ? balance : null,
         },
@@ -644,6 +769,7 @@ export function Panel(props: {
                   rows={chatRows}
                   onSettle={settle}
                   onUndo={(id) => void ledger.unsettle(id)}
+                  more={refundControls}
                 />
               </div>
             )}

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { ExtraRow } from '../ledger/settle'
 import type { Settlement } from '../ledger/types'
 import { formatNaira } from '../verify/money'
@@ -41,6 +42,8 @@ export function ExtraMoney(props: {
   rows: ExtraRow[]
   onSettle: (row: ExtraRow, state: Settlement['state']) => void
   onUndo: (key: string) => void
+  // Extra controls under a row, such as the refund account in a chat.
+  more?: (row: ExtraRow) => ReactNode
 }) {
   return (
     <ul className="extra">
@@ -64,6 +67,14 @@ export function ExtraMoney(props: {
               </button>
             </p>
           )}
+          {row.settlement?.refundTo && (
+            <p>
+              Send to {row.settlement.refundTo.accountNumber || '(no number)'} ·{' '}
+              {row.settlement.refundTo.bank || '(no bank)'} ·{' '}
+              {row.settlement.refundTo.accountName || '(no name)'}
+            </p>
+          )}
+          {props.more?.(row)}
           {row.settlement && (
             <p>
               {row.settlement.state === 'refund owed' && (

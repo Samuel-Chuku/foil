@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { draftProblem, draftPrompt } from './draft'
 import { pickOrder, toOrderFields } from './orderFields'
 import { transcript } from './transcript'
+import { toRefundTo } from './refundDetails'
+import { DEFAULT_VERIFY as config } from '../config/defaults'
 
 describe('transcript', () => {
   it('labels speakers and stands in for images', () => {
@@ -109,7 +111,23 @@ describe('draft', () => {
       'Customer (15:25): I send again.',
     )
     expect(p).toContain('extra ₦5,000')
-    expect(p).toContain('sent back')
+    expect(p).toContain('account number, bank and account name')
+    expect(p).toContain('keep it as credit')
+  })
+
+  it('confirms the refund once the customer has given an account', () => {
+    const p = draftPrompt(
+      {
+        ...facts,
+        payment: 'matched',
+        extra: [
+          { state: 'refund owed', amountKobo: 500_000, hasAccount: true },
+        ],
+      },
+      'Customer (15:25): Refund am to my OPay.',
+    )
+    expect(p).toContain('sent back to the account they gave')
+    expect(p).not.toContain('Ask for the account')
   })
 
   it('asks for the balance when a payment fell short', () => {
@@ -130,5 +148,33 @@ describe('draft', () => {
     expect(draftProblem('This receipt is fake.')).not.toBeNull()
     expect(draftProblem('Thank you, e don land!')).toBeNull()
     expect(draftProblem('  ')).not.toBeNull()
+  })
+})
+
+describe('refund details', () => {
+  it('keeps a ten-digit account and names the bank', () => {
+    expect(
+      toRefundTo(
+        {
+          accountNumber: '900 000 0006',
+          bank: 'my opay',
+          accountName: 'Oluwakemi Johnson',
+        },
+        config,
+      ),
+    ).toEqual({
+      accountNumber: '9000000006',
+      bank: 'OPay',
+      accountName: 'Oluwakemi Johnson',
+    })
+  })
+
+  it('leaves a doubtful account number blank instead of guessing', () => {
+    expect(
+      toRefundTo(
+        { accountNumber: '90000006', bank: 'unknown', accountName: 'none' },
+        config,
+      ),
+    ).toEqual({ accountNumber: '', bank: '', accountName: '' })
   })
 })

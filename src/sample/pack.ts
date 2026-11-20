@@ -26,7 +26,13 @@ export type SampleChat = {
   expected: 'matched' | 'not yet credited' | 'mismatch' | 'check'
 }
 
-export type SampleEmail = AlertEmail & { subject: string; time: string }
+// `later`: arrives only when the demo lets time pass, to show what happens
+// when an alert lands after the vendor has acted.
+export type SampleEmail = AlertEmail & {
+  subject: string
+  time: string
+  later?: boolean
+}
 
 export const SAMPLE_DAY = 'Saturday 21 November 2026'
 const at = (h: number, m: number, s = 0) => Date.UTC(2026, 10, 21, h, m, s)
@@ -277,6 +283,12 @@ export const SAMPLE_CHATS: SampleChat[] = [
         time: '15:25',
         text: 'The first one show pending so I send again. Abeg check am. Deliver to 9 Admiralty Way, Lekki.',
       },
+      {
+        id: 'k5',
+        from: 'customer',
+        time: '15:26',
+        text: 'If e enter twice, abeg refund the extra to my OPay 900 000 0006, Oluwakemi Johnson.',
+      },
     ],
   },
   {
@@ -509,6 +521,7 @@ Document Number    :    10003326112114231000`,
   {
     // The vendor sends Kemi's second payment back from the bank app.
     id: 'e8',
+    later: true,
     from: GTBANK,
     subject: 'GeNS Transaction Alert [Debit: NGN 5,000.00]',
     time: '16:05',

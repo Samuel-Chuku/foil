@@ -68,7 +68,10 @@ export default function DemoApp() {
     messageId: string
     nonce: number
   } | null>(null)
-  const [alerts, setAlerts] = useState<AlertResult[] | null>(null)
+  const [alerts, setAlerts] = useState<Record<string, AlertResult>>({})
+  // Whether the demo has let time pass, so later alerts have arrived.
+  const [later, setLater] = useState(false)
+  const emails = SAMPLE_EMAILS.filter((e) => later || !e.later)
   const [openEmail, setOpenEmail] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -80,7 +83,8 @@ export default function DemoApp() {
   async function readAlerts() {
     setBusy(true)
     try {
-      setAlerts(await ledger.importAlerts(SAMPLE_EMAILS))
+      const results = await ledger.importAlerts(emails)
+      setAlerts(Object.fromEntries(emails.map((e, n) => [e.id, results[n]!])))
     } finally {
       setBusy(false)
     }
@@ -106,7 +110,8 @@ export default function DemoApp() {
 
   async function reset() {
     await ledger.reset()
-    setAlerts(null)
+    setAlerts({})
+    setLater(false)
     setBankApp(null)
     setDrafts({})
     setOpenPhone(null)
@@ -239,9 +244,18 @@ export default function DemoApp() {
               >
                 {busy ? 'Reading…' : 'Read bank alerts'}
               </button>
+              {!later && (
+                <button
+                  type="button"
+                  className="quiet"
+                  onClick={() => setLater(true)}
+                >
+                  Let time pass to 16:10
+                </button>
+              )}
             </div>
             <ul className="emails">
-              {SAMPLE_EMAILS.map((e, n) => (
+              {emails.map((e) => (
                 <li key={e.id}>
                   <button
                     type="button"
@@ -254,12 +268,15 @@ export default function DemoApp() {
                     <span>{e.subject}</span>
                     <time>{e.time}</time>
                   </button>
-                  {alerts?.[n] && (
-                    <p className="alert-result" data-status={alerts[n].status}>
+                  {alerts[e.id] && (
+                    <p
+                      className="alert-result"
+                      data-status={alerts[e.id]!.status}
+                    >
                       <span className="badge" data-source="Rules">
                         Rules
                       </span>{' '}
-                      {alertLine(alerts[n])}
+                      {alertLine(alerts[e.id]!)}
                     </p>
                   )}
                   {openEmail === e.id && <pre>{e.body}</pre>}

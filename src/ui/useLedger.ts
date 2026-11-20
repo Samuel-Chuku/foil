@@ -4,7 +4,7 @@ import { syncBook, vendorId } from '../ledger/books'
 import { clearAll, getAll, putAll, remove } from '../ledger/db'
 import { applyReversals, freshCredits, matcherLedger } from '../ledger/ledger'
 import { applyRefunds, settle, type ExtraRow } from '../ledger/settle'
-import type { Customer, Order, Settlement } from '../ledger/types'
+import type { Customer, Order, RefundTo, Settlement } from '../ledger/types'
 import { parseAlert, type AlertEmail, type AlertResult } from '../verify/alerts'
 import {
   historyCredits,
@@ -212,6 +212,20 @@ export function useLedger() {
     [reload],
   )
 
+  // Records where the customer wants a refund sent, after the vendor checked it.
+  const setRefundTo = useCallback(
+    async (key: string, refundTo: RefundTo) => {
+      const before = await load()
+      const s = before.settlements.find((x) => x.id === key)
+      if (!s) return
+      await putAll({
+        settlements: [{ ...s, refundTo, updatedAt: Date.now() }],
+      })
+      await reload()
+    },
+    [reload],
+  )
+
   // Takes back a refund or credit decision; the money is undecided again.
   const unsettle = useCallback(
     async (key: string) => {
@@ -236,6 +250,7 @@ export function useLedger() {
     importAlerts,
     importHistory,
     settleCredit,
+    setRefundTo,
     unsettle,
     reset,
     config: verifyConfig(),

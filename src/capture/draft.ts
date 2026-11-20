@@ -7,7 +7,12 @@ export type DraftFacts = {
   items: OrderItem[]
   pickup: boolean
   // Extra money from this customer that pays no order, and what the shop decided.
-  extra?: { state: Settlement['state']; amountKobo: number }[]
+  // `hasAccount`: the customer has already said where a refund should go.
+  extra?: {
+    state: Settlement['state']
+    amountKobo: number
+    hasAccount?: boolean
+  }[]
   // What is still owed after a payment that fell short.
   shortKobo?: number | null
 }
@@ -40,7 +45,9 @@ function extraLine(e: NonNullable<DraftFacts['extra']>[number]): string {
   const amount = formatNaira(e.amountKobo)
   switch (e.state) {
     case 'refund owed':
-      return `They also sent an extra ${amount} that pays for nothing. Say it will be sent back to them.`
+      return e.hasAccount
+        ? `They also sent an extra ${amount}. Say it will be sent back to the account they gave.`
+        : `They also sent an extra ${amount}. Ask for the account number, bank and account name to send it back to, or whether they would rather keep it as credit for their next order. If the chat already gives an account, thank them and say it will be sent there instead.`
     case 'refunded':
       return `They had sent an extra ${amount}; it has been sent back to them.`
     case 'kept':

@@ -71,6 +71,14 @@ export type Settlement = {
   customerId: string | null
   // The outgoing debit alert that showed the refund was sent.
   refundId: string | null
+  // Where the customer asked for a refund to go, checked by the vendor.
+  refundTo?: RefundTo
   decidedBy: 'rules' | 'vendor'
   updatedAt: number
+}
+
+export type RefundTo = {
+  accountNumber: string
+  bank: string
+  accountName: string
 }
