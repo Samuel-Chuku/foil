@@ -14,3 +14,24 @@ declare namespace chrome.identity {
     timeoutMsForNonInteractive?: number
   }): Promise<string | undefined>
 }
+
+declare namespace chrome.runtime {
+  // Undefined once the extension is reloaded under an open page.
+  const id: string | undefined
+  type MessageSender = { tab?: { id?: number } }
+  function sendMessage(message: unknown): Promise<unknown>
+  const onMessage: {
+    addListener(
+      listener: (
+        message: unknown,
+        sender: MessageSender,
+        sendResponse: (response?: unknown) => void,
+      ) => boolean | void,
+    ): void
+    removeListener(listener: (...args: never[]) => unknown): void
+  }
+}
+
+declare namespace chrome.tabs {
+  function sendMessage(tabId: number, message: unknown): Promise<unknown>
+}

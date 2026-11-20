@@ -320,6 +320,30 @@ export function useLedger() {
     [reload],
   )
 
+  // A customer filed under a contact name moves to their number once it is
+  // known, so their earlier orders and decisions stay together.
+  const rekeyCustomer = useCallback(
+    async (from: string, to: string) => {
+      const d = await load()
+      const orders = d.orders
+        .filter((o) => o.customerId === from)
+        .map((o) => ({ ...o, customerId: to }))
+      const settlements = d.settlements
+        .filter((x) => x.customerId === from)
+        .map((x) => ({ ...x, customerId: to }))
+      const old = d.customers.find((c) => c.id === from)
+      const kept = d.customers.find((c) => c.id === to)
+      const customers = old
+        ? [{ ...old, ...(kept ?? {}), name: kept?.name || old.name, id: to }]
+        : []
+      if (!orders.length && !settlements.length && !old) return
+      await putAll({ orders, settlements, customers })
+      if (old) await remove('customers', from)
+      await reload()
+    },
+    [reload],
+  )
+
   const reset = useCallback(async () => {
     setJustPaid([])
     await clearAll()
@@ -342,6 +366,7 @@ export function useLedger() {
     seen,
     recheck,
     saveProducts,
+    rekeyCustomer,
     reset,
     config: verifyConfig(),
   }

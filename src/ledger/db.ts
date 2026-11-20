@@ -19,7 +19,10 @@ type Stores = {
   products: Product
   // One record per setting: the shop's rules, the Gmail accounts to read.
   settings:
-    ({ id: 'shop-rules' } & ShopRules) | ({ id: 'gmail' } & GmailSettings)
+    | ({ id: 'shop-rules' } & ShopRules)
+    | ({ id: 'gmail' } & GmailSettings)
+    // Numbers the vendor gave for saved WhatsApp contacts, by contact name.
+    | { id: 'contacts'; byName: Record<string, string> }
 }
 export type StoreName = keyof Stores
 

@@ -25,13 +25,14 @@ import {
 } from '../capture/stock'
 import { transcript } from '../capture/transcript'
 import {
+  applyVerdict,
+  balanceKobo,
   confirmCredit,
+  customerKey,
+  dueKobo,
   matcherLedger,
   newOrder,
   normalisePhone,
-  applyVerdict,
-  balanceKobo,
-  dueKobo,
   paidKobo,
   undoCreditPick,
 } from '../ledger/ledger'
@@ -42,7 +43,7 @@ import { formatNaira, parseNairaKobo } from '../verify/money'
 import type { RawReceipt } from '../verify/receiptFields'
 import { toReceipt } from '../verify/receiptFields'
 import type { Credit, Receipt } from '../verify/types'
-import type { OpenChat, PanelHost } from './host'
+import type { OpenChat, PanelHost, PanelRequest } from './host'
 import {
   fileToImage,
   importBankApp,
@@ -210,7 +211,7 @@ function DeviceStatus(props: { device: DeviceApi }) {
 
 export function Panel(props: {
   chat: OpenChat | null
-  verifyRequest: { messageId: string; nonce: number } | null
+  request: PanelRequest | null
   ledger: LedgerApi
   device: DeviceApi
   host: PanelHost
@@ -226,7 +227,7 @@ export function Panel(props: {
   const patch = (phone: string, next: Partial<Work>) =>
     setWork((w) => ({ ...w, [phone]: { ...w[phone], ...next } }))
 
-  const customerId = chat ? normalisePhone(chat.phone) : null
+  const customerId = chat ? customerKey(chat.phone) : null
   const hasReceipt = chat?.messages.some((m) => m.image) ?? false
   const openOrder = (orders: Order[], id: string | null) =>
     orders.find((o) => o.customerId === id && o.delivery === 'pending') ?? null
@@ -317,17 +318,17 @@ export function Panel(props: {
     }
   }
 
-  // The chat's own "Verify payment" button. Each click carries a new nonce,
-  // and the ref stops development double-rendering from reading it twice.
-  const request = props.verifyRequest
+  // The chat's own "Verify payment" and "Capture order" buttons. The ref
+  // stops development double-rendering from running a click twice.
+  const request = props.request
   const handled = useRef<number | null>(null)
-  const onRequest = useEffectEvent(
-    (messageId: string) => void verify(messageId),
+  const onRequest = useEffectEvent((r: PanelRequest) =>
+    r.action === 'verify' ? void verify(r.messageId) : void capture(),
   )
   useEffect(() => {
     if (!request || handled.current === request.nonce) return
     handled.current = request.nonce
-    onRequest(request.messageId)
+    onRequest(request)
   }, [request])
 
   async function capture() {
@@ -400,7 +401,7 @@ export function Panel(props: {
     if (!chat) return
     const data = await ledger.load()
     const at = Date.now()
-    const id = normalisePhone(chat.phone)
+    const id = customerKey(chat.phone)
     const items = form.items
       .filter((i) => i.name.trim())
       .map((i) => ({
@@ -720,7 +721,7 @@ export function Panel(props: {
       const reading = await writeDraft(prompt, device.consent)
       const problem = draftProblem(reading.fields)
       if (problem) throw new Error(`${problem} Try again.`)
-      host.insertDraft(phone, reading.fields)
+      await host.insertDraft(phone, reading.fields)
       if (order) ledger.seen(order.id)
       patch(phone, { draft: { status: 'done', value: reading } })
     } catch (error) {

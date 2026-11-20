@@ -16,12 +16,22 @@ export type OpenChat = {
   phone: string
   contactName: string
   messages: ChatMessage[]
+  // A saved contact's number, read from WhatsApp's Contact info panel when
+  // the vendor had it open.
+  shownPhone?: string
 }
 
 export type PanelHost = {
-  // Places text in the chat's message box. It is never sent.
-  insertDraft(phone: string, text: string): void
+  // Places text in the chat's message box. It is never sent. Rejects when
+  // that chat is no longer the one open.
+  insertDraft(phone: string, text: string): void | Promise<void>
   // The time now, in Lagos wall-clock milliseconds. The demo runs its own
   // clock on the sample day.
   now(): number
 }
+
+// What a click in the chat asks the panel to do. Each click carries a new
+// nonce so the same request is never run twice.
+export type PanelRequest =
+  | { action: 'verify'; messageId: string; nonce: number }
+  | { action: 'capture'; nonce: number }

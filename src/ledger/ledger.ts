@@ -20,6 +20,15 @@ export function normalisePhone(text: string): string | null {
   return null
 }
 
+// Who a chat's customer is filed under: their number, or, for a saved
+// WhatsApp contact whose number is not known yet, the contact's name.
+export function customerKey(chatPhone: string): string | null {
+  return (
+    normalisePhone(chatPhone) ??
+    (chatPhone.startsWith('name:') ? chatPhone : null)
+  )
+}
+
 export function nextOrderCode(orders: Order[]): string {
   const highest = orders.reduce((n, o) => Math.max(n, Number(o.code) || 0), 0)
   return String(highest + 1)

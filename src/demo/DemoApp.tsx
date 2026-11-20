@@ -11,7 +11,7 @@ import {
 } from '../sample/pack'
 import { drawReceipt } from '../sample/receiptImage'
 import { importBankApp, type BankAppResult } from '../ui/bankApp'
-import type { OpenChat, PanelHost } from '../ui/host'
+import type { OpenChat, PanelHost, PanelRequest } from '../ui/host'
 import { Panel } from '../ui/Panel'
 import { useDevice } from '../ui/useDevice'
 import { useLedger } from '../ui/useLedger'
@@ -82,10 +82,7 @@ export default function DemoApp() {
   >(null)
   const [openPhone, setOpenPhone] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
-  const [verifyRequest, setVerifyRequest] = useState<{
-    messageId: string
-    nonce: number
-  } | null>(null)
+  const [request, setRequest] = useState<PanelRequest | null>(null)
   const [alerts, setAlerts] = useState<Record<string, AlertResult>>({})
   // Whether the demo has let time pass, so later alerts have arrived.
   const [later, setLater] = useState(false)
@@ -229,7 +226,8 @@ export default function DemoApp() {
                             type="button"
                             className="verify"
                             onClick={() =>
-                              setVerifyRequest({
+                              setRequest({
+                                action: 'verify',
                                 messageId: m.id,
                                 nonce: Date.now(),
                               })
@@ -362,7 +360,7 @@ export default function DemoApp() {
 
       <Panel
         chat={chat}
-        verifyRequest={verifyRequest}
+        request={request}
         ledger={ledger}
         device={device}
         host={host}

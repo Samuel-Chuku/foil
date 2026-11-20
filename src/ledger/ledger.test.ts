@@ -3,6 +3,7 @@ import { DEFAULT_VERIFY as config } from '../config/defaults'
 import { verifyReceipt } from '../verify/match'
 import type { Credit, Receipt } from '../verify/types'
 import {
+  customerKey,
   applyReversals,
   confirmCredit,
   matcherLedger,
@@ -228,5 +229,13 @@ describe('recheckOrders', () => {
     expect(recheckOrders([paid, decided], [credit()], config, [], NOW)).toEqual(
       [],
     )
+  })
+})
+
+describe('customerKey', () => {
+  it('files a chat under its number, or a saved contact under its name', () => {
+    expect(customerKey('+234 800 000 0011')).toBe('2348000000011')
+    expect(customerKey('name:Tola')).toBe('name:Tola')
+    expect(customerKey('Tola')).toBeNull()
   })
 })
