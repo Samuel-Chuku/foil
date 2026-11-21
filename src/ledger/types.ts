@@ -60,6 +60,10 @@ export type Order = {
   delivery: 'pending' | 'out' | 'delivered' | 'collected'
   createdAt: number
   updatedAt: number
+  // Drop mode: when the customer asked for the item (from their message),
+  // which sets their place in line, and when the vendor ended their hold.
+  claimedAt?: number
+  releasedAt?: number
 }
 
 // The books: amounts, states and times, never who or where.
@@ -129,6 +133,19 @@ export type Product = {
   updatedAt: number
   // A photo of the item, for shops that sell by picture rather than name.
   photo?: ProductPhoto
+  // A drop's one-of-a-kind item, and its number in that drop.
+  dropId?: string
+  dropNo?: number
+}
+
+// A timed status sale of one-of-a-kind items.
+export type Drop = {
+  id: string
+  name: string
+  // How long a claim is held for payment before it passes on.
+  holdMin: number
+  createdAt: number
+  endedAt: number | null
 }
 
 export type ProductPhoto = {

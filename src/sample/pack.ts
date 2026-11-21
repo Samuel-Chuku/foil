@@ -1,5 +1,5 @@
 import type { ShopRules } from '../capture/shopRules'
-import type { Product } from '../ledger/types'
+import type { Drop, Product } from '../ledger/types'
 import type { ThriftPiece } from './productImage'
 import type { AlertEmail } from '../verify/alerts'
 import type { RawHistoryRow } from '../verify/history'
@@ -478,7 +478,7 @@ export const SAMPLE_CHATS: SampleChat[] = [
   },
   {
     // Replies to the shop's status with "I want this": the item is known
-    // only from the status thumbnail, matched to the shop's photos.
+    // only from the status thumbnail, matched to the drop's photos.
     id: 'zainab',
     contactName: 'Zainab',
     phone: '+234 800 000 0012',
@@ -490,6 +490,22 @@ export const SAMPLE_CHATS: SampleChat[] = [
         time: '15:27',
         statusReply: 'denim-jacket',
         text: 'I want this! How much?',
+      },
+    ],
+  },
+  {
+    // Replies to the same status two minutes after Zainab: next in line.
+    id: 'kunle',
+    contactName: 'Kunle',
+    phone: '+234 800 000 0013',
+    expected: 'awaiting',
+    messages: [
+      {
+        id: 'ku1',
+        from: 'customer',
+        time: '15:29',
+        statusReply: 'denim-jacket',
+        text: 'Is this still available? I go take am.',
       },
     ],
   },
@@ -784,13 +800,29 @@ export const SAMPLE_PRODUCTS: Product[] = [
 ]
 
 // Thrift pieces sold by photo alone, with no names.
+// The jacket and dress are in today's drop; the top and boots are everyday
+// stock.
 export const SAMPLE_THRIFT: {
   id: string
   piece: ThriftPiece
   naira: number
+  dropNo?: number
 }[] = [
-  { id: 'sample-thrift-jacket', piece: 'denim-jacket', naira: 8_000 },
-  { id: 'sample-thrift-dress', piece: 'floral-dress', naira: 6_500 },
+  {
+    id: 'sample-thrift-jacket',
+    piece: 'denim-jacket',
+    naira: 8_000,
+    dropNo: 1,
+  },
+  { id: 'sample-thrift-dress', piece: 'floral-dress', naira: 6_500, dropNo: 2 },
   { id: 'sample-thrift-top', piece: 'yellow-top', naira: 3_000 },
   { id: 'sample-thrift-boots', piece: 'boots', naira: 12_000 },
 ]
+
+export const SAMPLE_DROP: Drop = {
+  id: 'sample-drop',
+  name: 'Saturday thrift drop',
+  holdMin: 30,
+  createdAt: 0,
+  endedAt: null,
+}

@@ -111,7 +111,11 @@ export type Asked = { product: Product; qty: number }
 
 // How a reply refers to a product; a photo-only piece is the one they showed.
 export const called = (p: Product) =>
-  p.name.trim() ? `the ${p.name.trim()}` : 'the item in their picture'
+  p.name.trim()
+    ? `the ${p.name.trim()}`
+    : p.dropNo
+      ? `item #${p.dropNo}`
+      : 'the item in their picture'
 
 // What a reply must say about stock, decided here and never by the model.
 // Each fact opens with its item, so the model cannot pin an alternative on

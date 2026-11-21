@@ -18,6 +18,7 @@ import { draftPrompt, draftProblem } from '../capture/draft'
 import { toOrderFields } from '../capture/orderFields'
 import {
   askedFor,
+  called,
   leftOf,
   productOf,
   stockFacts,
@@ -66,7 +67,16 @@ import {
 import { ExtraMoney } from './ExtraMoney'
 import { ShopRulesCard } from './ShopRulesCard'
 import { StockCard } from './StockCard'
+import { DropCard } from './DropCard'
 import { pictureItems } from './pictureItems'
+import {
+  dropFacts,
+  itemState,
+  messageTime,
+  roleOf,
+  unclaimedFacts,
+} from '../capture/drop'
+import { lagosFromEpoch } from '../verify/time'
 import { MoneyFlowCard } from './MoneyFlowCard'
 import type { ShopRulesApi } from './useShopRules'
 import { NeedsConsent, type DeviceApi } from './useDevice'
@@ -100,6 +110,8 @@ type OrderForm = {
     // Stock photos close to the customer's picture, for the vendor to pick.
     choices?: string[]
   }[]
+  // When the customer asked for a drop item: their place in line.
+  claimedAt?: number
 }
 
 type Work = {
@@ -258,6 +270,13 @@ export function Panel(props: {
     orders.find((o) => o.customerId === id && o.delivery === 'pending') ?? null
   const order = data ? openOrder(data.orders, customerId) : null
   const current = chat ? (work[chat.phone] ?? {}) : {}
+  // Lagos is a fixed hour ahead of UTC.
+  const LAGOS_OFFSET_MS = 3_600_000
+  // Holds run on the real clock; the demo shows its own sample-day clock, so
+  // times are shifted by the difference for display and for message times.
+  const clockShift = () => host.now() - lagosFromEpoch(Date.now())
+  const clock = (ms: number) =>
+    new Date(lagosFromEpoch(ms) + clockShift()).toISOString().slice(11, 16)
 
   // Money that pays no order: the open list for the whole day, and the part
   // that belongs with this chat (this order's overpayment, the customer's own
@@ -392,6 +411,16 @@ export function Panel(props: {
           p.kind === 'sure' ? [p.product.id] : [],
         ),
       )
+      // A drop claim's place in line is when the customer asked.
+      const claimMessage = pictures.items.find(
+        (p) => p.kind === 'sure' && p.product.dropId,
+      )?.messageId
+      const asked = chat.messages.find((m) => m.id === claimMessage)?.time
+      const askedLagos = asked ? messageTime(asked, host.now()) : null
+      const claimedAt =
+        askedLagos === null
+          ? undefined
+          : askedLagos - LAGOS_OFFSET_MS - clockShift()
       const fromPictures = pictures.items.map((p) =>
         p.kind === 'sure'
           ? {
@@ -421,6 +450,7 @@ export function Panel(props: {
         : null
       const amountKobo = f.amountKobo ?? (listTotal || null)
       const form: OrderForm = {
+        ...(claimedAt !== undefined && { claimedAt }),
         delivery: toDeliveryForm(planDelivery(f, shop.rules, chatText)),
         customerName: f.customerName || chat.contactName,
         address: f.address,
@@ -477,10 +507,13 @@ export function Panel(props: {
         priceKobo: parseNairaKobo(i.price),
         ...(i.productId && { productId: i.productId }),
       }))
+    const drop = items.some(
+      (i) => data.products.find((p) => p.id === i.productId)?.dropId,
+    )
     let fresh = newOrder(
       data.orders,
       {
-        mode: 'everyday',
+        mode: drop ? 'drop' : 'everyday',
         customerId: id,
         items,
         amountKobo: parseNairaKobo(form.amount),
@@ -488,6 +521,9 @@ export function Panel(props: {
       },
       at,
     )
+    if (drop && form.claimedAt !== undefined) {
+      fresh = { ...fresh, claimedAt: form.claimedAt }
+    }
     // Receipts in chat order: a later one can pay the balance of an earlier.
     for (const m of chat.messages) {
       const receipt = current.receipts?.[m.id]
@@ -757,24 +793,54 @@ export function Panel(props: {
         (a, i, all) =>
           all.findIndex((b) => b.product.id === a.product.id) === i,
       )
+      // Drop items follow the hold and the line, not the stock count.
+      const holdOf = (dropId: string | undefined) =>
+        data.drops.find((x) => x.id === dropId)?.holdMin ?? 30
+      // A customer whose hold ended, or who lost the item, is not quoted a
+      // price for it.
+      let outOfLine = false
+      const dropLines = asked
+        .filter((a) => a.product.dropId)
+        .flatMap(({ product }) => {
+          const hold = holdOf(product.dropId)
+          const st = itemState(product, data.orders, hold, Date.now())
+          const role = order ? roleOf(st, order.id) : null
+          const price =
+            product.priceKobo === null ? null : formatNaira(product.priceKobo)
+          const it = `About ${called(product)}:`
+          if (role?.role === 'bought') return []
+          if (role?.role === 'released' || role?.role === 'lost') {
+            outOfLine = true
+          }
+          return [
+            role
+              ? `${it} ${dropFacts('it', role, price, clock)}`
+              : `${it} ${unclaimedFacts('it', st, price, hold)}`,
+          ]
+        })
       const prompt = draftPrompt(
         {
           payment: order?.payment.state ?? v?.verdict.kind ?? null,
           // A transfer still being confirmed is spoken of by its own amount;
           // the order's total, delivery included, once it is paid or asked for.
-          amountKobo:
-            order?.receipt && order.payment.state !== 'matched'
+          amountKobo: outOfLine
+            ? null
+            : order?.receipt && order.payment.state !== 'matched'
               ? order.receipt.amountKobo
               : ((order && dueKobo(order)) ?? v?.receipt.amountKobo ?? null),
           items: order?.items ?? [],
           // Before any payment only: once they have paid, stock is the
           // vendor's matter, not news for the customer.
-          stock:
-            !order || order.payment.state === 'awaiting'
-              ? stockFacts(asked, data.products, (p) =>
-                  leftOf(p, data.orders, data.products, order?.id),
+          stock: [
+            ...dropLines,
+            ...(!order || order.payment.state === 'awaiting'
+              ? stockFacts(
+                  asked.filter((a) => !a.product.dropId),
+                  data.products,
+                  (p) => leftOf(p, data.orders, data.products, order?.id),
                 )
-              : [],
+              : []),
+          ],
           followUp: order
             ? followUpFacts(
                 order,
@@ -1416,6 +1482,8 @@ export function Panel(props: {
       </section>
 
       <ShopRulesCard shop={shop} device={device} />
+
+      <DropCard ledger={ledger} clock={clock} />
 
       <StockCard ledger={ledger} device={device} />
 

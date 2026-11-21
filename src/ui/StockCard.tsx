@@ -60,7 +60,7 @@ function fromRows(rows: Row[], before: Product[], now: number): Product[] {
 export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
   const { ledger, device } = props
   const [naming, setNaming] = useState(false)
-  const products = ledger.data?.products ?? []
+  const products = (ledger.data?.products ?? []).filter((p) => !p.dropId)
   const orders = ledger.data?.orders ?? []
   const [rows, setRows] = useState<Row[] | null>(null)
   const [paste, setPaste] = useState('')
@@ -148,6 +148,8 @@ export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
 
   function addPasted() {
     // Typed rows first, so a pasted line updates what is on screen.
+    // Runs on a click, not during render.
+    // oxlint-disable-next-line react/purity
     const now = Date.now()
     const listed = parsePriceList(paste)
     if (listed.length === 0) {
@@ -175,12 +177,13 @@ export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
         className="order-form"
         onSubmit={(e) => {
           e.preventDefault()
-          void ledger
-            .saveProducts(fromRows(r, products, Date.now()))
-            .then(() => {
-              setRows(null)
-              setNote('Saved. Paid orders count down from here.')
-            })
+          // Runs on submit, not during render.
+          // oxlint-disable-next-line react/purity
+          const at = Date.now()
+          void ledger.saveProducts(fromRows(r, products, at)).then(() => {
+            setRows(null)
+            setNote('Saved. Paid orders count down from here.')
+          })
         }}
       >
         <p className="hint">

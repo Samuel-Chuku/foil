@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { drawHistory } from '../sample/historyImage'
 import {
   SAMPLE_CHATS,
@@ -8,6 +8,7 @@ import {
   SAMPLE_HISTORY,
   SAMPLE_PRODUCTS,
   SAMPLE_SHOP_RULES,
+  SAMPLE_DROP,
   SAMPLE_THRIFT,
 } from '../sample/pack'
 import { drawPiecePhoto, statusThumbnail } from '../sample/productImage'
@@ -37,6 +38,7 @@ async function sampleStock(): Promise<Product[]> {
       countedAt: 0,
       updatedAt: 0,
       photo: await photoFrom(drawPiecePhoto(t.piece).src),
+      ...(t.dropNo && { dropId: SAMPLE_DROP.id, dropNo: t.dropNo }),
     })),
   )
   return [...SAMPLE_PRODUCTS, ...thrift]
@@ -88,16 +90,22 @@ export default function DemoApp() {
   useEffect(() => {
     if (stored === false) void saveRules(SAMPLE_SHOP_RULES)
   }, [stored, saveRules])
-  // And with its stock, once per visit if the list is empty.
-  const { data: ledgerData, saveProducts } = ledger
+  // And with its stock and a running drop, once per visit if it has none.
+  const { data: ledgerData, saveProducts, startDrop } = ledger
+  const seedStock = useCallback(async () => {
+    const stock = await sampleStock()
+    await saveProducts(stock.filter((p) => !p.dropId))
+    await startDrop(
+      SAMPLE_DROP,
+      stock.filter((p) => p.dropId),
+    )
+  }, [saveProducts, startDrop])
   const stocked = useRef(false)
   useEffect(() => {
     if (!ledgerData || stocked.current) return
     stocked.current = true
-    if (ledgerData.products.length === 0) {
-      void sampleStock().then(saveProducts)
-    }
-  }, [ledgerData, saveProducts])
+    if (ledgerData.products.length === 0) void seedStock()
+  }, [ledgerData, seedStock])
   const [view, setView] = useState<'chats' | 'inbox' | 'bank'>('chats')
   const [bankApp, setBankApp] = useState<
     | { status: 'running' }
@@ -162,7 +170,7 @@ export default function DemoApp() {
   async function reset() {
     await ledger.reset()
     await saveRules(SAMPLE_SHOP_RULES)
-    await saveProducts(await sampleStock())
+    await seedStock()
     setAlerts({})
     setLater(false)
     setRound((r) => r + 1)

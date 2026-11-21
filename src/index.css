@@ -523,3 +523,30 @@ button.link {
   object-fit: cover;
   border-radius: 3px;
 }
+.drop-items {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.drop-items li {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: 0.15rem 0.6rem;
+  align-items: center;
+}
+.drop-items img {
+  grid-row: span 3;
+  width: 3.5rem;
+  height: 3.5rem;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.drop-items li[data-state='held'] .drop-status {
+  color: #9a5b00;
+}
+.drop-items li[data-state='paid'] .drop-status,
+.drop-items li[data-state='sold'] .drop-status {
+  color: #2f7d32;
+}
