@@ -607,3 +607,53 @@ button.link {
   outline: 3px solid #2f7d32;
   outline-offset: 1px;
 }
+.approval {
+  max-width: min(36rem, calc(100vw - 2rem));
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  padding: 1rem;
+  background: #ecebe7;
+  color: #1f1f1f;
+}
+@media (prefers-color-scheme: dark) {
+  .approval {
+    background: #1b1b1d;
+    color: #e6e6e6;
+  }
+}
+.approval::backdrop {
+  background: #0008;
+}
+.approval h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+.approval-body {
+  max-height: 50vh;
+  overflow-y: auto;
+  border: 1px solid #8884;
+  border-radius: 4px;
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+}
+.approval-body pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+.approval-body figure {
+  margin: 0;
+}
+.approval-body audio,
+.approval-body img {
+  display: block;
+  max-width: 100%;
+  margin-top: 0.25rem;
+}
+.approval .actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
