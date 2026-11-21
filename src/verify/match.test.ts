@@ -321,6 +321,10 @@ describe('verifyReceipt: misread session IDs', () => {
     )
     expect(v).toMatchObject({ kind: 'matched', creditId: 'c1' })
     expect(v.kind === 'matched' && v.notes.join(' ')).toContain('misread')
+    // One note about the ID, not a second one that says it matched as read.
+    expect(v.kind === 'matched' && v.notes.join(' ')).not.toContain(
+      'matches the bank alert',
+    )
   })
 
   it('does not recover when two alert IDs are equally close', () => {

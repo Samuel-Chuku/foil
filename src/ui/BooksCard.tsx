@@ -18,9 +18,9 @@ import { Chart } from './Chart'
 import type { Lagos } from './TrendsCard'
 import type { LedgerApi } from './useLedger'
 
-// The chat also sees this many days before the chosen one, so it can answer
-// questions about the week or how things have changed.
-const CHAT_SPAN = 14
+// The chat also sees the week up to the chosen day, compared with the week
+// before, so it can answer how this week went against last.
+const CHAT_SPAN = 7
 
 type Turn = {
   question: string

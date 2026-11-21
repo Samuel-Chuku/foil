@@ -298,7 +298,8 @@ export function verifyReceipt(
     }
   }
   const fromApp = chosen.credit.source === 'history'
-  if (chosen.byId)
+  // A recovered ID already said it agrees once one digit is corrected.
+  if (chosen.byId && !recovered)
     notes.push(
       fromApp
         ? 'The start of the session ID matches a row in your bank app.'
