@@ -657,3 +657,24 @@ button.link {
   justify-content: flex-end;
   flex-wrap: wrap;
 }
+
+.books-chat {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+}
+.books-chat li {
+  margin: 0 0 0.75rem;
+}
+.books-chat .asked {
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+.books form input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.open-orders {
+  margin: 0;
+  padding-left: 1.1rem;
+}

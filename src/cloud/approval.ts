@@ -27,7 +27,8 @@ export type CloudRequest = {
 declare const approvedMark: unique symbol
 export type Approved = CloudRequest & { readonly [approvedMark]: true }
 
-// Only the approval dialog calls this, on the vendor's click.
+// Called only on the vendor's click on a preview of exactly what is sent:
+// the approval dialog, or a books-chat question they typed and can see.
 export function approve(request: CloudRequest): Approved {
   return Object.freeze({ ...request }) as Approved
 }

@@ -93,6 +93,7 @@ import {
 } from '../capture/drop'
 import { lagosFromEpoch } from '../verify/time'
 import { MoneyFlowCard } from './MoneyFlowCard'
+import { BooksCard } from './BooksCard'
 import type { ShopRulesApi } from './useShopRules'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
@@ -1871,6 +1872,19 @@ export function Panel(props: {
           </>
         )}
       </section>
+
+      <BooksCard
+        ledger={ledger}
+        today={new Date(host.now()).toISOString().slice(0, 10)}
+        orderDay={(o) =>
+          new Date(lagosFromEpoch(o.createdAt) + clockShift())
+            .toISOString()
+            .slice(0, 10)
+        }
+        online={online}
+        ask={approval.ask}
+        badge={(r) => <Badge source={r.source} ms={r.ms} />}
+      />
 
       <MoneyFlowCard ledger={ledger} />
 

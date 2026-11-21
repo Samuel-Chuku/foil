@@ -2,6 +2,8 @@ import {
   getGenerativeModel,
   InferenceMode,
   InferenceSource,
+  type ChatSession,
+  type GenerateContentResult,
   type GenerationConfig,
   type GenerativeModel,
 } from 'firebase/ai'
@@ -28,12 +30,27 @@ export function cloudModel(config?: GenerationConfig): () => GenerativeModel {
 }
 
 // Cloud calls do not wait behind the on-device queue: they use no GPU.
-export async function sendApproved(
+export function sendApproved(
   model: GenerativeModel,
   request: Approved,
 ): Promise<{ text: string; source: Source; ms: number }> {
+  return timed(() => model.generateContent(partsOf(request)))
+}
+
+// One turn of a cloud chat; the session keeps the earlier turns, which the
+// vendor approved when they were sent.
+export function sendInChat(
+  chat: ChatSession,
+  request: Approved,
+): Promise<{ text: string; source: Source; ms: number }> {
+  return timed(() => chat.sendMessage(partsOf(request)))
+}
+
+async function timed(
+  call: () => Promise<GenerateContentResult>,
+): Promise<{ text: string; source: Source; ms: number }> {
   const started = performance.now()
-  const result = await model.generateContent(partsOf(request))
+  const result = await call()
   return {
     text: result.response.text(),
     source:
