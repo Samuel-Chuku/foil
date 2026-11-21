@@ -129,6 +129,8 @@ export default function DemoApp() {
   >(null)
   const [openPhone, setOpenPhone] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
+  // A picture pasted into a chat's message box, as WhatsApp Web allows.
+  const [pasted, setPasted] = useState<Record<string, string>>({})
   const [request, setRequest] = useState<PanelRequest | null>(null)
   const [alerts, setAlerts] = useState<Record<string, AlertResult>>({})
   // Whether the demo has let time pass, so later alerts have arrived.
@@ -197,6 +199,7 @@ export default function DemoApp() {
     setRound((r) => r + 1)
     setBankApp(null)
     setDrafts({})
+    setPasted({})
     setOpenPhone(null)
   }
 
@@ -315,8 +318,43 @@ export default function DemoApp() {
                     onChange={(e) =>
                       setDrafts((d) => ({ ...d, [chat.phone]: e.target.value }))
                     }
+                    onPaste={(e) => {
+                      const file = [...e.clipboardData.files].find((f) =>
+                        f.type.startsWith('image/'),
+                      )
+                      if (!file) return
+                      e.preventDefault()
+                      const phone = chat.phone
+                      const reader = new FileReader()
+                      reader.onload = () =>
+                        setPasted((p) => ({
+                          ...p,
+                          [phone]: String(reader.result),
+                        }))
+                      reader.readAsDataURL(file)
+                    }}
                     placeholder="Type a message"
                   />
+                  {pasted[chat.phone] && (
+                    <figure className="pasted">
+                      <img src={pasted[chat.phone]} alt="Pasted picture" />
+                      <figcaption>
+                        Pasted picture, not sent.{' '}
+                        <button
+                          type="button"
+                          className="link"
+                          onClick={() =>
+                            setPasted((p) => {
+                              const { [chat.phone]: _gone, ...rest } = p
+                              return rest
+                            })
+                          }
+                        >
+                          Remove
+                        </button>
+                      </figcaption>
+                    </figure>
+                  )}
                   <p className="hint">
                     The desk only places drafts here. Sending is always yours.
                   </p>

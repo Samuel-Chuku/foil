@@ -19,6 +19,7 @@ import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { ShopRulesApi } from './useShopRules'
 
 type Form = {
+  shopName: string
   homeState: ShopRules['homeState']
   methods: DeliveryMethod[]
   areas: { area: string; fee: string }[]
@@ -35,6 +36,7 @@ type Form = {
 const naira = (kobo: number) => String(kobo / 100)
 
 const toForm = (r: ShopRules): Form => ({
+  shopName: r.shopName,
   homeState: r.homeState,
   methods: r.methods,
   areas: r.areaFees.map((f) => ({ area: f.area, fee: naira(f.feeKobo) })),
@@ -53,6 +55,7 @@ const toForm = (r: ShopRules): Form => ({
 })
 
 const fromForm = (f: Form): ShopRules => ({
+  shopName: f.shopName.trim(),
   homeState: f.homeState,
   methods: f.methods,
   areaFees: f.areas.flatMap((x) => {
@@ -211,6 +214,14 @@ export function ShopRulesCard(props: {
           in. Everything stays on this computer, and drafts never make up terms
           you have not set.
         </p>
+        <label>
+          Shop name
+          <input
+            value={f.shopName}
+            placeholder="As customers know it, for receipts"
+            onChange={(e) => edit({ shopName: e.target.value })}
+          />
+        </label>
         <fieldset>
           <legend>1. How do you deliver?</legend>
           <p className="hint">

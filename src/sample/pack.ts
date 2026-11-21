@@ -772,6 +772,7 @@ export const SAMPLE_DAY_MS = Date.UTC(2026, 10, 21)
 
 // The sample shop's own terms, as a vendor would type them.
 export const SAMPLE_SHOP_RULES: ShopRules = {
+  shopName: "Tolu's Closet",
   homeState: 'Lagos',
   methods: ['own-rider', 'courier', 'pickup', 'nationwide'],
   areaFees: [

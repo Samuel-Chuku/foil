@@ -95,6 +95,8 @@ import {
 import { lagosFromEpoch } from '../verify/time'
 import { MoneyFlowCard } from './MoneyFlowCard'
 import { BooksCard } from './BooksCard'
+import { ReceiptCard } from './ReceiptCard'
+import { receiptFor } from '../capture/customerReceipt'
 import { TrendsCard } from './TrendsCard'
 import type { ShopRulesApi } from './useShopRules'
 import { NeedsConsent, type DeviceApi } from './useDevice'
@@ -1194,6 +1196,15 @@ export function Panel(props: {
   const d = current.draft
   const bankName = (id: string | null) =>
     config.banks.find((b) => b.id === id)?.name ?? 'Not recognised'
+  const receipt =
+    order && data
+      ? receiptFor(
+          order,
+          data.credits,
+          shop.rules.shopName,
+          data.customers.find((x) => x.id === order.customerId)?.name ?? null,
+        )
+      : null
   const customerName = (id: string | null) =>
     data?.customers.find((x) => x.id === id)?.name || 'Customer'
   // The order's own payment wins once it is newer than the receipt read in
@@ -1756,6 +1767,15 @@ export function Panel(props: {
               hasForm={current.capture?.status === 'done'}
               onUse={applyVoice}
               onClose={() => patch(chat.phone, { voice: undefined })}
+            />
+          )}
+          {receipt && order && (
+            <ReceiptCard
+              key={order.id}
+              receipt={receipt}
+              onInsert={async (text) => {
+                await host.insertDraft(chat.phone, text)
+              }}
             />
           )}
           <section className="card" aria-labelledby="draft-h">

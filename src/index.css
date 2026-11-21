@@ -805,3 +805,19 @@ button.link {
 .review .suggestions {
   padding-left: 1.2rem;
 }
+
+.receipt-preview {
+  display: block;
+  width: 100%;
+  max-width: 21rem;
+  margin: 0.5rem 0;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px #0003;
+}
+.compose .pasted img {
+  max-width: 12rem;
+  border-radius: 6px;
+}
+.compose .pasted {
+  margin: 0.5rem 0 0;
+}

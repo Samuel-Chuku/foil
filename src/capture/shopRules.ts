@@ -27,6 +27,8 @@ export type AreaFee = { area: string; feeKobo: number }
 export type ParkFee = { state: string; park: string; feeKobo: number }
 
 export type ShopRules = {
+  // The name customers know the shop by, printed on receipts.
+  shopName: string
   // The state the shop is in. Any other state a customer names means a park
   // delivery. Empty when the vendor has not chosen; see homeOf.
   homeState: State | ''
@@ -48,6 +50,7 @@ export type ShopRules = {
 }
 
 export const EMPTY_RULES: ShopRules = {
+  shopName: '',
   homeState: '',
   methods: [],
   areaFees: [],
@@ -88,6 +91,7 @@ export function normaliseRules(raw: unknown): ShopRules {
     DELIVERY_METHODS.includes(m as DeliveryMethod),
   )
   return {
+    shopName: text(r.shopName),
     homeState: STATES.includes(r.homeState as State)
       ? (r.homeState as State)
       : '',
