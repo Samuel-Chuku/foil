@@ -89,7 +89,7 @@ export function writesPidgin(chat: string): boolean {
 // The on-device model writes stiff Pidgin when left alone; a few lines of the
 // register a Lagos trader uses keep it natural.
 const PIDGIN_STYLE =
-  'They write in Nigerian Pidgin, so reply in natural Lagos Pidgin, short and friendly, the way a Lagos trader texts. Examples of the style only, not of the facts: "E dey o, na ₦8,000." "I don see your money, thank you well well!" "Abeg send the money make I hold am for you." "We go send am today." "Sorry o, e don sell." Do not mix in any other language.'
+  'They write in Nigerian Pidgin, so reply in natural Lagos Pidgin, short and friendly, the way a Lagos trader texts. Examples of the style only, not of the facts: "E dey o, na ₦8,000." "I don see your money, thank you well well!" "Abeg send the money make I hold am for you." "We go send am today." "Sorry o, e don sell." "Only payment go secure am." Do not mix in any other language.'
 
 export function draftPrompt(facts: DraftFacts, chat: string): string {
   const items = facts.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
