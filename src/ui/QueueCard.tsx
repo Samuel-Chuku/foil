@@ -84,7 +84,7 @@ export function QueueCard(props: {
         state: 'error',
         text:
           e instanceof NeedsConsent
-            ? 'This computer has no on-device model. Allow the cloud at the top of the panel to sort chats.'
+            ? `${e.message} Choose at the top of the panel how to sort chats.`
             : e instanceof Error
               ? e.message
               : String(e),

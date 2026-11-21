@@ -193,7 +193,7 @@ function paymentText(order: Order, credits: Credit[]): string {
 
 function errorText(error: unknown): string {
   if (error instanceof NeedsConsent) {
-    return 'This computer has no on-device model. Choose above whether to use the cloud instead.'
+    return `${error.message} Choose above how to go on.`
   }
   return errorMessage(error, navigator.onLine)
 }
@@ -227,6 +227,7 @@ function DeviceStatus(props: { device: DeviceApi }) {
         }[device.state]
   const ask =
     device.asking || (device.state === 'unavailable' && !device.consent)
+  const canDownload = device.state === 'downloadable'
   return (
     <div className="device">
       <p aria-live="polite">{line}</p>
@@ -248,16 +249,36 @@ function DeviceStatus(props: { device: DeviceApi }) {
           </button>
         </p>
       )}
-      {ask && !device.consent && (
+      {ask && !device.consent && device.progress === null && (
         <div className="consent" role="region" aria-label="Cloud consent">
+          {canDownload && (
+            <p>
+              Chrome can download its on-device model once. It is a large
+              download that takes a while, and afterwards receipts, orders and
+              drafts are read privately on this computer, even offline.
+            </p>
+          )}
           <p>
-            Without the on-device model nothing can be read on this computer. If
-            you agree, the receipt, chat text or draft details for each action
-            you click will be sent to Google&apos;s Gemini service through
-            Firebase. Your saved customers and orders stay on this computer
-            either way, and you can turn this off at any time.
+            {canDownload
+              ? 'Or use the cloud now: '
+              : 'Without the on-device model nothing can be read on this computer. If you agree, '}
+            the receipt, chat text or draft details for each action you click
+            will be sent to Google&apos;s Gemini service through Firebase. Your
+            saved customers and orders stay on this computer either way, and you
+            can turn this off at any time.
           </p>
-          <button type="button" onClick={() => device.setConsent(true)}>
+          {canDownload && (
+            <>
+              <button type="button" onClick={() => void device.download()}>
+                Download the on-device model
+              </button>{' '}
+            </>
+          )}
+          <button
+            type="button"
+            className={canDownload ? 'quiet' : undefined}
+            onClick={() => device.setConsent(true)}
+          >
             Use the cloud for these actions
           </button>{' '}
           <button
@@ -1275,7 +1296,8 @@ export function Panel(props: {
           <p className="offline" role="status">
             You are offline. Reading receipts, capturing orders and drafting
             replies still work on this computer. Your books and bank alert
-            emails catch up when you are back online.
+            emails catch up when you are back online, and voice notes, the books
+            chat and reviews wait for the connection.
           </p>
         )}
       </header>

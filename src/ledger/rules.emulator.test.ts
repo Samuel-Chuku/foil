@@ -9,7 +9,7 @@ import {
   type Firestore,
 } from 'firebase/firestore'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { newOrder, toBookEntry } from './ledger'
+import { newOrder, toBookEntry, toMoneyEntry } from './ledger'
 
 // Runs against the local emulators only (npm run test:rules). The "demo-"
 // project ID can never reach a real Firebase project.
@@ -39,6 +39,23 @@ const entry = () =>
       },
       1_795_000_000_000,
     ),
+    [],
+  )
+
+// A synthetic refund decision, with the private fields the books must drop.
+const money = () =>
+  toMoneyEntry(
+    {
+      id: 'sample-credit:over',
+      creditId: 'sample-credit',
+      amountKobo: 50_000,
+      state: 'refund owed',
+      customerId: '2348000000001',
+      refundId: null,
+      decidedBy: 'vendor',
+      updatedAt: 1_795_000_000_000,
+    },
+    [],
   )
 
 const allowed = (p: Promise<unknown>) => expect(p).resolves.toBeUndefined()
@@ -92,5 +109,34 @@ describe('Firestore rules for the books', () => {
       setDoc(ref(a, a.uid, e.orderId), { ...e, amountKobo: '18500' }),
     )
     await denied(setDoc(ref(a, a.uid, 'another-order'), e))
+  })
+
+  const moneyRef = (v: Vendor, owner: string, id: string) =>
+    doc(v.db, 'vendors', owner, 'money', id)
+
+  it('a vendor records money decisions; no one else can see them', async () => {
+    const m = money()
+    await allowed(setDoc(moneyRef(a, a.uid, 'm1'), m))
+    expect((await getDoc(moneyRef(a, a.uid, 'm1'))).data()).toEqual(m)
+    await denied(getDoc(moneyRef(b, a.uid, 'm1')))
+    await denied(setDoc(moneyRef(b, a.uid, 'm1'), m))
+  })
+
+  it('refuses refund details such as an account number', async () => {
+    await denied(
+      setDoc(moneyRef(a, a.uid, 'm2'), { ...money(), accountNumber: '0123' }),
+    )
+    await denied(
+      setDoc(moneyRef(a, a.uid, 'm2'), { ...money(), state: 'sent' }),
+    )
+    await denied(
+      setDoc(moneyRef(a, a.uid, 'm2'), { ...money(), amountKobo: 0 }),
+    )
+  })
+
+  it('accepts a part payment and refuses a negative one', async () => {
+    const e = { ...entry(), paidKobo: 500_000 }
+    await allowed(setDoc(ref(a, a.uid, e.orderId), e))
+    await denied(setDoc(ref(a, a.uid, e.orderId), { ...e, paidKobo: -1 }))
   })
 })

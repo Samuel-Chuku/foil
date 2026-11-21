@@ -71,12 +71,27 @@ export type BookEntry = {
   orderId: string
   mode: Order['mode']
   amountKobo: number | null
+  // What the shop collects (items plus any delivery paid to it) and what has
+  // arrived so far, so a part payment shows in the books.
+  dueKobo: number | null
+  paidKobo: number
   payment: PaymentState
   decidedBy: Payment['decidedBy']
   delivery: Order['delivery']
   createdAt: number
   updatedAt: number
   paidAt: number | null
+}
+
+// A decision about money that pays no order, for the books: the amount and
+// what became of it. Never who sent it or where a refund goes.
+export type MoneyEntry = {
+  id: string
+  amountKobo: number
+  state: Settlement['state']
+  // When the money arrived, Lagos wall-clock; null if the bank gave no time.
+  arrivedAt: number | null
+  updatedAt: number
 }
 
 // What the vendor decided about money that pays no order, usually a customer

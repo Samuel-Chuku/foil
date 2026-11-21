@@ -138,7 +138,7 @@ export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
     } catch (e) {
       setNote(
         e instanceof NeedsConsent
-          ? 'This computer has no on-device model. Allow the cloud at the top of the panel to suggest names.'
+          ? `${e.message} Choose at the top of the panel how to suggest names.`
           : e instanceof Error
             ? e.message
             : String(e),

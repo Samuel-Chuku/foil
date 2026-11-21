@@ -3,10 +3,16 @@ import { deviceState, warmUp, type DeviceState } from '../ai/device'
 import { modelLoad } from '../ai/run'
 import { prepareReceiptModel } from '../ai/receipt'
 
-// Raised instead of quietly using the cloud when this machine has no model.
+// Raised instead of quietly using the cloud, or quietly starting a large
+// download, when this machine has no model ready. The message opens the
+// vendor-facing sentence that says why.
 export class NeedsConsent extends Error {
-  constructor() {
-    super('This computer has no on-device model.')
+  constructor(downloadable = false) {
+    super(
+      downloadable
+        ? 'The on-device model is not downloaded yet.'
+        : 'This computer has no on-device model.',
+    )
   }
 }
 
@@ -73,6 +79,12 @@ export function useDevice() {
       setAsking(true)
       throw new NeedsConsent()
     }
+    // The model is a large one-time download, so the vendor chooses it
+    // rather than having a first click start it.
+    if (now === 'downloadable') {
+      setAsking(true)
+      throw new NeedsConsent(true)
+    }
     if (now !== 'available') {
       if (!navigator.onLine) {
         throw new Error(
@@ -89,12 +101,28 @@ export function useDevice() {
     }
   }, [consent])
 
+  // The vendor chose to download the model; Chrome needs this click.
+  const download = useCallback(async () => {
+    setAsking(false)
+    setProgress(0)
+    try {
+      await prepareReceiptModel(setProgress)
+    } catch {
+      // A failed or cancelled download leaves both choices on screen.
+      setAsking(true)
+    } finally {
+      setProgress(null)
+    }
+    setState(await deviceState())
+  }, [])
+
   return {
     state,
     progress,
     consent,
     asking,
     setConsent,
+    download,
     askConsent: () => setAsking(true),
     ready,
     warm,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { appConfig } from '../config/active'
-import { syncBook, vendorId } from '../ledger/books'
+import { dropMoney, syncBook, syncMoney, vendorId } from '../ledger/books'
 import { clearAll, getAll, putAll, remove } from '../ledger/db'
 import {
   applyReversals,
@@ -141,40 +141,73 @@ export function useLedger() {
     }
   }, [])
 
-  // The screen never waits on the cloud: orders are saved on the device first
-  // and the books catch up whenever Firestore can be reached.
-  // Orders whose books entry has not reached the cloud yet, so they can be
-  // sent again when the connection returns.
+  // The screen never waits on the cloud: records are saved on the device
+  // first and the books catch up whenever Firestore can be reached. Orders
+  // and money decisions whose books entry has not reached the cloud yet are
+  // kept here, so they can be sent again when the connection returns.
   const unsent = useRef(new Set<string>())
-  const syncBooks = useCallback((orders: Order[]) => {
-    if (orders.length === 0) return
-    for (const o of orders) unsent.current.add(o.id)
-    // Offline, Firestore queues the write on the device and sends it later;
-    // its promise only settles then, so the screen says so instead of
-    // showing "updating" for as long as the outage lasts.
-    setBooks(navigator.onLine ? { state: 'syncing' } : { state: 'offline' })
-    vendorId()
-      .then((uid) => Promise.all(orders.map((o) => syncBook(uid, o))))
-      .then(() => {
-        for (const o of orders) unsent.current.delete(o.id)
-        if (unsent.current.size === 0) setBooks({ state: 'synced' })
-      })
-      .catch((error: unknown) =>
-        setBooks(
-          navigator.onLine
-            ? { state: 'failed', message: syncProblem(error) }
-            : { state: 'offline' },
-        ),
-      )
-  }, [])
+  const syncBooks = useCallback(
+    (change: {
+      orders?: Order[]
+      settlements?: Settlement[]
+      dropped?: string[]
+    }) => {
+      const orders = change.orders ?? []
+      const settlements = change.settlements ?? []
+      const dropped = change.dropped ?? []
+      const keys = [
+        ...orders.map((o) => `order:${o.id}`),
+        ...settlements.map((x) => `money:${x.id}`),
+        ...dropped.map((id) => `dropped:${id}`),
+      ]
+      if (keys.length === 0) return
+      for (const k of keys) unsent.current.add(k)
+      // Offline, Firestore queues the write on the device and sends it later;
+      // its promise only settles then, so the screen says so instead of
+      // showing "updating" for as long as the outage lasts.
+      setBooks(navigator.onLine ? { state: 'syncing' } : { state: 'offline' })
+      // The books need the credits to say how much of each order has arrived.
+      Promise.all([vendorId(), load()])
+        .then(([uid, d]) =>
+          Promise.all([
+            ...orders.map((o) => syncBook(uid, o, d.credits)),
+            ...settlements.map((x) => syncMoney(uid, x, d.credits)),
+            ...dropped.map((id) => dropMoney(uid, id)),
+          ]),
+        )
+        .then(() => {
+          for (const k of keys) unsent.current.delete(k)
+          if (unsent.current.size === 0) setBooks({ state: 'synced' })
+        })
+        .catch((error: unknown) =>
+          setBooks(
+            navigator.onLine
+              ? { state: 'failed', message: syncProblem(error) }
+              : { state: 'offline' },
+          ),
+        )
+    },
+    [],
+  )
 
   // Back online: anything that could not even be queued, such as a first
   // sign-in that needed the network, is sent now.
   useEffect(() => {
     const retry = () => {
       if (unsent.current.size === 0) return
+      const waiting = [...unsent.current]
+      const ids = (prefix: string) =>
+        waiting.flatMap((k) =>
+          k.startsWith(prefix) ? [k.slice(prefix.length)] : [],
+        )
       void load().then((d) =>
-        syncBooks(d.orders.filter((o) => unsent.current.has(o.id))),
+        syncBooks({
+          orders: d.orders.filter((o) => ids('order:').includes(o.id)),
+          settlements: d.settlements.filter((x) =>
+            ids('money:').includes(x.id),
+          ),
+          dropped: ids('dropped:'),
+        }),
       )
     }
     window.addEventListener('online', retry)
@@ -185,7 +218,7 @@ export function useLedger() {
     async (order: Order, customer?: Customer) => {
       await putAll({ orders: [order], customers: customer ? [customer] : [] })
       await reload()
-      syncBooks([order])
+      syncBooks({ orders: [order] })
     },
     [reload, syncBooks],
   )
@@ -223,7 +256,7 @@ export function useLedger() {
       )
       await putAll({ credits, orders: changed, settlements: refunded })
       await reload()
-      syncBooks(changed)
+      syncBooks({ orders: changed, settlements: refunded })
       const paid = rechecked
         .filter((o) => o.payment.state === 'matched')
         .map((o) => o.id)
@@ -312,8 +345,9 @@ export function useLedger() {
       ).find((x) => x.id === row.key)
       await putAll({ settlements: [confirmed ?? decided] })
       await reload()
+      syncBooks({ settlements: [confirmed ?? decided] })
     },
-    [reload],
+    [reload, syncBooks],
   )
 
   // Records where the customer wants a refund sent, after the vendor checked it.
@@ -335,8 +369,9 @@ export function useLedger() {
     async (key: string) => {
       await remove('settlements', key)
       await reload()
+      syncBooks({ dropped: [key] })
     },
-    [reload],
+    [reload, syncBooks],
   )
 
   // Checks waiting orders against the credits now, without new money: the

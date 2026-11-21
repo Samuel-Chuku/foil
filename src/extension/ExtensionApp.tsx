@@ -136,6 +136,7 @@ export default function ExtensionApp() {
 
   return (
     <>
+      <h1 className="visually-hidden">Payment desk</h1>
       {name && !learnt && (
         <details className="card number-ask">
           <summary>Add {name}&apos;s number (optional)</summary>

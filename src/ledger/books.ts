@@ -1,4 +1,5 @@
 import {
+  deleteDoc,
   doc,
   initializeFirestore,
   persistentLocalCache,
@@ -8,8 +9,9 @@ import {
 } from 'firebase/firestore'
 import { getAuth, signInAnonymously } from 'firebase/auth'
 import { firebaseApp } from '../firebase'
-import { toBookEntry } from './ledger'
-import type { Order } from './types'
+import type { Credit } from '../verify/types'
+import { toBookEntry, toMoneyEntry } from './ledger'
+import type { Order, Settlement } from './types'
 
 let firestore: Firestore | null = null
 
@@ -26,11 +28,34 @@ function books(): Firestore {
 
 // Resolves when the server has the entry, which may be much later when
 // offline; callers should not wait on it before updating the screen.
-export function syncBook(uid: string, order: Order): Promise<void> {
+export function syncBook(
+  uid: string,
+  order: Order,
+  credits: Credit[],
+): Promise<void> {
   return setDoc(
     doc(books(), 'vendors', uid, 'books', order.id),
-    toBookEntry(order),
+    toBookEntry(order, credits),
   )
+}
+
+// Document ids cannot hold a slash; settlement ids are credit ids, which
+// come from the bank alert's email id.
+const moneyId = (id: string) => id.replace(/\//g, '_')
+
+export function syncMoney(
+  uid: string,
+  settlement: Settlement,
+  credits: Credit[],
+): Promise<void> {
+  return setDoc(
+    doc(books(), 'vendors', uid, 'money', moneyId(settlement.id)),
+    toMoneyEntry(settlement, credits),
+  )
+}
+
+export function dropMoney(uid: string, id: string): Promise<void> {
+  return deleteDoc(doc(books(), 'vendors', uid, 'money', moneyId(id)))
 }
 
 // Vendors sign in anonymously: the books need an owner for the security rules,

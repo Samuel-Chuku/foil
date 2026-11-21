@@ -7,7 +7,7 @@ import {
 import { decodeSessionId } from '../verify/sessionId'
 import { deliveryDueKobo } from '../capture/delivery'
 import type { Credit, Receipt, VerifyConfig } from '../verify/types'
-import type { BookEntry, Order, Payment, Settlement } from './types'
+import type { BookEntry, MoneyEntry, Order, Payment, Settlement } from './types'
 
 // Nigerian numbers arrive as 0803..., +234 803..., 234803... or with spaces and
 // dashes; all become 234803... so one customer is one record.
@@ -320,16 +320,28 @@ export function applyReversals(
 
 // Built field by field, never by spreading the order, so a field added to
 // Order later cannot reach the cloud without being added here on purpose.
-export function toBookEntry(order: Order): BookEntry {
+export function toBookEntry(order: Order, credits: Credit[]): BookEntry {
   return {
     orderId: order.id,
     mode: order.mode,
     amountKobo: order.amountKobo,
+    dueKobo: dueKobo(order),
+    paidKobo: paidKobo(order, credits),
     payment: order.payment.state,
     decidedBy: order.payment.decidedBy,
     delivery: order.delivery,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     paidAt: order.payment.state === 'matched' ? order.payment.checkedAt : null,
+  }
+}
+
+export function toMoneyEntry(s: Settlement, credits: Credit[]): MoneyEntry {
+  return {
+    id: s.id,
+    amountKobo: s.amountKobo,
+    state: s.state,
+    arrivedAt: credits.find((c) => c.id === s.creditId)?.at?.ms ?? null,
+    updatedAt: s.updatedAt,
   }
 }

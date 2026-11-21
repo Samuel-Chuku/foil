@@ -95,6 +95,12 @@ export function ReceiptLookCard(props: { brand: BrandApi; shopName: string }) {
             : 'Your logo, colour and font are on receipts.'}
         </span>
       </summary>
+      {props.brand.error && (
+        <p className="error" role="alert">
+          Your saved receipt look could not be opened, so receipts use the plain
+          style for now. Reload the panel to try again.
+        </p>
+      )}
       <p className="hint">
         All optional, and kept on this computer. Without them, receipts show
         your shop name in a plain style.

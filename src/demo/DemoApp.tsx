@@ -205,6 +205,7 @@ export default function DemoApp() {
 
   return (
     <div className="demo">
+      <h1 className="visually-hidden">Payment desk demo</h1>
       <header className="demo-bar">
         <p>
           <strong>Demo</strong> with sample data for {SAMPLE_DAY}. Everything

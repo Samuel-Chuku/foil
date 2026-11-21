@@ -4,11 +4,18 @@
   font-family: system-ui, sans-serif;
   background: #ecebe7;
   color: #1f1f1f;
+  /* Status text colours, each at least 4.5:1 on its mode's background. */
+  --error: #b3261e;
+  --warn: #8a5100;
+  --good: #1a6630;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     background: #1b1b1d;
     color: #e6e6e6;
+    --error: #ffb4ab;
+    --warn: #e8a33d;
+    --good: #81c995;
   }
 }
 main {
@@ -29,7 +36,7 @@ main {
   font-size: 0.85rem;
 }
 .error {
-  color: #b3261e;
+  color: var(--error);
 }
 pre {
   white-space: pre-wrap;
@@ -183,7 +190,7 @@ body {
   margin: 0.2rem 0 0.4rem;
 }
 .alert-result[data-status='untrusted'] {
-  color: #9a5b00;
+  color: var(--warn);
 }
 .panel {
   border-left: 1px solid #8884;
@@ -238,14 +245,14 @@ body {
   padding: 0.25rem 0.75rem;
 }
 .verdict[data-kind='matched'] {
-  border-color: #1b7a3a;
+  border-color: var(--good);
 }
 .verdict[data-kind='not yet credited'],
 .verdict[data-kind='check'] {
-  border-color: #9a5b00;
+  border-color: var(--warn);
 }
 .verdict[data-kind='mismatch'] {
-  border-color: #b3261e;
+  border-color: var(--error);
 }
 .verdict p {
   margin: 0.25rem 0;
@@ -334,7 +341,7 @@ button.link {
   border-radius: 6px;
 }
 .now-paid {
-  border-color: #1b7a3a;
+  border-color: var(--good);
 }
 .now-paid ul {
   margin: 0;
@@ -372,9 +379,9 @@ button.link {
   display: inline-block;
   font-size: 0.8rem;
   padding: 0 0.35rem;
-  border: 1px solid #9a5b00;
+  border: 1px solid var(--warn);
   border-radius: 4px;
-  color: #9a5b00;
+  color: var(--warn);
 }
 .order-form label.check {
   display: block;
@@ -400,7 +407,7 @@ button.link {
   padding-bottom: 0.35rem;
 }
 .stock-row .left[data-out='true'] {
-  color: #9a5b00;
+  color: var(--warn);
   font-weight: 600;
 }
 .park-row {
@@ -445,7 +452,7 @@ button.link {
   font-size: 0.9rem;
 }
 .flow-bank li[data-dir='credit'] span:nth-child(2) {
-  color: #2f7d32;
+  color: var(--good);
 }
 .flow-bank li span:last-child {
   overflow-wrap: anywhere;
@@ -510,7 +517,7 @@ button.link {
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
-  border-left: 3px solid #2f7d32;
+  border-left: 3px solid var(--good);
   background: #8881;
   padding: 0.25rem 0.25rem 0.25rem 0.5rem;
   margin-bottom: 0.3rem;
@@ -544,14 +551,14 @@ button.link {
   border-radius: 6px;
 }
 .drop-items li[data-state='held'] .drop-status {
-  color: #9a5b00;
+  color: var(--warn);
 }
 .drop-items li[data-state='paid'] .drop-status,
 .drop-items li[data-state='sold'] .drop-status {
-  color: #2f7d32;
+  color: var(--good);
 }
 .offline {
-  border-left: 3px solid #9a5b00;
+  border-left: 3px solid var(--warn);
   padding: 0.35rem 0.6rem;
   background: #9a5b0014;
   font-size: 0.85rem;
@@ -576,7 +583,7 @@ button.link {
   border-bottom: 1px solid #8883;
 }
 .queue-section[data-section='complaint'] h4 {
-  color: #9a5b00;
+  color: var(--warn);
 }
 .queue .who {
   display: flex;
@@ -593,7 +600,7 @@ button.link {
   border-radius: 999px;
 }
 .queue .tag[data-label='complaint'] {
-  color: #9a5b00;
+  color: var(--warn);
 }
 .stock-row .move {
   display: inline-flex;
@@ -604,7 +611,7 @@ button.link {
   opacity: 0.35;
 }
 .choice[aria-pressed='true'] {
-  outline: 3px solid #2f7d32;
+  outline: 3px solid var(--good);
   outline-offset: 1px;
 }
 .approval {

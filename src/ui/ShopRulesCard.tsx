@@ -170,7 +170,7 @@ export function ShopRulesCard(props: {
       setForm(next)
       setNote(
         e instanceof NeedsConsent
-          ? 'This computer has no on-device model, so files cannot be read here without the cloud. The text you typed is unchanged.'
+          ? `${e.message} Choose at the top of the panel how to read files. The text you typed is unchanged.`
           : `Couldn't read the file: ${e instanceof Error ? e.message : String(e)}`,
       )
     } finally {
@@ -198,6 +198,12 @@ export function ShopRulesCard(props: {
             : 'Not set yet. Drafts will not quote fees, hours or policies.'}
         </span>
       </summary>
+      {shop.error && (
+        <p className="error" role="alert">
+          Your saved rules could not be opened on this computer, so drafts will
+          not use them for now. Reload the panel to try again.
+        </p>
+      )}
       <form
         className="order-form"
         onSubmit={(e) => {

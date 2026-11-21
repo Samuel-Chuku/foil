@@ -12,6 +12,7 @@ import {
   recheckOrders,
   recordVerdict,
   toBookEntry,
+  toMoneyEntry,
   undoCreditPick,
 } from './ledger'
 import type { Order } from './types'
@@ -138,13 +139,15 @@ describe('ledger', () => {
 
 describe('toBookEntry', () => {
   it('carries amounts and states, never people', () => {
-    const entry = toBookEntry(verify(order(), [], [credit()]))
+    const entry = toBookEntry(verify(order(), [], [credit()]), [credit()])
     expect(Object.keys(entry).sort()).toEqual(
       [
         'amountKobo',
         'createdAt',
         'decidedBy',
         'delivery',
+        'dueKobo',
+        'paidKobo',
         'mode',
         'orderId',
         'paidAt',
@@ -157,6 +160,41 @@ describe('toBookEntry', () => {
     expect(text).not.toContain('Ankara')
     expect(text).not.toContain(OPAY_ID)
     expect(entry.paidAt).toBe(NOW)
+    expect(entry.paidKobo).toBe(credit().amountKobo)
+  })
+
+  it('shows a part payment as due against paid', () => {
+    const short = credit({ amountKobo: credit().amountKobo - 300_000 })
+    const paid = verify(order(), [], [credit()])
+    const entry = toBookEntry(paid, [short])
+    expect(entry.dueKobo! - entry.paidKobo).toBe(300_000)
+  })
+})
+
+describe('toMoneyEntry', () => {
+  it('keeps the amount and decision, never who or where', () => {
+    const entry = toMoneyEntry(
+      {
+        id: 'c1:over',
+        creditId: 'c1',
+        amountKobo: 50_000,
+        state: 'refund owed',
+        customerId: '2348030000001',
+        refundId: null,
+        refundTo: {
+          accountNumber: '0123456789',
+          bank: 'OPay',
+          accountName: 'SAMPLE NAME',
+        },
+        decidedBy: 'vendor',
+        updatedAt: NOW,
+      },
+      [credit()],
+    )
+    expect(Object.keys(entry).sort()).toEqual(
+      ['amountKobo', 'arrivedAt', 'id', 'state', 'updatedAt'].sort(),
+    )
+    expect(JSON.stringify(entry)).not.toMatch(/2348030000001|0123456789|SAMPLE/)
   })
 })
 
@@ -184,7 +222,7 @@ describe('undo', () => {
       candidates: ['c1', 'c2'],
       decidedBy: 'rules',
     })
-    expect(toBookEntry(undone).paidAt).toBeNull()
+    expect(toBookEntry(undone, [credit()]).paidAt).toBeNull()
     expect(
       matcherLedger([undone], [credit()], config).claimedCredits.size,
     ).toBe(0)
