@@ -9,6 +9,9 @@ export type ChatMessage = {
   time: string
   text?: string
   image?: ChatImage
+  // The picture of what this message replies to, such as the vendor's
+  // status; `status` when the reply is to a status.
+  quoted?: ChatImage & { status: boolean }
 }
 
 export type OpenChat = {

@@ -8,8 +8,12 @@ import {
   SAMPLE_HISTORY,
   SAMPLE_PRODUCTS,
   SAMPLE_SHOP_RULES,
+  SAMPLE_THRIFT,
 } from '../sample/pack'
+import { drawPiecePhoto, statusThumbnail } from '../sample/productImage'
 import { drawReceipt } from '../sample/receiptImage'
+import { photoFrom } from '../ui/photos'
+import type { Product } from '../ledger/types'
 import { importBankApp, type BankAppResult } from '../ui/bankApp'
 import type { OpenChat, PanelHost, PanelRequest } from '../ui/host'
 import { Panel } from '../ui/Panel'
@@ -21,6 +25,22 @@ import type { AlertResult } from '../verify/alerts'
 
 // The hosted demo: simulated chat and inbox panes stand in for WhatsApp Web
 // and Gmail, beside the same panel the extension shows.
+
+// The sample stock, with photos drawn and fingerprinted in this browser.
+async function sampleStock(): Promise<Product[]> {
+  const thrift = await Promise.all(
+    SAMPLE_THRIFT.map(async (t) => ({
+      id: t.id,
+      name: '',
+      priceKobo: t.naira * 100,
+      qty: 1,
+      countedAt: 0,
+      updatedAt: 0,
+      photo: await photoFrom(drawPiecePhoto(t.piece).src),
+    })),
+  )
+  return [...SAMPLE_PRODUCTS, ...thrift]
+}
 
 // Like WhatsApp, the chat with the latest message comes first.
 function buildChats(): OpenChat[] {
@@ -37,6 +57,9 @@ function buildChats(): OpenChat[] {
         time: m.time,
         text: m.text,
         image: m.receipt ? drawReceipt(m.receipt) : undefined,
+        quoted: m.statusReply
+          ? { ...statusThumbnail(m.statusReply), status: true }
+          : undefined,
       })),
     }))
 }
@@ -71,7 +94,9 @@ export default function DemoApp() {
   useEffect(() => {
     if (!ledgerData || stocked.current) return
     stocked.current = true
-    if (ledgerData.products.length === 0) void saveProducts(SAMPLE_PRODUCTS)
+    if (ledgerData.products.length === 0) {
+      void sampleStock().then(saveProducts)
+    }
   }, [ledgerData, saveProducts])
   const [view, setView] = useState<'chats' | 'inbox' | 'bank'>('chats')
   const [bankApp, setBankApp] = useState<
@@ -137,7 +162,7 @@ export default function DemoApp() {
   async function reset() {
     await ledger.reset()
     await saveRules(SAMPLE_SHOP_RULES)
-    await saveProducts(SAMPLE_PRODUCTS)
+    await saveProducts(await sampleStock())
     setAlerts({})
     setLater(false)
     setRound((r) => r + 1)
@@ -216,6 +241,15 @@ export default function DemoApp() {
                 <ol className="messages">
                   {chat.messages.map((m) => (
                     <li key={m.id} className={m.from}>
+                      {m.quoted && (
+                        <div className="quote">
+                          <span>
+                            {m.quoted.status ? 'Your status' : 'Reply to'} ·
+                            Photo
+                          </span>
+                          <img src={m.quoted.src} alt="Your status photo" />
+                        </div>
+                      )}
                       {m.image ? (
                         <figure>
                           <img

@@ -384,16 +384,16 @@ button.link {
 }
 .stock-row {
   display: grid;
-  grid-template-columns: 6rem 4rem minmax(0, 1fr) auto;
+  grid-template-columns: 3.5rem 6rem 4rem minmax(0, 1fr) auto;
   gap: 0.25rem 0.5rem;
   align-items: end;
   padding: 0.4rem 0;
   border-bottom: 1px solid #8883;
 }
-/* The name gets the panel's full width; price, count and what is left sit
-   below it. */
-.stock-row > label:first-child {
-  grid-column: 1 / -1;
+/* The photo sits on the left; the name takes the rest of the first line,
+   with price, count and what is left below it. */
+.stock-row .name {
+  grid-column: 2 / -1;
 }
 .stock-row .left {
   font-size: 0.85rem;
@@ -449,4 +449,77 @@ button.link {
 }
 .flow-bank li span:last-child {
   overflow-wrap: anywhere;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.stock-row .photo {
+  grid-row: span 2;
+  width: 3.5rem;
+  height: 3.5rem;
+  display: grid;
+  place-items: center;
+  border: 1px dashed #8888;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+.stock-row .photo:focus-within {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.stock-row .photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.choices .hint {
+  flex-basis: 100%;
+  margin: 0;
+}
+.choice {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: center;
+  padding: 0.25rem;
+  width: 5rem;
+  font-size: 0.75rem;
+}
+.choice img,
+.item-photo {
+  width: 4rem;
+  height: 4rem;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.quote {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  border-left: 3px solid #2f7d32;
+  background: #8881;
+  padding: 0.25rem 0.25rem 0.25rem 0.5rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+}
+.quote img {
+  width: 3rem;
+  height: 3rem;
+  object-fit: cover;
+  border-radius: 3px;
 }

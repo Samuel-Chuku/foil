@@ -18,12 +18,13 @@ import { draftPrompt, draftProblem } from '../capture/draft'
 import { toOrderFields } from '../capture/orderFields'
 import {
   askedFor,
-  findProduct,
   leftOf,
+  productOf,
   stockFacts,
   withListPrices,
 } from '../capture/stock'
 import { transcript } from '../capture/transcript'
+import { appConfig } from '../config/active'
 import {
   applyVerdict,
   balanceKobo,
@@ -37,7 +38,13 @@ import {
   undoCreditPick,
 } from '../ledger/ledger'
 import { extraMoney, moreFromPayer, type ExtraRow } from '../ledger/settle'
-import type { Order, PaymentState, RefundTo, Settlement } from '../ledger/types'
+import type {
+  Order,
+  PaymentState,
+  RefundTo,
+  Settlement,
+  OrderItem,
+} from '../ledger/types'
 import { verifyReceipt, type Verdict } from '../verify/match'
 import { formatNaira, parseNairaKobo } from '../verify/money'
 import type { RawReceipt } from '../verify/receiptFields'
@@ -59,6 +66,7 @@ import {
 import { ExtraMoney } from './ExtraMoney'
 import { ShopRulesCard } from './ShopRulesCard'
 import { StockCard } from './StockCard'
+import { pictureItems } from './pictureItems'
 import { MoneyFlowCard } from './MoneyFlowCard'
 import type { ShopRulesApi } from './useShopRules'
 import { NeedsConsent, type DeviceApi } from './useDevice'
@@ -83,7 +91,15 @@ type OrderForm = {
   landmark: string
   area: string
   amount: string
-  items: { name: string; qty: string; price: string }[]
+  items: {
+    name: string
+    qty: string
+    price: string
+    // The stock item, when matched by photo or picked by the vendor.
+    productId?: string
+    // Stock photos close to the customer's picture, for the vendor to pick.
+    choices?: string[]
+  }[]
 }
 
 type Work = {
@@ -355,13 +371,51 @@ export function Panel(props: {
       const lines = chat.messages.map((m) => ({
         from: m.from,
         time: m.time,
-        text: m.text,
+        // A status reply's words ("I want this") mean the item in the status.
+        text: m.quoted?.status
+          ? `(replying to the shop's status) ${m.text ?? ''}`
+          : m.text,
         image: Boolean(m.image),
       }))
       const chatText = transcript(lines)
+      const products = ledger.data?.products ?? []
+      // Pictures first: matching is quick and needs no model.
+      const pictures = await pictureItems(
+        chat.messages,
+        products,
+        appConfig().photoMatch,
+      )
       const reading = await readOrder(chatText, device.consent)
       const f = toOrderFields(reading.fields)
-      const items = withListPrices(f.items, ledger.data?.products ?? [])
+      const shown = new Set(
+        pictures.items.flatMap((p) =>
+          p.kind === 'sure' ? [p.product.id] : [],
+        ),
+      )
+      const fromPictures = pictures.items.map((p) =>
+        p.kind === 'sure'
+          ? {
+              name: p.product.name || 'Item from photo',
+              qty: 1,
+              priceKobo: p.product.priceKobo,
+              productId: p.product.id,
+            }
+          : {
+              name: '',
+              qty: 1,
+              priceKobo: null,
+              choices: p.candidates.map((c) => c.id),
+            },
+      )
+      // A named line the photo already covers is not counted twice.
+      const named = f.items.filter((i) => {
+        const p = productOf(i, products)
+        return !p || !shown.has(p.id)
+      })
+      const items = [
+        ...fromPictures,
+        ...withListPrices(named, products),
+      ] as (OrderItem & { choices?: string[] })[]
       const listTotal = items.every((i) => i.priceKobo !== null)
         ? items.reduce((n, i) => n + i.qty * (i.priceKobo ?? 0), 0)
         : null
@@ -377,6 +431,8 @@ export function Panel(props: {
           name: i.name,
           qty: String(i.qty),
           price: i.priceKobo === null ? '' : String(i.priceKobo / 100),
+          ...(i.productId && { productId: i.productId }),
+          ...(i.choices && { choices: i.choices }),
         })),
       }
       patch(phone, {
@@ -387,7 +443,9 @@ export function Panel(props: {
       })
       // Capturing is the vendor's go-ahead to read this chat, so its receipts
       // are checked too, oldest first, while they look over the order.
+      // A photo of an item is not a receipt.
       for (const m of chat.messages) {
+        if (pictures.productImages.has(m.id)) continue
         if (m.image && !current.receipts?.[m.id]) await verify(m.id)
       }
     } catch (error) {
@@ -412,11 +470,12 @@ export function Panel(props: {
     const at = Date.now()
     const id = customerKey(chat.phone)
     const items = form.items
-      .filter((i) => i.name.trim())
+      .filter((i) => i.name.trim() || i.productId)
       .map((i) => ({
-        name: i.name.trim(),
+        name: i.name.trim() || 'Item from photo',
         qty: Math.max(1, Number.parseInt(i.qty, 10) || 1),
         priceKobo: parseNairaKobo(i.price),
+        ...(i.productId && { productId: i.productId }),
       }))
     let fresh = newOrder(
       data.orders,
@@ -665,6 +724,39 @@ export function Panel(props: {
         })),
         2000,
       )
+      // What they asked about: the order's lines, or before there is an
+      // order, the items they showed by picture and the ones they named.
+      const said = chat.messages
+        .filter((m) => m.from === 'customer' && m.text)
+        .map((m) => m.text)
+        .join('\n')
+      const shownItems = order
+        ? []
+        : (
+            await pictureItems(
+              chat.messages,
+              data.products,
+              appConfig().photoMatch,
+            )
+          ).items.flatMap((p) =>
+            p.kind === 'sure'
+              ? [
+                  {
+                    name: p.product.name,
+                    qty: 1,
+                    priceKobo: p.product.priceKobo,
+                    productId: p.product.id,
+                  },
+                ]
+              : [],
+          )
+      const asked = [
+        ...askedFor(order?.items ?? shownItems, '', data.products),
+        ...(order ? [] : askedFor([], said, data.products)),
+      ].filter(
+        (a, i, all) =>
+          all.findIndex((b) => b.product.id === a.product.id) === i,
+      )
       const prompt = draftPrompt(
         {
           payment: order?.payment.state ?? v?.verdict.kind ?? null,
@@ -679,17 +771,8 @@ export function Panel(props: {
           // vendor's matter, not news for the customer.
           stock:
             !order || order.payment.state === 'awaiting'
-              ? stockFacts(
-                  askedFor(
-                    order?.items ?? [],
-                    chat.messages
-                      .filter((m) => m.from === 'customer' && m.text)
-                      .map((m) => m.text)
-                      .join('\n'),
-                    data.products,
-                  ),
-                  data.products,
-                  (p) => leftOf(p, data.orders, data.products, order?.id),
+              ? stockFacts(asked, data.products, (p) =>
+                  leftOf(p, data.orders, data.products, order?.id),
                 )
               : [],
           followUp: order
@@ -741,17 +824,18 @@ export function Panel(props: {
 
   // What the shop's stock says about an item while the vendor checks an
   // order, so a sold-out item is caught before it is confirmed.
-  function stockNote(p: { name: string; qty: string }) {
+  function stockNote(p: { name: string; qty: string; productId?: string }) {
     const products = data?.products ?? []
-    const product = p.name.trim() ? findProduct(p.name, products) : null
-    if (products.length === 0 || !p.name.trim()) return null
+    const product = productOf(p, products)
+    if (products.length === 0 || (!p.name.trim() && !p.productId)) return null
     if (!product) return <p className="hint">Not on your stock list.</p>
     const left = leftOf(product, data?.orders ?? [], products)
-    if (left === null) return <p className="hint">{product.name}</p>
+    if (left === null)
+      return <p className="hint">{product.name || 'On your stock list'}</p>
     const want = Math.max(1, Number.parseInt(p.qty, 10) || 1)
     return (
       <p className={left < want ? 'error' : 'hint'}>
-        {product.name}: {left <= 0 ? 'sold out' : `${left} left`}
+        {product.name || 'This item'}: {left <= 0 ? 'sold out' : `${left} left`}
         {left > 0 && left < want && `, fewer than ${want}`}
       </p>
     )
@@ -1128,6 +1212,60 @@ export function Panel(props: {
                 {c.value.form.items.map((item, n) => (
                   <fieldset key={n} className="item">
                     <legend>Item {n + 1}</legend>
+                    {item.choices && !item.productId && (
+                      <div
+                        className="choices"
+                        role="group"
+                        aria-label="Which item is it?"
+                      >
+                        <p className="hint">
+                          Their picture is close to these. Which is it?
+                        </p>
+                        {item.choices.map((id) => {
+                          const p = data?.products.find((x) => x.id === id)
+                          if (!p?.photo) return null
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              className="choice"
+                              onClick={() =>
+                                editForm({
+                                  items: c.value.form.items.map((x, k) =>
+                                    k === n
+                                      ? {
+                                          ...x,
+                                          productId: p.id,
+                                          name: p.name || 'Item from photo',
+                                          price:
+                                            p.priceKobo === null
+                                              ? x.price
+                                              : String(p.priceKobo / 100),
+                                        }
+                                      : x,
+                                  ),
+                                })
+                              }
+                            >
+                              <img src={p.photo.thumb} alt="" />
+                              <span>{p.name || 'No name'}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {item.productId &&
+                      data?.products.find((x) => x.id === item.productId)
+                        ?.photo && (
+                        <img
+                          className="item-photo"
+                          src={
+                            data.products.find((x) => x.id === item.productId)!
+                              .photo!.thumb
+                          }
+                          alt="Matched from the customer's picture"
+                        />
+                      )}
                     <label>
                       Item
                       <input
@@ -1169,7 +1307,7 @@ export function Panel(props: {
                         }
                       />
                     </label>
-                    {stockNote({ name: item.name, qty: item.qty })}
+                    {stockNote(item)}
                   </fieldset>
                 ))}
                 <button
@@ -1279,7 +1417,7 @@ export function Panel(props: {
 
       <ShopRulesCard shop={shop} device={device} />
 
-      <StockCard ledger={ledger} />
+      <StockCard ledger={ledger} device={device} />
 
       {props.inbox}
 

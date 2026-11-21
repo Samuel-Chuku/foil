@@ -29,6 +29,17 @@ export function findProduct(name: string, products: Product[]): Product | null {
   return partial.length === 1 ? partial[0]! : null
 }
 
+// The product an order line is: the one it was matched to, or by name.
+export function productOf(
+  item: Pick<OrderItem, 'name' | 'productId'>,
+  products: Product[],
+): Product | null {
+  if (item.productId) {
+    return products.find((p) => p.id === item.productId) ?? null
+  }
+  return findProduct(item.name, products)
+}
+
 const paidAt = (o: Order) =>
   o.payment.state === 'matched' ? (o.payment.checkedAt ?? o.updatedAt) : null
 
@@ -49,7 +60,7 @@ export function leftOf(
       continue
     }
     for (const i of o.items) {
-      if (findProduct(i.name, products)?.id === product.id) sold += i.qty
+      if (productOf(i, products)?.id === product.id) sold += i.qty
     }
   }
   return product.qty - sold
@@ -91,14 +102,20 @@ export function alternatives(
 ): Product[] {
   const mine = words(product.name)
   return products
-    .filter((p) => p.id !== product.id && inStock(left(p)))
+    .filter((p) => p.id !== product.id && p.name.trim() && inStock(left(p)))
     .filter((p) => words(p.name).some((w) => mine.some((m) => alike(m, w))))
     .slice(0, max)
 }
 
 export type Asked = { product: Product; qty: number }
 
+// How a reply refers to a product; a photo-only piece is the one they showed.
+export const called = (p: Product) =>
+  p.name.trim() ? `the ${p.name.trim()}` : 'the item in their picture'
+
 // What a reply must say about stock, decided here and never by the model.
+// Each fact opens with its item, so the model cannot pin an alternative on
+// the wrong one.
 export function stockFacts(
   asked: Asked[],
   products: Product[],
@@ -107,17 +124,18 @@ export function stockFacts(
   const price = (p: Product) =>
     p.priceKobo === null ? '' : ` (${formatNaira(p.priceKobo)})`
   return asked.map(({ product, qty }) => {
+    const it = called(product)
     const n = left(product)
     if (n !== null && n <= 0) {
       const alt = alternatives(product, products, left)
       return alt.length > 0
-        ? `The ${product.name} is sold out. Say so honestly and offer these instead: ${alt.map((p) => `${p.name}${price(p)}`).join(', ')}.`
-        : `The ${product.name} is sold out. Say so honestly and ask whether they would like something else.`
+        ? `About ${it}: it is sold out. Say so honestly and offer instead, for ${it} only: ${alt.map((p) => `${p.name}${price(p)}`).join(', ')}.`
+        : `About ${it}: it is sold out. Say so honestly and ask whether they would like something else.`
     }
     if (n !== null && n < qty) {
-      return `Only ${n} ${product.name} ${n === 1 ? 'is' : 'are'} left, fewer than the ${qty} they asked for. Say so and ask whether ${n === 1 ? 'one' : n} will do.`
+      return `About ${it}: only ${n} ${n === 1 ? 'is' : 'are'} left, fewer than the ${qty} they asked for. Say so and ask whether ${n === 1 ? 'one' : n} will do.`
     }
-    return `The ${product.name} is available${price(product)}.`
+    return `About ${it}: it is available${price(product)}.`
   })
 }
 
@@ -130,7 +148,7 @@ export function askedFor(
 ): Asked[] {
   if (items.length > 0) {
     return items.flatMap((i) => {
-      const product = findProduct(i.name, products)
+      const product = productOf(i, products)
       return product ? [{ product, qty: i.qty }] : []
     })
   }
@@ -148,7 +166,7 @@ export function withListPrices(
   return items.map((i) =>
     i.priceKobo !== null
       ? i
-      : { ...i, priceKobo: findProduct(i.name, products)?.priceKobo ?? null },
+      : { ...i, priceKobo: productOf(i, products)?.priceKobo ?? null },
   )
 }
 

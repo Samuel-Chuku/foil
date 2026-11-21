@@ -1,3 +1,4 @@
+import type { Fingerprint } from '../capture/imageMatch'
 import type { Verdict } from '../verify/match'
 import type { DeliveryMethod } from '../capture/shopRules'
 import type { Receipt } from '../verify/types'
@@ -15,7 +16,14 @@ export type Customer = {
   updatedAt: number
 }
 
-export type OrderItem = { name: string; qty: number; priceKobo: number | null }
+export type OrderItem = {
+  name: string
+  qty: number
+  priceKobo: number | null
+  // The stock item this line is, when it was matched by photo or picked by
+  // the vendor; otherwise it is found by name.
+  productId?: string
+}
 
 export type PaymentState = 'awaiting' | Verdict['kind']
 
@@ -119,6 +127,15 @@ export type Product = {
   // gone when the vendor counted.
   countedAt: number
   updatedAt: number
+  // A photo of the item, for shops that sell by picture rather than name.
+  photo?: ProductPhoto
+}
+
+export type ProductPhoto = {
+  // A small JPEG data URL for the vendor's screens.
+  thumb: string
+  // What customer pictures are matched against (see imageMatch.ts).
+  print: Fingerprint
 }
 
 // Which Gmail accounts the extension reads bank alerts from, and how the

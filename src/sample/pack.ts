@@ -1,5 +1,6 @@
 import type { ShopRules } from '../capture/shopRules'
 import type { Product } from '../ledger/types'
+import type { ThriftPiece } from './productImage'
 import type { AlertEmail } from '../verify/alerts'
 import type { RawHistoryRow } from '../verify/history'
 import type { RawReceipt } from '../verify/receiptFields'
@@ -17,6 +18,8 @@ export type SampleMessage = {
   time: string
   text?: string
   receipt?: SampleReceipt
+  // A reply to the shop's status showing this piece.
+  statusReply?: ThriftPiece
 }
 
 export type SampleChat = {
@@ -473,6 +476,23 @@ export const SAMPLE_CHATS: SampleChat[] = [
       },
     ],
   },
+  {
+    // Replies to the shop's status with "I want this": the item is known
+    // only from the status thumbnail, matched to the shop's photos.
+    id: 'zainab',
+    contactName: 'Zainab',
+    phone: '+234 800 000 0012',
+    expected: 'awaiting',
+    messages: [
+      {
+        id: 'z1',
+        from: 'customer',
+        time: '15:27',
+        statusReply: 'denim-jacket',
+        text: 'I want this! How much?',
+      },
+    ],
+  },
 ]
 
 const GTBANK = 'gens@gtbank.com'
@@ -761,4 +781,16 @@ export const SAMPLE_PRODUCTS: Product[] = [
   item('abaya', 'Black abaya', 16_000, 2),
   item('sandals', 'Brown leather sandals', 9_500, 3),
   item('handbag', 'Red handbag', 20_000, 0),
+]
+
+// Thrift pieces sold by photo alone, with no names.
+export const SAMPLE_THRIFT: {
+  id: string
+  piece: ThriftPiece
+  naira: number
+}[] = [
+  { id: 'sample-thrift-jacket', piece: 'denim-jacket', naira: 8_000 },
+  { id: 'sample-thrift-dress', piece: 'floral-dress', naira: 6_500 },
+  { id: 'sample-thrift-top', piece: 'yellow-top', naira: 3_000 },
+  { id: 'sample-thrift-boots', piece: 'boots', naira: 12_000 },
 ]

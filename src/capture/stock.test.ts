@@ -126,7 +126,7 @@ describe('stockFacts', () => {
       products,
       left,
     )
-    expect(fact).toContain('Red handbag is sold out')
+    expect(fact).toContain('About the Red handbag: it is sold out')
     expect(fact).toContain('Brown leather bag (₦18,500)')
   })
 
@@ -142,13 +142,27 @@ describe('stockFacts', () => {
   it('says how many are left when fewer than asked', () => {
     expect(
       stockFacts([{ product: products[3]!, qty: 7 }], products, left)[0],
-    ).toContain('Only 5 Plain black cap are left')
+    ).toContain('About the Plain black cap: only 5 are left')
   })
 
   it('gives the price when the item is in stock', () => {
     expect(
       stockFacts([{ product: products[6]!, qty: 1 }], products, left)[0],
-    ).toBe('The Silk scarf is available (₦5,000).')
+    ).toBe('About the Silk scarf: it is available (₦5,000).')
+  })
+})
+
+describe('photo-only products', () => {
+  it('are called the item in their picture and never offered by name', () => {
+    const piece = { ...product('p', '', 800_000, 0), photo: undefined }
+    const list = [...products, piece]
+    const l = (p: Product) => leftOf(p, [], list)
+    expect(stockFacts([{ product: piece, qty: 1 }], list, l)[0]).toBe(
+      'About the item in their picture: it is sold out. Say so honestly and ask whether they would like something else.',
+    )
+    expect(alternatives(products[1]!, list, l).some((p) => p.id === 'p')).toBe(
+      false,
+    )
   })
 })
 

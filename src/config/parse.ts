@@ -1,3 +1,7 @@
+import {
+  DEFAULT_PHOTO_THRESHOLDS,
+  type PhotoThresholds,
+} from '../capture/imageMatch'
 import type { BankInfo, VerifyConfig } from '../verify/types'
 import {
   DEFAULT_CLOUD_MODEL,
@@ -9,12 +13,14 @@ export type AppConfig = {
   cloudModel: string
   verify: VerifyConfig
   pidginGlossary: Record<string, string>
+  photoMatch: PhotoThresholds
 }
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
   cloudModel: DEFAULT_CLOUD_MODEL,
   verify: DEFAULT_VERIFY,
   pidginGlossary: DEFAULT_PIDGIN_GLOSSARY,
+  photoMatch: DEFAULT_PHOTO_THRESHOLDS,
 }
 
 // Remote Config parameter names, as they appear in the Firebase console.
@@ -27,6 +33,9 @@ export const KEYS = {
   clockToleranceMin: 'clock_tolerance_min',
   sessionOffsetsMin: 'session_offsets_min',
   pidginGlossary: 'pidgin_glossary',
+  photoSure: 'photo_match_sure',
+  photoGap: 'photo_match_gap',
+  photoLikely: 'photo_match_likely',
 } as const
 
 // Remote Config holds every value as text. These defaults are what the
@@ -42,6 +51,9 @@ export function remoteDefaults(): Record<string, string> {
     [KEYS.clockToleranceMin]: String(v.clockToleranceMin),
     [KEYS.sessionOffsetsMin]: JSON.stringify(v.sessionOffsetsMin),
     [KEYS.pidginGlossary]: JSON.stringify(DEFAULT_PIDGIN_GLOSSARY),
+    [KEYS.photoSure]: String(DEFAULT_PHOTO_THRESHOLDS.sure),
+    [KEYS.photoGap]: String(DEFAULT_PHOTO_THRESHOLDS.gap),
+    [KEYS.photoLikely]: String(DEFAULT_PHOTO_THRESHOLDS.likely),
   }
 }
 
@@ -140,5 +152,10 @@ export function parseAppConfig(values: Record<string, string>): AppConfig {
       Object.values(glossary).every((v) => typeof v === 'string')
         ? (glossary as Record<string, string>)
         : d.pidginGlossary,
+    photoMatch: {
+      sure: number(values[KEYS.photoSure], d.photoMatch.sure, 0.01, 0.5),
+      gap: number(values[KEYS.photoGap], d.photoMatch.gap, 0, 0.5),
+      likely: number(values[KEYS.photoLikely], d.photoMatch.likely, 0.05, 1),
+    },
   }
 }

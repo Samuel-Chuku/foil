@@ -1,24 +1,37 @@
 import { useState } from 'react'
+import { suggestLabel } from '../ai/productLabel'
 import { leftOf, mergeProducts, parsePriceList } from '../capture/stock'
-import type { Product } from '../ledger/types'
+import type { Product, ProductPhoto } from '../ledger/types'
 import { parseNairaKobo } from '../verify/money'
+import { photoFromFile } from './photos'
+import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
 
-type Row = { id: string | null; name: string; price: string; qty: string }
+type Row = {
+  id: string | null
+  name: string
+  price: string
+  qty: string
+  photo?: ProductPhoto
+}
 
 const toRow = (p: Product): Row => ({
   id: p.id,
   name: p.name,
   price: p.priceKobo === null ? '' : String(p.priceKobo / 100),
   qty: p.qty === null ? '' : String(p.qty),
+  ...(p.photo && { photo: p.photo }),
 })
+
+const IMAGE_TYPES = 'image/png,image/jpeg,image/webp'
 
 // The vendor's list as typed. A changed count is a fresh count from now, so
 // earlier paid orders stop reducing it.
 function fromRows(rows: Row[], before: Product[], now: number): Product[] {
   return rows.flatMap((r) => {
     const name = r.name.trim()
-    if (!name) return []
+    // A thrift piece may have only a photo.
+    if (!name && !r.photo) return []
     const priceKobo = parseNairaKobo(r.price)
     const parsed = Number.parseInt(r.qty, 10)
     const qty = r.qty.trim() === '' || Number.isNaN(parsed) ? null : parsed
@@ -34,16 +47,19 @@ function fromRows(rows: Row[], before: Product[], now: number): Product[] {
           old &&
           old.name === name &&
           old.priceKobo === priceKobo &&
-          old.qty === qty
+          old.qty === qty &&
+          old.photo === r.photo
             ? old.updatedAt
             : now,
+        ...(r.photo && { photo: r.photo }),
       },
     ]
   })
 }
 
-export function StockCard(props: { ledger: LedgerApi }) {
-  const { ledger } = props
+export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
+  const { ledger, device } = props
+  const [naming, setNaming] = useState(false)
   const products = ledger.data?.products ?? []
   const orders = ledger.data?.orders ?? []
   const [rows, setRows] = useState<Row[] | null>(null)
@@ -65,6 +81,69 @@ export function StockCard(props: { ledger: LedgerApi }) {
     const p = products.find((x) => x.id === row.id)
     if (!p || p.qty === null) return null
     return leftOf(p, orders, products)
+  }
+
+  async function addPhotos(files: File[], at?: number) {
+    try {
+      const photos = await Promise.all(files.map(photoFromFile))
+      if (at !== undefined) {
+        edit(r.map((x, k) => (k === at ? { ...x, photo: photos[0] } : x)))
+        return
+      }
+      // One of a kind is the usual case for photo-only stock.
+      edit([
+        ...r,
+        ...photos.map((photo) => ({
+          id: null,
+          name: '',
+          price: '',
+          qty: '1',
+          photo,
+        })),
+      ])
+      setNote(
+        `${photos.length} photo${photos.length === 1 ? '' : 's'} added. Add prices, then save.`,
+      )
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  // Names photo-only rows on the device, one at a time, for the vendor to
+  // check. Only rows still without a name are touched.
+  async function suggestNames() {
+    setNaming(true)
+    setNote(null)
+    try {
+      await device.ready()
+      let next = r
+      for (let n = 0; n < next.length; n++) {
+        const row = next[n]!
+        if (row.name.trim() || !row.photo) continue
+        const base64 = row.photo.thumb.split(',')[1] ?? ''
+        const reading = await suggestLabel(
+          { mimeType: 'image/jpeg', base64 },
+          device.consent,
+        )
+        next = next.map((x, k) =>
+          k === n && !x.name.trim() ? { ...x, name: reading.fields } : x,
+        )
+        setRows(next)
+      }
+      setNote(
+        'Names suggested on this computer. Change any that are wrong, then save.',
+      )
+    } catch (e) {
+      setNote(
+        e instanceof NeedsConsent
+          ? 'This computer has no on-device model. Allow the cloud at the top of the panel to suggest names.'
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      )
+    } finally {
+      setNaming(false)
+    }
   }
 
   function addPasted() {
@@ -105,19 +184,43 @@ export function StockCard(props: { ledger: LedgerApi }) {
         }}
       >
         <p className="hint">
-          List what you sell. Leave the quantity empty for anything you
-          don&apos;t count. Each paid order takes its items off what is left,
-          and drafts tell customers honestly when something is sold out.
+          List what you sell, by name, by photo or both. Leave the quantity
+          empty for anything you don&apos;t count. A customer&apos;s picture of
+          an item, such as a reply to your status, is matched to these photos on
+          this computer. Each paid order takes its items off what is left, and
+          drafts tell customers honestly when something is sold out.
         </p>
         {r.length === 0 && <p className="empty">No products yet.</p>}
         {r.map((row, n) => {
           const l = left(row)
           return (
             <div key={row.id ?? `new-${n}`} className="stock-row">
-              <label>
+              <label className="photo">
+                {row.photo ? (
+                  <img
+                    src={row.photo.thumb}
+                    alt={row.name || 'Product photo'}
+                  />
+                ) : (
+                  <span>Add photo</span>
+                )}
+                <input
+                  type="file"
+                  accept={IMAGE_TYPES}
+                  className="visually-hidden"
+                  aria-label={`Photo for ${row.name || 'this product'}`}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (file) void addPhotos([file], n)
+                  }}
+                />
+              </label>
+              <label className="name">
                 Product
                 <input
                   value={row.name}
+                  placeholder={row.photo ? 'Optional with a photo' : ''}
                   onChange={(e) => set(n, 'name', e.target.value)}
                 />
               </label>
@@ -160,6 +263,29 @@ export function StockCard(props: { ledger: LedgerApi }) {
         >
           Add a product
         </button>
+        <label className="file">
+          Add products from photos{' '}
+          <input
+            type="file"
+            accept={IMAGE_TYPES}
+            multiple
+            onChange={(e) => {
+              const files = [...(e.target.files ?? [])]
+              e.target.value = ''
+              if (files.length) void addPhotos(files)
+            }}
+          />
+        </label>
+        {r.some((x) => x.photo && !x.name.trim()) && (
+          <button
+            type="button"
+            className="quiet"
+            disabled={naming || device.busy}
+            onClick={() => void suggestNames()}
+          >
+            {naming ? 'Suggesting names…' : 'Suggest names from the photos'}
+          </button>
+        )}
         <label>
           Or paste your price list, one product per line
           <textarea

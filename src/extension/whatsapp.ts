@@ -55,6 +55,41 @@ async function imageOf(img: HTMLImageElement) {
   return { mimeType: 'image/jpeg', base64: src.split(',')[1] ?? '', src }
 }
 
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () =>
+      reject(new Error('A picture in the chat could not be read.'))
+    img.src = src
+  })
+}
+
+// The small picture of what a message replies to, such as a status: an
+// image, or a block drawn with a background image, outside the message's own
+// photo. Emoji are images too, so tiny ones are skipped.
+async function quotedPicture(row: Element) {
+  for (const el of row.querySelectorAll<HTMLElement>('img, div, span')) {
+    if (
+      el.closest('[data-testid="image-thumb"]') ||
+      el.closest('[data-testid^="link-preview"]') ||
+      el.closest(`[${MARK}]`)
+    ) {
+      continue
+    }
+    if (el instanceof HTMLImageElement) {
+      if (!/^(blob|data):/.test(el.src) || el.naturalWidth < 40) continue
+      if (el.classList.contains('emoji') || el.alt.length === 1) continue
+      return imageOf(el)
+    }
+    const bg = /url\("?((?:blob|data):[^")]+)"?\)/.exec(
+      el.style.backgroundImage,
+    )
+    if (bg?.[1]) return imageOf(await loadImage(bg[1]))
+  }
+  return null
+}
+
 async function readMessage(row: Element): Promise<ChatMessage | null> {
   const holder = row.querySelector('[data-id]')
   const id = holder?.getAttribute('data-id')
@@ -80,7 +115,14 @@ async function readMessage(row: Element): Promise<ChatMessage | null> {
   }
   if (text) message.text = text
   if (img) message.image = await imageOf(img)
-  return message.text || message.image ? message : null
+  const quoted = await quotedPicture(row)
+  if (quoted) {
+    message.quoted = {
+      ...quoted,
+      status: /\bstatus\b/i.test(row.textContent ?? ''),
+    }
+  }
+  return message.text || message.image || message.quoted ? message : null
 }
 
 async function readChat(): Promise<OpenChat> {
