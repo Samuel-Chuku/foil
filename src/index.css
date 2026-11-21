@@ -8,6 +8,7 @@
   --error: #b3261e;
   --warn: #8a5100;
   --good: #1a6630;
+  --page-bg: #ecebe7;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -16,7 +17,12 @@
     --error: #ffb4ab;
     --warn: #e8a33d;
     --good: #81c995;
+    --page-bg: #1b1b1d;
   }
+}
+/* Hidden means hidden, whatever display a component sets. */
+[hidden] {
+  display: none !important;
 }
 main {
   max-width: 44rem;
@@ -854,4 +860,48 @@ button.link {
 .swatch-pick[aria-pressed='true'] {
   outline: 3px solid currentColor;
   outline-offset: 2px;
+}
+
+.panel-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0.75rem;
+  border-bottom: 1px solid #8884;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--page-bg);
+}
+.panel-tabs [role='tab'] {
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  cursor: pointer;
+}
+.panel-tabs [role='tab'][aria-selected='true'] {
+  border-bottom-color: currentColor;
+  font-weight: 700;
+}
+.tab-count {
+  display: inline-block;
+  min-width: 1.2em;
+  margin-left: 0.3rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: var(--warn);
+  color: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  .tab-count {
+    color: #1b1b1d;
+  }
+}
+.demo-intro {
+  max-width: 46rem;
+  padding: 1rem 1.5rem 2rem;
 }

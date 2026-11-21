@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { get, putAll } from '../ledger/db'
 import { normalisePhone } from '../ledger/ledger'
+import { SetupCard } from './SetupCard'
 import { Panel } from '../ui/Panel'
 import type { OpenChat, PanelHost, PanelRequest } from '../ui/host'
 import { useDevice } from '../ui/useDevice'
@@ -137,6 +138,7 @@ export default function ExtensionApp() {
   return (
     <>
       <h1 className="visually-hidden">Payment desk</h1>
+      <SetupCard />
       {name && !learnt && (
         <details className="card number-ask">
           <summary>Add {name}&apos;s number (optional)</summary>

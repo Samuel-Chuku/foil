@@ -98,6 +98,7 @@ import { BooksCard } from './BooksCard'
 import { ReceiptCard } from './ReceiptCard'
 import { ReceiptLookCard } from './ReceiptLookCard'
 import { useBrand } from './useBrand'
+import { PanelTabs, TabPanel, type TabId } from './PanelTabs'
 import { receiptFor } from '../capture/customerReceipt'
 import { TrendsCard } from './TrendsCard'
 import type { ShopRulesApi } from './useShopRules'
@@ -308,6 +309,23 @@ export function Panel(props: {
   const online = useOnline()
   const approval = useApproval()
   const brand = useBrand()
+  const [tab, setTab] = useState<TabId>('chat')
+  // A click in WhatsApp, or opening another chat, brings the chat's tab
+  // forward.
+  const openPhone = props.chat?.phone ?? null
+  const [shownFor, setShownFor] = useState({
+    phone: openPhone,
+    request: props.request,
+  })
+  if (shownFor.phone !== openPhone || shownFor.request !== props.request) {
+    setShownFor({ phone: openPhone, request: props.request })
+    if (
+      (openPhone && shownFor.phone !== openPhone) ||
+      (props.request && shownFor.request !== props.request)
+    ) {
+      setTab('chat')
+    }
+  }
   const { data, config } = ledger
   const [work, setWork] = useState<Record<string, Work>>({})
   const [appBank, setAppBank] = useState('')
@@ -355,6 +373,8 @@ export function Panel(props: {
   const extraRows = data
     ? extraMoney(data.orders, data.credits, data.settlements, config)
     : []
+  // Money waiting for the vendor's decision, shown on the Money tab.
+  const undecided = extraRows.filter((r) => !r.settlement).length
   const paidWith =
     order?.payment.state === 'matched'
       ? (data?.credits.find((x) => x.id === order.payment.creditId) ?? null)
@@ -1338,644 +1358,667 @@ export function Panel(props: {
         </p>
       )}
 
-      {!chat ? (
-        <p className="empty">
-          Open a chat to verify a payment, capture the order or draft a reply.
-        </p>
-      ) : (
-        <>
-          <p className="who">
-            <strong>{chat.contactName}</strong> {chat.phone}
+      <PanelTabs
+        current={tab}
+        onChange={setTab}
+        counts={{ money: undecided }}
+      />
+
+      <TabPanel id="chat" current={tab}>
+        {!chat ? (
+          <p className="empty">
+            Open a chat to verify a payment, capture the order or draft a reply.
           </p>
+        ) : (
+          <>
+            <p className="who">
+              <strong>{chat.contactName}</strong> {chat.phone}
+            </p>
 
-          <section className="card" aria-labelledby="pay-h">
-            <h3 id="pay-h">Payment</h3>
-            {!hasReceipt && (
-              <p className="empty">
-                {chat?.messages.length === 0
-                  ? 'Click Verify payment under a receipt in the chat to check it.'
-                  : 'No receipt in this chat yet.'}
-              </p>
-            )}
-            {hasReceipt && v?.status !== 'running' && (
-              <button
-                type="button"
-                disabled={device.busy}
-                onClick={() => void verify()}
-              >
-                {v ? 'Verify again' : 'Verify payment'}
-              </button>
-            )}
-            {data?.credits.length === 0 && (
-              <p className="hint">
-                No bank alerts have arrived yet, so nothing can match. The order
-                is checked again as soon as one does.
-              </p>
-            )}
-            {v?.status === 'running' && <p aria-live="polite">{v.note}</p>}
-            {v?.status === 'error' && (
-              <p className="error" role="alert">
-                {v.message}
-              </p>
-            )}
-            {v?.status === 'done' && (
-              <>
-                <Badge
-                  source={v.value.reading.source}
-                  ms={v.value.reading.ms}
-                />
-                <dl className="fields">
-                  <dt>Amount</dt>
-                  <dd>
-                    {v.value.receipt.amountKobo === null
-                      ? 'Not read'
-                      : formatNaira(v.value.receipt.amountKobo)}
-                  </dd>
-                  <dt>Sender</dt>
-                  <dd>{v.value.receipt.sender || 'Not read'}</dd>
-                  <dt>Bank</dt>
-                  <dd>{bankName(v.value.receipt.senderBank)}</dd>
-                  <dt>Session ID</dt>
-                  <dd className="mono">
-                    {v.value.reading.fields.sessionId || 'Not printed'}
-                  </dd>
-                  <dt>Time</dt>
-                  <dd>{v.value.reading.fields.dateTime || 'Not read'}</dd>
-                </dl>
-              </>
-            )}
-            {shown && (
-              <div className="verdict" data-kind={shown.kind}>
-                <strong>{PAYMENT_LABEL[shown.kind]}</strong>
-                {paidWhileAway && (
-                  <p>
-                    <strong>
-                      Paid while you waited: the alert arrived after the receipt
-                      was checked.
-                    </strong>
-                  </p>
-                )}
-                <p>{shown.text}</p>
-                {fromOrder && waited !== null && (
-                  <p className="hint">
-                    Waiting {formatWait(waited)}
-                    {waited > shop.rules.paymentWaitMin
-                      ? `, past your ${formatWait(shop.rules.paymentWaitMin)} wait. A draft will ask them to check with their bank.`
-                      : '.'}
-                  </p>
-                )}
-                {fromOrder && canRecheck && (
-                  <button
-                    type="button"
-                    className="quiet"
-                    onClick={() => void ledger.recheck()}
-                  >
-                    Check again
-                  </button>
-                )}
-                {current.notice && (
-                  <p className="error" role="alert">
-                    {current.notice}
-                  </p>
-                )}
-                {shown.candidates.length > 0 &&
-                  (order ? (
-                    <ul className="candidates">
-                      {shown.candidates.map((id) => {
-                        const cr = data?.credits.find((x) => x.id === id)
-                        return (
-                          <li key={id}>
-                            {cr
-                              ? `${formatNaira(cr.amountKobo)} from ${cr.sender || 'an unknown sender'}`
-                              : id}{' '}
-                            <button
-                              type="button"
-                              onClick={() => void pickCredit(id)}
-                            >
-                              This one
-                            </button>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="hint">
-                      Save the order first, then choose the credit that pays for
-                      it.
+            <section className="card" aria-labelledby="pay-h">
+              <h3 id="pay-h">Payment</h3>
+              {!hasReceipt && (
+                <p className="empty">
+                  {chat?.messages.length === 0
+                    ? 'Click Verify payment under a receipt in the chat to check it.'
+                    : 'No receipt in this chat yet.'}
+                </p>
+              )}
+              {hasReceipt && v?.status !== 'running' && (
+                <button
+                  type="button"
+                  disabled={device.busy}
+                  onClick={() => void verify()}
+                >
+                  {v ? 'Verify again' : 'Verify payment'}
+                </button>
+              )}
+              {data?.credits.length === 0 && (
+                <p className="hint">
+                  No bank alerts have arrived yet, so nothing can match. The
+                  order is checked again as soon as one does.
+                </p>
+              )}
+              {v?.status === 'running' && <p aria-live="polite">{v.note}</p>}
+              {v?.status === 'error' && (
+                <p className="error" role="alert">
+                  {v.message}
+                </p>
+              )}
+              {v?.status === 'done' && (
+                <>
+                  <Badge
+                    source={v.value.reading.source}
+                    ms={v.value.reading.ms}
+                  />
+                  <dl className="fields">
+                    <dt>Amount</dt>
+                    <dd>
+                      {v.value.receipt.amountKobo === null
+                        ? 'Not read'
+                        : formatNaira(v.value.receipt.amountKobo)}
+                    </dd>
+                    <dt>Sender</dt>
+                    <dd>{v.value.receipt.sender || 'Not read'}</dd>
+                    <dt>Bank</dt>
+                    <dd>{bankName(v.value.receipt.senderBank)}</dd>
+                    <dt>Session ID</dt>
+                    <dd className="mono">
+                      {v.value.reading.fields.sessionId || 'Not printed'}
+                    </dd>
+                    <dt>Time</dt>
+                    <dd>{v.value.reading.fields.dateTime || 'Not read'}</dd>
+                  </dl>
+                </>
+              )}
+              {shown && (
+                <div className="verdict" data-kind={shown.kind}>
+                  <strong>{PAYMENT_LABEL[shown.kind]}</strong>
+                  {paidWhileAway && (
+                    <p>
+                      <strong>
+                        Paid while you waited: the alert arrived after the
+                        receipt was checked.
+                      </strong>
                     </p>
-                  ))}
-              </div>
-            )}
-            {chatRows.length > 0 && (
-              <div className="extra-here">
-                <p>
-                  <strong>Extra money from this customer</strong>
-                </p>
-                <ExtraMoney
-                  rows={chatRows}
-                  onSettle={settle}
-                  onUndo={(id) => void ledger.unsettle(id)}
-                  more={refundControls}
-                />
-              </div>
-            )}
-          </section>
-
-          <section className="card" aria-labelledby="order-h">
-            <h3 id="order-h">Order</h3>
-            {order && (
-              <div className="saved">
-                <p>
-                  <strong>Order {order.code}</strong>{' '}
-                  {order.amountKobo === null
-                    ? ''
-                    : formatNaira(order.amountKobo)}{' '}
-                  · {paymentText(order, data?.credits ?? [])}
-                  {order.payment.decidedBy === 'vendor' &&
-                    ' (confirmed by you)'}
-                  {order.payment.decidedBy === 'vendor' &&
-                    order.payment.state === 'matched' && (
-                      <>
-                        {' '}
-                        <button
-                          type="button"
-                          className="link"
-                          onClick={() => void undoPick()}
-                        >
-                          Undo my choice
-                        </button>
-                      </>
-                    )}
-                </p>
-                <p>
-                  {order.items.map((i) => `${i.qty} × ${i.name}`).join(', ') ||
-                    'No items listed'}
-                </p>
-                {!offersDelivery &&
-                !order.deliveryPlan ? null : current.deliveryEdit ? (
-                  <form
-                    className="order-form"
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      void saveDelivery()
-                    }}
-                  >
-                    <DeliveryFields
-                      form={current.deliveryEdit}
-                      rules={shop.rules}
-                      onChange={(deliveryEdit) =>
-                        patch(chat.phone, { deliveryEdit })
-                      }
-                    />
-                    <button type="submit">Save delivery</button>{' '}
+                  )}
+                  <p>{shown.text}</p>
+                  {fromOrder && waited !== null && (
+                    <p className="hint">
+                      Waiting {formatWait(waited)}
+                      {waited > shop.rules.paymentWaitMin
+                        ? `, past your ${formatWait(shop.rules.paymentWaitMin)} wait. A draft will ask them to check with their bank.`
+                        : '.'}
+                    </p>
+                  )}
+                  {fromOrder && canRecheck && (
                     <button
                       type="button"
                       className="quiet"
-                      onClick={() =>
-                        patch(chat.phone, { deliveryEdit: undefined })
-                      }
+                      onClick={() => void ledger.recheck()}
                     >
-                      Cancel
+                      Check again
                     </button>
-                  </form>
-                ) : (
+                  )}
+                  {current.notice && (
+                    <p className="error" role="alert">
+                      {current.notice}
+                    </p>
+                  )}
+                  {shown.candidates.length > 0 &&
+                    (order ? (
+                      <ul className="candidates">
+                        {shown.candidates.map((id) => {
+                          const cr = data?.credits.find((x) => x.id === id)
+                          return (
+                            <li key={id}>
+                              {cr
+                                ? `${formatNaira(cr.amountKobo)} from ${cr.sender || 'an unknown sender'}`
+                                : id}{' '}
+                              <button
+                                type="button"
+                                onClick={() => void pickCredit(id)}
+                              >
+                                This one
+                              </button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="hint">
+                        Save the order first, then choose the credit that pays
+                        for it.
+                      </p>
+                    ))}
+                </div>
+              )}
+              {chatRows.length > 0 && (
+                <div className="extra-here">
                   <p>
-                    Delivery: {describePlan(order.deliveryPlan)}{' '}
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() =>
-                        patch(chat.phone, {
-                          deliveryEdit: toDeliveryForm(order.deliveryPlan),
-                        })
-                      }
+                    <strong>Extra money from this customer</strong>
+                  </p>
+                  <ExtraMoney
+                    rows={chatRows}
+                    onSettle={settle}
+                    onUndo={(id) => void ledger.unsettle(id)}
+                    more={refundControls}
+                  />
+                </div>
+              )}
+            </section>
+
+            <section className="card" aria-labelledby="order-h">
+              <h3 id="order-h">Order</h3>
+              {order && (
+                <div className="saved">
+                  <p>
+                    <strong>Order {order.code}</strong>{' '}
+                    {order.amountKobo === null
+                      ? ''
+                      : formatNaira(order.amountKobo)}{' '}
+                    · {paymentText(order, data?.credits ?? [])}
+                    {order.payment.decidedBy === 'vendor' &&
+                      ' (confirmed by you)'}
+                    {order.payment.decidedBy === 'vendor' &&
+                      order.payment.state === 'matched' && (
+                        <>
+                          {' '}
+                          <button
+                            type="button"
+                            className="link"
+                            onClick={() => void undoPick()}
+                          >
+                            Undo my choice
+                          </button>
+                        </>
+                      )}
+                  </p>
+                  <p>
+                    {order.items
+                      .map((i) => `${i.qty} × ${i.name}`)
+                      .join(', ') || 'No items listed'}
+                  </p>
+                  {!offersDelivery &&
+                  !order.deliveryPlan ? null : current.deliveryEdit ? (
+                    <form
+                      className="order-form"
+                      onSubmit={(e) => {
+                        e.preventDefault()
+                        void saveDelivery()
+                      }}
                     >
-                      Change
-                    </button>
-                  </p>
-                )}
-                {balance !== null && balance > 0 && (
-                  <p className="hint">
-                    Ask for the balance of {formatNaira(balance)}. When the
-                    customer sends a receipt for it, verify it here and it is
-                    added to this order.
-                  </p>
-                )}
-                {amountGap && v?.status === 'done' && (
-                  <p className="hint">
-                    The receipt shows{' '}
-                    {formatNaira(v.value.receipt.amountKobo ?? 0)} but the order
-                    total is {formatNaira(order.amountKobo ?? 0)}.
-                  </p>
-                )}
-              </div>
-            )}
-            {!order && !c && (
-              <button
-                type="button"
-                disabled={device.busy}
-                onClick={() => void capture()}
-              >
-                Capture order from chat
-              </button>
-            )}
-            {c?.status === 'running' && <p aria-live="polite">{c.note}</p>}
-            {c?.status === 'error' && (
-              <>
-                <p className="error" role="alert">
-                  {c.message}
-                </p>
+                      <DeliveryFields
+                        form={current.deliveryEdit}
+                        rules={shop.rules}
+                        onChange={(deliveryEdit) =>
+                          patch(chat.phone, { deliveryEdit })
+                        }
+                      />
+                      <button type="submit">Save delivery</button>{' '}
+                      <button
+                        type="button"
+                        className="quiet"
+                        onClick={() =>
+                          patch(chat.phone, { deliveryEdit: undefined })
+                        }
+                      >
+                        Cancel
+                      </button>
+                    </form>
+                  ) : (
+                    <p>
+                      Delivery: {describePlan(order.deliveryPlan)}{' '}
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() =>
+                          patch(chat.phone, {
+                            deliveryEdit: toDeliveryForm(order.deliveryPlan),
+                          })
+                        }
+                      >
+                        Change
+                      </button>
+                    </p>
+                  )}
+                  {balance !== null && balance > 0 && (
+                    <p className="hint">
+                      Ask for the balance of {formatNaira(balance)}. When the
+                      customer sends a receipt for it, verify it here and it is
+                      added to this order.
+                    </p>
+                  )}
+                  {amountGap && v?.status === 'done' && (
+                    <p className="hint">
+                      The receipt shows{' '}
+                      {formatNaira(v.value.receipt.amountKobo ?? 0)} but the
+                      order total is {formatNaira(order.amountKobo ?? 0)}.
+                    </p>
+                  )}
+                </div>
+              )}
+              {!order && !c && (
                 <button
                   type="button"
                   disabled={device.busy}
                   onClick={() => void capture()}
                 >
-                  Try again
+                  Capture order from chat
                 </button>
-              </>
-            )}
-            {c?.status === 'done' && (
-              <form
-                className="order-form"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void saveOrder(c.value.form)
-                }}
-              >
-                <Badge source={c.value.source} ms={c.value.ms} />
-                <p className="hint">Check the details, then save.</p>
-                {c.value.form.items.map((item, n) => (
-                  <fieldset key={n} className="item">
-                    <legend>
-                      Item {n + 1}{' '}
-                      <button
-                        type="button"
-                        className="link"
-                        aria-label={`Remove item ${n + 1}`}
-                        onClick={() =>
-                          editForm({
-                            items: c.value.form.items.filter((_, k) => k !== n),
-                          })
-                        }
-                      >
-                        Remove
-                      </button>
-                    </legend>
-                    {item.pickedBy && (
-                      <p className="hint">
-                        <span className="badge" data-source={item.pickedBy}>
-                          {item.pickedBy}
-                        </span>{' '}
-                        Their picture was close to a few of your photos; the
-                        model picked this one. Tap another below if it is wrong.
-                      </p>
-                    )}
-                    {item.choices && (!item.productId || item.pickedBy) && (
-                      <div
-                        className="choices"
-                        role="group"
-                        aria-label="Which item is it?"
-                      >
-                        <p className="hint">
-                          Their picture is close to these. Which is it?
-                        </p>
-                        {item.choices.map((id) => {
-                          const p = data?.products.find((x) => x.id === id)
-                          if (!p?.photo) return null
-                          return (
-                            <button
-                              key={id}
-                              type="button"
-                              aria-pressed={item.productId === id}
-                              className="choice"
-                              onClick={() =>
-                                editForm({
-                                  items: c.value.form.items.map((x, k) =>
-                                    k === n
-                                      ? {
-                                          ...x,
-                                          productId: p.id,
-                                          pickedBy: undefined,
-                                          name: p.name || 'Item from photo',
-                                          price:
-                                            p.priceKobo === null
-                                              ? x.price
-                                              : String(p.priceKobo / 100),
-                                        }
-                                      : x,
-                                  ),
-                                })
-                              }
-                            >
-                              <img src={p.photo.thumb} alt="" />
-                              <span>
-                                {p.name ||
-                                  (p.dropNo ? `#${p.dropNo}` : 'Photo')}
-                                {p.priceKobo !== null &&
-                                  ` · ${formatNaira(p.priceKobo)}`}
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                    {item.productId &&
-                      data?.products.find((x) => x.id === item.productId)
-                        ?.photo && (
-                        <img
-                          className="item-photo"
-                          src={
-                            data.products.find((x) => x.id === item.productId)!
-                              .photo!.thumb
+              )}
+              {c?.status === 'running' && <p aria-live="polite">{c.note}</p>}
+              {c?.status === 'error' && (
+                <>
+                  <p className="error" role="alert">
+                    {c.message}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={device.busy}
+                    onClick={() => void capture()}
+                  >
+                    Try again
+                  </button>
+                </>
+              )}
+              {c?.status === 'done' && (
+                <form
+                  className="order-form"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    void saveOrder(c.value.form)
+                  }}
+                >
+                  <Badge source={c.value.source} ms={c.value.ms} />
+                  <p className="hint">Check the details, then save.</p>
+                  {c.value.form.items.map((item, n) => (
+                    <fieldset key={n} className="item">
+                      <legend>
+                        Item {n + 1}{' '}
+                        <button
+                          type="button"
+                          className="link"
+                          aria-label={`Remove item ${n + 1}`}
+                          onClick={() =>
+                            editForm({
+                              items: c.value.form.items.filter(
+                                (_, k) => k !== n,
+                              ),
+                            })
                           }
-                          alt="Matched from the customer's picture"
-                        />
+                        >
+                          Remove
+                        </button>
+                      </legend>
+                      {item.pickedBy && (
+                        <p className="hint">
+                          <span className="badge" data-source={item.pickedBy}>
+                            {item.pickedBy}
+                          </span>{' '}
+                          Their picture was close to a few of your photos; the
+                          model picked this one. Tap another below if it is
+                          wrong.
+                        </p>
                       )}
-                    <label>
-                      Item
+                      {item.choices && (!item.productId || item.pickedBy) && (
+                        <div
+                          className="choices"
+                          role="group"
+                          aria-label="Which item is it?"
+                        >
+                          <p className="hint">
+                            Their picture is close to these. Which is it?
+                          </p>
+                          {item.choices.map((id) => {
+                            const p = data?.products.find((x) => x.id === id)
+                            if (!p?.photo) return null
+                            return (
+                              <button
+                                key={id}
+                                type="button"
+                                aria-pressed={item.productId === id}
+                                className="choice"
+                                onClick={() =>
+                                  editForm({
+                                    items: c.value.form.items.map((x, k) =>
+                                      k === n
+                                        ? {
+                                            ...x,
+                                            productId: p.id,
+                                            pickedBy: undefined,
+                                            name: p.name || 'Item from photo',
+                                            price:
+                                              p.priceKobo === null
+                                                ? x.price
+                                                : String(p.priceKobo / 100),
+                                          }
+                                        : x,
+                                    ),
+                                  })
+                                }
+                              >
+                                <img src={p.photo.thumb} alt="" />
+                                <span>
+                                  {p.name ||
+                                    (p.dropNo ? `#${p.dropNo}` : 'Photo')}
+                                  {p.priceKobo !== null &&
+                                    ` · ${formatNaira(p.priceKobo)}`}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                      {item.productId &&
+                        data?.products.find((x) => x.id === item.productId)
+                          ?.photo && (
+                          <img
+                            className="item-photo"
+                            src={
+                              data.products.find(
+                                (x) => x.id === item.productId,
+                              )!.photo!.thumb
+                            }
+                            alt="Matched from the customer's picture"
+                          />
+                        )}
+                      <label>
+                        Item
+                        <input
+                          value={item.name}
+                          onChange={(e) =>
+                            editForm({
+                              items: c.value.form.items.map((x, k) =>
+                                k === n ? { ...x, name: e.target.value } : x,
+                              ),
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        Qty
+                        <input
+                          inputMode="numeric"
+                          value={item.qty}
+                          onChange={(e) =>
+                            editForm({
+                              items: c.value.form.items.map((x, k) =>
+                                k === n ? { ...x, qty: e.target.value } : x,
+                              ),
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        Price (₦)
+                        <input
+                          inputMode="decimal"
+                          value={item.price}
+                          onChange={(e) =>
+                            editForm({
+                              items: c.value.form.items.map((x, k) =>
+                                k === n ? { ...x, price: e.target.value } : x,
+                              ),
+                            })
+                          }
+                        />
+                      </label>
+                      {stockNote(item)}
+                    </fieldset>
+                  ))}
+                  <button
+                    type="button"
+                    className="quiet"
+                    onClick={() =>
+                      editForm({
+                        items: [
+                          ...c.value.form.items,
+                          { name: '', qty: '1', price: '' },
+                        ],
+                      })
+                    }
+                  >
+                    Add an item
+                  </button>
+                  {(
+                    [
+                      ['amount', 'Items total (₦)'],
+                      ['customerName', 'Customer name'],
+                      ['address', 'Delivery address (empty for pickup)'],
+                      ['landmark', 'Landmark'],
+                      ['area', 'Area'],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label key={key}>
+                      {label}
                       <input
-                        value={item.name}
-                        onChange={(e) =>
-                          editForm({
-                            items: c.value.form.items.map((x, k) =>
-                              k === n ? { ...x, name: e.target.value } : x,
-                            ),
-                          })
-                        }
+                        value={c.value.form[key]}
+                        onChange={(e) => editForm({ [key]: e.target.value })}
                       />
                     </label>
-                    <label>
-                      Qty
-                      <input
-                        inputMode="numeric"
-                        value={item.qty}
-                        onChange={(e) =>
-                          editForm({
-                            items: c.value.form.items.map((x, k) =>
-                              k === n ? { ...x, qty: e.target.value } : x,
-                            ),
-                          })
-                        }
-                      />
-                    </label>
-                    <label>
-                      Price (₦)
-                      <input
-                        inputMode="decimal"
-                        value={item.price}
-                        onChange={(e) =>
-                          editForm({
-                            items: c.value.form.items.map((x, k) =>
-                              k === n ? { ...x, price: e.target.value } : x,
-                            ),
-                          })
-                        }
-                      />
-                    </label>
-                    {stockNote(item)}
-                  </fieldset>
-                ))}
-                <button
-                  type="button"
-                  className="quiet"
-                  onClick={() =>
-                    editForm({
-                      items: [
-                        ...c.value.form.items,
-                        { name: '', qty: '1', price: '' },
-                      ],
-                    })
-                  }
-                >
-                  Add an item
-                </button>
-                {(
-                  [
-                    ['amount', 'Items total (₦)'],
-                    ['customerName', 'Customer name'],
-                    ['address', 'Delivery address (empty for pickup)'],
-                    ['landmark', 'Landmark'],
-                    ['area', 'Area'],
-                  ] as const
-                ).map(([key, label]) => (
-                  <label key={key}>
-                    {label}
-                    <input
-                      value={c.value.form[key]}
-                      onChange={(e) => editForm({ [key]: e.target.value })}
+                  ))}
+                  {offersDelivery && (
+                    <DeliveryFields
+                      form={c.value.form.delivery}
+                      rules={shop.rules}
+                      onChange={(delivery) => editForm({ delivery })}
                     />
-                  </label>
-                ))}
-                {offersDelivery && (
-                  <DeliveryFields
-                    form={c.value.form.delivery}
-                    rules={shop.rules}
-                    onChange={(delivery) => editForm({ delivery })}
-                  />
-                )}
-                <button type="submit">Save order</button>{' '}
+                  )}
+                  <button type="submit">Save order</button>{' '}
+                  <button
+                    type="button"
+                    className="quiet"
+                    onClick={() => patch(chat.phone, { capture: undefined })}
+                  >
+                    Discard
+                  </button>
+                </form>
+              )}
+            </section>
+
+            {current.voice && (
+              <VoiceCard
+                step={current.voice}
+                badge={(r) => <Badge source={r.source} ms={r.ms} />}
+                hasForm={current.capture?.status === 'done'}
+                onUse={applyVoice}
+                onClose={() => patch(chat.phone, { voice: undefined })}
+              />
+            )}
+            {receipt && order && (
+              <ReceiptCard
+                key={order.id}
+                receipt={receipt}
+                brand={brand.brand}
+                onInsert={async (text) => {
+                  await host.insertDraft(chat.phone, text)
+                }}
+              />
+            )}
+            <section className="card" aria-labelledby="draft-h">
+              <h3 id="draft-h">Reply</h3>
+              {d?.status !== 'running' && (
                 <button
                   type="button"
-                  className="quiet"
-                  onClick={() => patch(chat.phone, { capture: undefined })}
+                  disabled={device.busy}
+                  onClick={() => void draft()}
                 >
-                  Discard
+                  {d?.status === 'done' ? 'Draft again' : 'Draft a reply'}
                 </button>
-              </form>
-            )}
-          </section>
-
-          {current.voice && (
-            <VoiceCard
-              step={current.voice}
-              badge={(r) => <Badge source={r.source} ms={r.ms} />}
-              hasForm={current.capture?.status === 'done'}
-              onUse={applyVoice}
-              onClose={() => patch(chat.phone, { voice: undefined })}
-            />
-          )}
-          {receipt && order && (
-            <ReceiptCard
-              key={order.id}
-              receipt={receipt}
-              brand={brand.brand}
-              onInsert={async (text) => {
-                await host.insertDraft(chat.phone, text)
-              }}
-            />
-          )}
-          <section className="card" aria-labelledby="draft-h">
-            <h3 id="draft-h">Reply</h3>
-            {d?.status !== 'running' && (
-              <button
-                type="button"
-                disabled={device.busy}
-                onClick={() => void draft()}
-              >
-                {d?.status === 'done' ? 'Draft again' : 'Draft a reply'}
-              </button>
-            )}
-            {d?.status === 'running' && <p aria-live="polite">{d.note}</p>}
-            {d?.status === 'error' && (
-              <p className="error" role="alert">
-                {d.message}
-              </p>
-            )}
-            {d?.status === 'done' && (
-              <>
-                <Badge source={d.value.source} ms={d.value.ms} />
-                <p>
-                  The draft is in the message box. It has not been sent; edit it
-                  or send it yourself.
+              )}
+              {d?.status === 'running' && <p aria-live="polite">{d.note}</p>}
+              {d?.status === 'error' && (
+                <p className="error" role="alert">
+                  {d.message}
                 </p>
-              </>
-            )}
-          </section>
-        </>
-      )}
-
-      <QueueCard
-        ledger={ledger}
-        device={device}
-        delivers={shop.rules.methods.length > 0}
-        onOpen={host.openChat}
-      />
-
-      <section className="card" aria-labelledby="today-h">
-        <h3 id="today-h">Today&apos;s orders</h3>
-        {!data && !ledger.loadError && <p>Loading…</p>}
-        {todays.length === 0 && data && (
-          <p className="empty">No orders saved today yet.</p>
-        )}
-        {todays.length > 0 && (
-          <ul className="orders">
-            {todays.map((o) => (
-              <li key={o.id}>
-                <span>
-                  {o.code}. {customerName(o.customerId)}
-                </span>
-                <span>
-                  {o.amountKobo === null ? '' : formatNaira(o.amountKobo)}
-                </span>
-                <span data-kind={o.payment.state}>
-                  {paymentText(o, data?.credits ?? [])}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <ShopRulesCard shop={shop} device={device} />
-
-      <ReceiptLookCard brand={brand} shopName={shop.rules.shopName} />
-
-      <DropCard ledger={ledger} clock={clock} />
-
-      <StockCard ledger={ledger} device={device} />
-
-      {props.inbox}
-
-      <section className="card" aria-labelledby="app-h">
-        <h3 id="app-h">Bank app screenshot</h3>
-        <p className="hint">
-          When an alert email is missing, add a screenshot of today&apos;s
-          history from your bank app. It is read on this computer, and only
-          money the alerts did not show is added.
-        </p>
-        <label>
-          Your bank{' '}
-          <select value={appBank} onChange={(e) => setAppBank(e.target.value)}>
-            <option value="">Not sure</option>
-            {config.banks.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="file">
-          Screenshot (PNG or JPEG){' '}
-          <input
-            type="file"
-            accept="image/png,image/jpeg"
-            disabled={bankApp?.status === 'running' || device.busy}
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              e.target.value = ''
-              if (file) void readBankAppFile(file)
-            }}
-          />
-        </label>
-        {bankApp?.status === 'running' && (
-          <p aria-live="polite">{bankApp.note}</p>
-        )}
-        {bankApp?.status === 'error' && (
-          <p className="error" role="alert">
-            {bankApp.message}
-          </p>
-        )}
-        {bankApp?.status === 'done' && (
-          <>
-            <Badge
-              source={bankApp.value.reading.source}
-              ms={bankApp.value.reading.ms}
-            />
-            <p>
-              {bankApp.value.reading.fields.length} rows read;{' '}
-              {bankApp.value.added.length === 0
-                ? 'nothing new beyond the alerts.'
-                : `${bankApp.value.added.length} new added.`}
-            </p>
+              )}
+              {d?.status === 'done' && (
+                <>
+                  <Badge source={d.value.source} ms={d.value.ms} />
+                  <p>
+                    The draft is in the message box. It has not been sent; edit
+                    it or send it yourself.
+                  </p>
+                </>
+              )}
+            </section>
           </>
         )}
-      </section>
+      </TabPanel>
 
-      <BooksCard
-        ledger={ledger}
-        today={today}
-        lagos={lagos}
-        online={online}
-        ask={approval.ask}
-        badge={(r) => <Badge source={r.source} ms={r.ms} />}
-      />
+      <TabPanel id="today" current={tab}>
+        <QueueCard
+          ledger={ledger}
+          device={device}
+          delivers={shop.rules.methods.length > 0}
+          onOpen={host.openChat}
+        />
 
-      <TrendsCard
-        ledger={ledger}
-        today={today}
-        lagos={lagos}
-        online={online}
-        ask={approval.ask}
-        badge={(r) => <Badge source={r.source} ms={r.ms} />}
-      />
+        <section className="card" aria-labelledby="today-h">
+          <h3 id="today-h">Today&apos;s orders</h3>
+          {!data && !ledger.loadError && <p>Loading…</p>}
+          {todays.length === 0 && data && (
+            <p className="empty">No orders saved today yet.</p>
+          )}
+          {todays.length > 0 && (
+            <ul className="orders">
+              {todays.map((o) => (
+                <li key={o.id}>
+                  <span>
+                    {o.code}. {customerName(o.customerId)}
+                  </span>
+                  <span>
+                    {o.amountKobo === null ? '' : formatNaira(o.amountKobo)}
+                  </span>
+                  <span data-kind={o.payment.state}>
+                    {paymentText(o, data?.credits ?? [])}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-      <MoneyFlowCard ledger={ledger} />
+        <DropCard ledger={ledger} clock={clock} />
 
-      <section className="card" aria-labelledby="extra-h">
-        <h3 id="extra-h">Money not tied to an order</h3>
-        {extraRows.length === 0 ? (
-          <p className="empty">
-            {data?.credits.length
-              ? 'Every credit read so far pays for an order.'
-              : 'No bank alerts read yet.'}
+        <BooksCard
+          ledger={ledger}
+          today={today}
+          lagos={lagos}
+          online={online}
+          ask={approval.ask}
+          badge={(r) => <Badge source={r.source} ms={r.ms} />}
+        />
+
+        <TrendsCard
+          ledger={ledger}
+          today={today}
+          lagos={lagos}
+          online={online}
+          ask={approval.ask}
+          badge={(r) => <Badge source={r.source} ms={r.ms} />}
+        />
+      </TabPanel>
+
+      <TabPanel id="money" current={tab}>
+        {props.inbox}
+
+        <section className="card" aria-labelledby="app-h">
+          <h3 id="app-h">Bank app screenshot</h3>
+          <p className="hint">
+            When an alert email is missing, add a screenshot of today&apos;s
+            history from your bank app. It is read on this computer, and only
+            money the alerts did not show is added.
           </p>
-        ) : (
-          <ExtraMoney
-            rows={extraRows}
-            onUndo={(id) => void ledger.unsettle(id)}
-            onSettle={(row, state) =>
-              void ledger.settleCredit(
-                row,
-                state,
-                row.settlement?.customerId ?? null,
-              )
-            }
-          />
-        )}
-        <p className="hint">
-          The desk records what you decide. Refunds are sent from your bank app.
-        </p>
-      </section>
+          <label>
+            Your bank{' '}
+            <select
+              value={appBank}
+              onChange={(e) => setAppBank(e.target.value)}
+            >
+              <option value="">Not sure</option>
+              {config.banks.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="file">
+            Screenshot (PNG or JPEG){' '}
+            <input
+              type="file"
+              accept="image/png,image/jpeg"
+              disabled={bankApp?.status === 'running' || device.busy}
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (file) void readBankAppFile(file)
+              }}
+            />
+          </label>
+          {bankApp?.status === 'running' && (
+            <p aria-live="polite">{bankApp.note}</p>
+          )}
+          {bankApp?.status === 'error' && (
+            <p className="error" role="alert">
+              {bankApp.message}
+            </p>
+          )}
+          {bankApp?.status === 'done' && (
+            <>
+              <Badge
+                source={bankApp.value.reading.source}
+                ms={bankApp.value.reading.ms}
+              />
+              <p>
+                {bankApp.value.reading.fields.length} rows read;{' '}
+                {bankApp.value.added.length === 0
+                  ? 'nothing new beyond the alerts.'
+                  : `${bankApp.value.added.length} new added.`}
+              </p>
+            </>
+          )}
+        </section>
+
+        <section className="card" aria-labelledby="extra-h">
+          <h3 id="extra-h">Money not tied to an order</h3>
+          {extraRows.length === 0 ? (
+            <p className="empty">
+              {data?.credits.length
+                ? 'Every credit read so far pays for an order.'
+                : 'No bank alerts read yet.'}
+            </p>
+          ) : (
+            <ExtraMoney
+              rows={extraRows}
+              onUndo={(id) => void ledger.unsettle(id)}
+              onSettle={(row, state) =>
+                void ledger.settleCredit(
+                  row,
+                  state,
+                  row.settlement?.customerId ?? null,
+                )
+              }
+            />
+          )}
+          <p className="hint">
+            The desk records what you decide. Refunds are sent from your bank
+            app.
+          </p>
+        </section>
+
+        <MoneyFlowCard ledger={ledger} />
+      </TabPanel>
+
+      <TabPanel id="shop" current={tab}>
+        <ShopRulesCard shop={shop} device={device} />
+
+        <ReceiptLookCard brand={brand} shopName={shop.rules.shopName} />
+
+        <StockCard ledger={ledger} device={device} />
+      </TabPanel>
 
       <p className="privacy">
         Customer names, phone numbers and addresses stay on this computer. Your

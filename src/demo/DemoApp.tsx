@@ -24,10 +24,13 @@ import { useLedger } from '../ui/useLedger'
 import { useShopRules } from '../ui/useShopRules'
 import { formatNaira } from '../verify/money'
 import { sampleHistory } from '../sample/history'
+import { DemoIntro } from './DemoIntro'
 import type { AlertResult } from '../verify/alerts'
 
 // The hosted demo: simulated chat and inbox panes stand in for WhatsApp Web
 // and Gmail, beside the same panel the extension shows.
+
+const INTRO_KEY = 'demo-intro'
 
 // The sample stock, with photos drawn and fingerprinted in this browser.
 async function sampleStock(): Promise<Product[]> {
@@ -121,6 +124,22 @@ export default function DemoApp() {
     if (ledgerData.products.length === 0) void seedStock()
   }, [ledgerData, seedStock])
   const [view, setView] = useState<'chats' | 'inbox' | 'bank'>('chats')
+  // The introduction shows on a first visit, then on request.
+  const [intro, setIntro] = useState(() => {
+    try {
+      return localStorage.getItem(INTRO_KEY) !== 'seen'
+    } catch {
+      return true
+    }
+  })
+  const closeIntro = () => {
+    setIntro(false)
+    try {
+      localStorage.setItem(INTRO_KEY, 'seen')
+    } catch {
+      // Private windows may refuse storage; the intro then shows next visit.
+    }
+  }
   const [bankApp, setBankApp] = useState<
     | { status: 'running' }
     | { status: 'done'; value: BankAppResult }
@@ -211,12 +230,29 @@ export default function DemoApp() {
           <strong>Demo</strong> with sample data for {SAMPLE_DAY}. Everything
           here is invented.
         </p>
+        <button type="button" className="quiet" onClick={() => setIntro(true)}>
+          What is this?
+        </button>
         <button type="button" className="quiet" onClick={() => void reset()}>
           Reset the demo
         </button>
       </header>
 
-      <main className="host">
+      {intro && (
+        <DemoIntro
+          onStart={() => {
+            closeIntro()
+            setView('chats')
+            setOpenPhone(
+              SAMPLE_CHATS.find((c) => c.contactName === 'Adaeze')?.phone ??
+                null,
+            )
+          }}
+          onSkip={closeIntro}
+        />
+      )}
+
+      <main className="host" hidden={intro}>
         <nav className="tabs" aria-label="Sample apps">
           <button
             type="button"
