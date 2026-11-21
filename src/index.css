@@ -678,3 +678,130 @@ button.link {
   margin: 0;
   padding-left: 1.1rem;
 }
+
+/* Charts: palette slots 1 and 2, a validated adjacent pair in both modes. */
+.chart {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --chart-grid: #0002;
+  --chart-ink: #52514e;
+  margin: 1rem 0;
+}
+@media (prefers-color-scheme: dark) {
+  .chart {
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --chart-grid: #fff2;
+    --chart-ink: #c3c2b7;
+  }
+}
+.chart figcaption {
+  display: grid;
+  gap: 0.15rem;
+  margin-bottom: 0.4rem;
+}
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.chart-svg .grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+.chart-svg .axis {
+  fill: var(--chart-ink);
+  font-size: 9px;
+}
+.chart-svg .hit {
+  fill: transparent;
+}
+.chart-svg .mark:hover .hit {
+  fill: var(--chart-grid);
+}
+.chart .series-1 {
+  fill: var(--series-1);
+  background: var(--series-1);
+}
+.chart .series-2 {
+  fill: var(--series-2);
+  background: var(--series-2);
+}
+.chart .legend {
+  display: flex;
+  gap: 1rem;
+  list-style: none;
+  margin: 0 0 0.3rem;
+  padding: 0;
+  font-size: 0.85rem;
+}
+.chart .swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  vertical-align: -0.05rem;
+}
+.chart-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.chart-bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+.chart-bars .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chart-bars .track {
+  height: 12px;
+}
+.chart-bars .bar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+}
+.chart-bars .value {
+  color: var(--chart-ink);
+  font-variant-numeric: tabular-nums;
+}
+.chart-table summary {
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.chart-table table {
+  font-size: 0.8rem;
+  border-collapse: collapse;
+  margin-top: 0.3rem;
+}
+.chart-table th,
+.chart-table td {
+  padding: 0.1rem 0.6rem 0.1rem 0;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.span-pick {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+.span-pick [aria-pressed='true'] {
+  font-weight: 700;
+  text-decoration: underline;
+}
+.review .headline {
+  font-weight: 600;
+}
+.review .findings,
+.review .suggestions {
+  padding-left: 1.2rem;
+}

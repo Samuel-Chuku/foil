@@ -23,6 +23,7 @@ import { useDevice } from '../ui/useDevice'
 import { useLedger } from '../ui/useLedger'
 import { useShopRules } from '../ui/useShopRules'
 import { formatNaira } from '../verify/money'
+import { sampleHistory } from '../sample/history'
 import type { AlertResult } from '../verify/alerts'
 
 // The hosted demo: simulated chat and inbox panes stand in for WhatsApp Web
@@ -36,13 +37,15 @@ async function sampleStock(): Promise<Product[]> {
       name: '',
       priceKobo: t.naira * 100,
       qty: 1,
-      countedAt: 0,
+      countedAt: Date.now(),
       updatedAt: 0,
       photo: await photoFrom(drawPiecePhoto(t.piece).src),
       ...(t.dropNo && { dropId: SAMPLE_DROP.id, dropNo: t.dropNo }),
     })),
   )
-  return [...SAMPLE_PRODUCTS, ...thrift]
+  // Counted now, so the sample history's sales are not taken off the stock.
+  const counted = SAMPLE_PRODUCTS.map((p) => ({ ...p, countedAt: Date.now() }))
+  return [...counted, ...thrift]
 }
 
 // Like WhatsApp, the chat with the latest message comes first.
@@ -92,15 +95,25 @@ export default function DemoApp() {
     if (stored === false) void saveRules(SAMPLE_SHOP_RULES)
   }, [stored, saveRules])
   // And with its stock and a running drop, once per visit if it has none.
-  const { data: ledgerData, saveProducts, startDrop } = ledger
+  const { data: ledgerData, saveProducts, startDrop, addRecords } = ledger
   const seedStock = useCallback(async () => {
+    // Two weeks of trading before the sample day, stamped on the clock the
+    // panel reads order times from (see host.now below).
+    const sampleNow = SAMPLE_DAY_MS + (15 * 60 + 30) * 60_000
+    await addRecords(
+      sampleHistory(
+        SAMPLE_DAY_MS,
+        14,
+        (lagosMs) => lagosMs - sampleNow + Date.now(),
+      ),
+    )
     const stock = await sampleStock()
     await saveProducts(stock.filter((p) => !p.dropId))
     await startDrop(
       SAMPLE_DROP,
       stock.filter((p) => p.dropId),
     )
-  }, [saveProducts, startDrop])
+  }, [saveProducts, startDrop, addRecords])
   const stocked = useRef(false)
   useEffect(() => {
     if (!ledgerData || stocked.current) return

@@ -94,6 +94,7 @@ import {
 import { lagosFromEpoch } from '../verify/time'
 import { MoneyFlowCard } from './MoneyFlowCard'
 import { BooksCard } from './BooksCard'
+import { TrendsCard } from './TrendsCard'
 import type { ShopRulesApi } from './useShopRules'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
@@ -307,6 +308,17 @@ export function Panel(props: {
   // Holds run on the real clock; the demo shows its own sample-day clock, so
   // times are shifted by the difference for display and for message times.
   const clockShift = () => host.now() - lagosFromEpoch(Date.now())
+  // An order's Lagos day and hour, on the same shifted clock.
+  const lagos = {
+    day: (o: Order) =>
+      new Date(lagosFromEpoch(o.createdAt) + clockShift())
+        .toISOString()
+        .slice(0, 10),
+    hour: (o: Order) =>
+      new Date(lagosFromEpoch(o.createdAt) + clockShift()).getUTCHours(),
+  }
+  const today = new Date(host.now()).toISOString().slice(0, 10)
+  const todays = data?.orders.filter((o) => lagos.day(o) === today) ?? []
   const clock = (ms: number) =>
     new Date(lagosFromEpoch(ms) + clockShift()).toISOString().slice(11, 16)
 
@@ -1788,12 +1800,12 @@ export function Panel(props: {
       <section className="card" aria-labelledby="today-h">
         <h3 id="today-h">Today&apos;s orders</h3>
         {!data && !ledger.loadError && <p>Loading…</p>}
-        {data?.orders.length === 0 && (
-          <p className="empty">No orders saved yet.</p>
+        {todays.length === 0 && data && (
+          <p className="empty">No orders saved today yet.</p>
         )}
-        {data && data.orders.length > 0 && (
+        {todays.length > 0 && (
           <ul className="orders">
-            {data.orders.map((o) => (
+            {todays.map((o) => (
               <li key={o.id}>
                 <span>
                   {o.code}. {customerName(o.customerId)}
@@ -1875,12 +1887,17 @@ export function Panel(props: {
 
       <BooksCard
         ledger={ledger}
-        today={new Date(host.now()).toISOString().slice(0, 10)}
-        orderDay={(o) =>
-          new Date(lagosFromEpoch(o.createdAt) + clockShift())
-            .toISOString()
-            .slice(0, 10)
-        }
+        today={today}
+        lagos={lagos}
+        online={online}
+        ask={approval.ask}
+        badge={(r) => <Badge source={r.source} ms={r.ms} />}
+      />
+
+      <TrendsCard
+        ledger={ledger}
+        today={today}
+        lagos={lagos}
         online={online}
         ask={approval.ask}
         badge={(r) => <Badge source={r.source} ms={r.ms} />}

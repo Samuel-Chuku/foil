@@ -389,6 +389,15 @@ export function useLedger() {
     [reload],
   )
 
+  // Ready-made records, such as the demo's sample history, saved as they are.
+  const addRecords = useCallback(
+    async (rows: Pick<LedgerData, 'orders' | 'credits' | 'settlements'>) => {
+      await putAll(rows)
+      await reload()
+    },
+    [reload],
+  )
+
   // A drop and its numbered items, saved together.
   const startDrop = useCallback(
     async (drop: Drop, items: Product[]) => {
@@ -480,6 +489,7 @@ export function useLedger() {
     saveProducts,
     rekeyCustomer,
     startDrop,
+    addRecords,
     updateDrop,
     endDrop,
     releaseHold,

@@ -9,14 +9,22 @@ import {
   type CloudRequest,
 } from '../cloud/approval'
 import { cloudErrorText } from '../cloud/send'
+import { chartSpec } from '../ledger/charts'
 import { bookDays, booksText, dayBooks, type Tally } from '../ledger/dayBooks'
-import type { Order } from '../ledger/types'
+import type { Answer } from '../ledger/report'
+import { trends, trendsText } from '../ledger/trends'
 import { formatNaira } from '../verify/money'
+import { Chart } from './Chart'
+import type { Lagos } from './TrendsCard'
 import type { LedgerApi } from './useLedger'
+
+// The chat also sees this many days before the chosen one, so it can answer
+// questions about the week or how things have changed.
+const CHAT_SPAN = 14
 
 type Turn = {
   question: string
-  answer?: Reading<string>
+  answer?: Reading<Answer>
   error?: string
 }
 
@@ -38,17 +46,23 @@ function dayTitle(day: string): string {
 export function BooksCard(props: {
   ledger: LedgerApi
   today: string
-  orderDay: (o: Order) => string
+  lagos: Lagos
   online: boolean
   ask: (request: CloudRequest) => Promise<Approved | null>
   badge: (r: Reading<unknown>) => ReactNode
 }) {
   const { data, config } = props.ledger
-  const days = data ? bookDays(data.orders, data.credits, props.orderDay) : []
+  const days = data ? bookDays(data.orders, data.credits, props.lagos.day) : []
   const [picked, setPicked] = useState<string | null>(null)
   const day = picked ?? props.today
-  const books = data ? dayBooks(day, data, config, props.orderDay) : null
-  const totals = books ? booksText(books) : ''
+  const books = data ? dayBooks(day, data, config, props.lagos.day) : null
+  const bankName = (id: string | null) =>
+    config.banks.find((b) => b.id === id)?.name ?? 'Bank not known'
+  const recent = data ? trends(day, CHAT_SPAN, data, config, props.lagos) : null
+  const bookLines = books ? booksText(books) : ''
+  const trendLines = recent ? trendsText(recent, bankName) : ''
+  // What the chat was given, to tell when the records have moved on.
+  const totals = `${bookLines}\n${trendLines}`
 
   const chat = useRef<ChatSession | null>(null)
   const [sent, setSent] = useState<string | null>(null)
@@ -81,7 +95,7 @@ export function BooksCard(props: {
     const { text, replaced } = redact(typed, names)
     const first = !chat.current
     const request = first
-      ? booksRequest(totals, text, replaced)
+      ? booksRequest(bookLines, trendLines, text, replaced)
       : followUpRequest(text, replaced)
     // A follow-up the vendor typed and nothing was swapped in is already on
     // screen exactly as it will be sent, so their Ask click is the approval.
@@ -98,7 +112,10 @@ export function BooksCard(props: {
       const answer = await askBooks(chat.current, approved)
       setTurns((t) => t.map((x, i) => (i === at ? { ...x, answer } : x)))
     } catch (e) {
-      const error = cloudErrorText(e)
+      const error =
+        e instanceof SyntaxError
+          ? 'The answer came back in a form the desk could not read. Try again.'
+          : cloudErrorText(e)
       setTurns((t) => t.map((x, i) => (i === at ? { ...x, error } : x)))
     } finally {
       setBusy(false)
@@ -218,7 +235,16 @@ export function BooksCard(props: {
                 <p className="asked">{t.question}</p>
                 {t.answer ? (
                   <>
-                    <p>{t.answer.fields}</p>
+                    <p>{t.answer.fields.text}</p>
+                    {t.answer.fields.chart && recent && (
+                      <Chart
+                        spec={chartSpec(
+                          recent,
+                          t.answer.fields.chart,
+                          bankName,
+                        )}
+                      />
+                    )}
                     {props.badge(t.answer)}
                   </>
                 ) : t.error ? (
