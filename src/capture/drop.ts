@@ -144,33 +144,40 @@ export function roleOf(state: ItemState, orderId: string): ClaimRole | null {
 }
 
 // What a reply must say about the customer's place for a drop item. Other
-// customers are never named.
+// customers are never named, and no clock time is given: a hold is spoken of
+// in minutes left, and only payment secures an item. `others` are pieces
+// from the same drop still free, offered when this one is not theirs.
 export function dropFacts(
   item: string,
   role: ClaimRole,
   price: string | null,
-  clock: (ms: number) => string,
+  now: number,
+  others: string[] = [],
 ): string {
   const pay = price ? ` of ${price}` : ''
+  const offer = others.length
+    ? ` Offer these pieces from the same drop that are still free: ${others.join(', ')}.`
+    : ''
+  const left = (until: number) => Math.max(1, Math.ceil((until - now) / MIN))
   switch (role.role) {
     case 'holder':
       return role.afterRelease
-        ? `${item} is free again and is now held for them until ${clock(role.until)}. Ask whether they still want it, and to send the payment${pay} before then to keep it.`
-        : `${item} is theirs, held until ${clock(role.until)}. Ask them to send the payment${pay} before then to keep it.`
+        ? `${item} is free again and they are next. If they still want it, it is theirs once they pay${pay} within the next ${left(role.until)} minutes; only payment secures it, and after that it passes on. Do not give a clock time.`
+        : `${item} is theirs if they pay${pay} within the next ${left(role.until)} minutes; only payment secures it, and after that it passes to the next person waiting. Do not give a clock time.`
     case 'waiting':
-      return `${item} is on hold for another customer. They are number ${role.place} in line; say the shop will message them if it becomes free.`
-    case 'released':
-      return `Their hold on ${item} ended without payment, so it has gone to the next person in line. Apologise kindly; if it becomes free again the shop will tell them.`
+      return `${item} is on hold for another customer. They are number ${role.place} in line; only payment secures it, and the shop will message them if it becomes free.${offer}`
     case 'paidWaiting':
-      return `Their payment has arrived, but ${item} is held for another customer until ${clock(role.until)}. Say that if it is not paid for by then it is theirs, and if it is, the shop will send their money back. Do not name the other customer.`
+      return `Their payment has arrived, but ${item} is held for another customer for up to ${left(role.until)} more minutes. Say that if it is not paid for by then it is theirs, and if it is, the shop will send their money back.`
+    case 'released':
+      return `Their hold on ${item} ended without payment, so it went to the next person in line. Apologise warmly and say the shop will tell them if it comes back.${offer}`
     case 'bought':
       return role.late
-        ? `Their payment arrived after their hold ended, but ${item} was still free, so it is theirs. Thank them.`
+        ? `Their payment arrived after their hold ended, but ${item} was still free, so it is theirs. Thank them warmly.`
         : `${item} is paid for and theirs.`
     case 'lost':
-      return `${item} has been sold to another customer. Apologise kindly and say it is no longer available.`
+      return `${item} has been sold to another customer. Apologise warmly and thank them for their interest.${offer}`
     case 'refund':
-      return `${item} was sold to a customer who paid first, so their payment will be sent back. Apologise kindly and ask for the account number, bank and account name to refund to, unless the chat already gives them.`
+      return `${item} was sold to a customer who paid first, so their payment will be sent back in full. Apologise warmly and ask for the account number, bank and account name to refund to, unless the chat already gives them.${offer}`
   }
 }
 
@@ -194,14 +201,18 @@ export function unclaimedFacts(
   state: ItemState,
   price: string | null,
   holdMin: number,
+  others: string[] = [],
 ): string {
+  const offer = others.length
+    ? ` Offer these pieces from the same drop that are still free: ${others.join(', ')}.`
+    : ''
   switch (state.state) {
     case 'available':
-      return `${item} is available${price ? ` at ${price}` : ''}. Ask them to confirm they want it; once confirmed it is held for them for ${holdMin} minutes while they pay.`
+      return `${item} is available${price ? ` at ${price}` : ''}. Say so plainly and ask them to confirm they want it; once they confirm it is held for them for ${holdMin} minutes, and only payment secures it.`
     case 'held':
-      return `${item} is on hold for another customer. Offer to put them in line; the shop will message them if it becomes free.`
+      return `${item} is on hold for another customer. Offer to put them in line; only payment secures it, and the shop will message them if it becomes free.${offer}`
     case 'paid':
     case 'sold':
-      return `${item} has been sold. Apologise kindly and say it is no longer available.`
+      return `${item} has been sold. Apologise warmly and thank them for asking.${offer}`
   }
 }

@@ -136,6 +136,8 @@ export type Product = {
   // A drop's one-of-a-kind item, and its number in that drop.
   dropId?: string
   dropNo?: number
+  // Where the vendor placed it in their list; lower comes first.
+  rank?: number
 }
 
 // A timed status sale of one-of-a-kind items.

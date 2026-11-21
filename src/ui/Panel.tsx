@@ -484,7 +484,15 @@ export function Panel(props: {
         askedLagos === null
           ? undefined
           : askedLagos - LAGOS_OFFSET_MS - clockShift()
-      const fromPictures = pictures.items.map((p) =>
+      // Several replies about the same piece are one request for it.
+      const seenPieces = new Set<string>()
+      const onePerPiece = pictures.items.filter((p) => {
+        if (p.kind !== 'sure') return true
+        if (seenPieces.has(p.product.id)) return false
+        seenPieces.add(p.product.id)
+        return true
+      })
+      const fromPictures = onePerPiece.map((p) =>
         p.kind === 'sure'
           ? {
               name: p.product.name || 'Item from photo',
@@ -881,7 +889,19 @@ export function Panel(props: {
         .filter((a) => a.product.dropId)
         .flatMap(({ product }) => {
           const hold = holdOf(product.dropId)
-          const st = itemState(product, data.orders, hold, Date.now())
+          const at = Date.now()
+          const st = itemState(product, data.orders, hold, at)
+          // Other pieces from the same drop that nobody holds.
+          const others = data.products
+            .filter((p) => p.dropId === product.dropId && p.id !== product.id)
+            .filter(
+              (p) => itemState(p, data.orders, hold, at).state === 'available',
+            )
+            .slice(0, 3)
+            .map(
+              (p) =>
+                `#${p.dropNo}${p.priceKobo === null ? '' : ` (${formatNaira(p.priceKobo)})`}`,
+            )
           const role = order ? roleOf(st, order.id) : null
           const price =
             product.priceKobo === null ? null : formatNaira(product.priceKobo)
@@ -895,8 +915,8 @@ export function Panel(props: {
           }
           return [
             role
-              ? `${it} ${dropFacts('it', role, price, clock)}`
-              : `${it} ${unclaimedFacts('it', st, price, hold)}`,
+              ? `${it} ${dropFacts('it', role, price, at, others)}`
+              : `${it} ${unclaimedFacts('it', st, price, hold, others)}`,
           ]
         })
       const prompt = draftPrompt(
@@ -1373,7 +1393,21 @@ export function Panel(props: {
                 <p className="hint">Check the details, then save.</p>
                 {c.value.form.items.map((item, n) => (
                   <fieldset key={n} className="item">
-                    <legend>Item {n + 1}</legend>
+                    <legend>
+                      Item {n + 1}{' '}
+                      <button
+                        type="button"
+                        className="link"
+                        aria-label={`Remove item ${n + 1}`}
+                        onClick={() =>
+                          editForm({
+                            items: c.value.form.items.filter((_, k) => k !== n),
+                          })
+                        }
+                      >
+                        Remove
+                      </button>
+                    </legend>
                     {item.pickedBy && (
                       <p className="hint">
                         <span className="badge" data-source={item.pickedBy}>
@@ -1399,6 +1433,7 @@ export function Panel(props: {
                             <button
                               key={id}
                               type="button"
+                              aria-pressed={item.productId === id}
                               className="choice"
                               onClick={() =>
                                 editForm({
@@ -1420,7 +1455,12 @@ export function Panel(props: {
                               }
                             >
                               <img src={p.photo.thumb} alt="" />
-                              <span>{p.name || 'No name'}</span>
+                              <span>
+                                {p.name ||
+                                  (p.dropNo ? `#${p.dropNo}` : 'Photo')}
+                                {p.priceKobo !== null &&
+                                  ` · ${formatNaira(p.priceKobo)}`}
+                              </span>
                             </button>
                           )
                         })}

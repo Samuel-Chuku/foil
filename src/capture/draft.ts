@@ -72,13 +72,33 @@ function extraLine(e: NonNullable<DraftFacts['extra']>[number]): string {
 }
 
 const COMPLAINT =
-  'The customer is unhappy about something. Reply calmly and kindly: acknowledge what went wrong, apologise, do not argue or blame them, and say the shop is looking into it and will get back to them. Do not promise a refund, replacement or discount unless the shop rules below give one.'
+  'The customer is unhappy about something. Reply warmly and calmly: thank them for telling the shop, apologise sincerely for the trouble, and ask for the details needed to put it right, such as a photo of the problem and which order it was, if the chat does not already show them. Do not argue or blame them. Say the shop will look into it and get back to them, and apologise again for the inconvenience. Do not promise a refund, replacement or discount unless the shop rules below give one.'
+
+// Words that mark Nigerian Pidgin, as whole words in the customer's lines.
+const PIDGIN =
+  /\b(abeg|wey|dey|una|wetin|oya|sabi|i don|e don|abi|sef|jare|wahala|na|go take|make i|i go|e dey|no be|how far)\b/i
+
+export function writesPidgin(chat: string): boolean {
+  const theirs = chat
+    .split('\n')
+    .filter((l) => /^Customer\b/i.test(l))
+    .join('\n')
+  return PIDGIN.test(theirs)
+}
+
+// The on-device model writes stiff Pidgin when left alone; a few lines of the
+// register a Lagos trader uses keep it natural.
+const PIDGIN_STYLE =
+  'They write in Nigerian Pidgin, so reply in natural Lagos Pidgin, short and friendly, the way a Lagos trader texts. Examples of the style only, not of the facts: "E dey o, na ₦8,000." "I don see your money, thank you well well!" "Abeg send the money make I hold am for you." "We go send am today." "Sorry o, e don sell." Do not mix in any other language.'
 
 export function draftPrompt(facts: DraftFacts, chat: string): string {
   const items = facts.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
+  const style = writesPidgin(chat)
+    ? PIDGIN_STYLE
+    : 'Reply in the same language the customer uses.'
   return `You run a small Lagos shop and are replying to a customer on WhatsApp.
-Facts to convey: ${[...(facts.complaint ? [COMPLAINT] : []), paymentLine(facts), ...(facts.stock ?? []), ...(facts.followUp ?? []), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.delivery?.length ? `\nDelivery: ${facts.delivery.join(' ')}` : ''}${facts.rules?.length ? `\nShop rules. If the customer asks about anything these cover, such as a delivery fee, answer from them:\n${facts.rules.join('\n')}` : ''}
-Write one short WhatsApp reply of one to three sentences that conveys the facts and answers any question in the customer's latest messages, in the same language the customer uses (English or Nigerian Pidgin). Be warm and plain. Do not add facts, prices, fees, hours or promises that are not given here. Output only the reply text.
+Facts to convey: ${[...(facts.complaint ? [COMPLAINT] : []), paymentLine(facts), ...(facts.stock ?? []), ...(facts.followUp ?? []), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.delivery?.length ? `\nDelivery: ${facts.delivery.join(' ')}` : ''}${facts.rules?.length ? `\nShop rules, for your reference only. If the customer asks about anything these cover, such as a delivery fee, answer from them; otherwise leave them out, and never mention "shop rules" by name:\n${facts.rules.join('\n')}` : ''}
+Write one short WhatsApp reply of one to three sentences that conveys the facts and answers any question in the customer's latest messages. ${style} Be warm and plain. Do not add facts, prices, fees, hours or promises that are not given here, and do not say you will check or confirm anything these facts already answer. Output only the reply text.
 
 Chat:
 ${chat}`

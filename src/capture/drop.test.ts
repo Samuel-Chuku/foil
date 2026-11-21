@@ -130,7 +130,6 @@ describe('itemState', () => {
 })
 
 describe('roleOf and dropFacts', () => {
-  const clock = (ms: number) => `${ms / MIN} min`
   const orders = [claim('bisi', 1, 4), claim('ade', 2, 5), claim('chi', 3, 6)]
 
   it('tells the holder how long they have', () => {
@@ -141,15 +140,17 @@ describe('roleOf and dropFacts', () => {
       until: 34 * MIN,
       afterRelease: false,
     })
-    expect(dropFacts('item #3', role, '₦8,000', clock)).toBe(
-      'item #3 is theirs, held until 34 min. Ask them to send the payment of ₦8,000 before then to keep it.',
-    )
+    // At 10 min with the hold ending at 34: 24 minutes left, no clock time.
+    const fact = dropFacts('item #3', role, '₦8,000', 10 * MIN)
+    expect(fact).toContain('within the next 24 minutes')
+    expect(fact).toContain('only payment secures it')
+    expect(fact).not.toMatch(/\d{1,2}:\d{2}/)
   })
 
   it('tells the others their place in line, never who holds it', () => {
     const s = itemState(item, orders, 30, 10 * MIN)
     expect(roleOf(s, 'chi')).toEqual({ role: 'waiting', place: 2 })
-    expect(dropFacts('item #3', roleOf(s, 'chi')!, null, clock)).not.toMatch(
+    expect(dropFacts('item #3', roleOf(s, 'chi')!, null, 10 * MIN)).not.toMatch(
       /bisi|ade/i,
     )
   })
@@ -176,21 +177,25 @@ describe('roleOf and dropFacts', () => {
 })
 
 describe('late payment drafts', () => {
-  const clock = (ms: number) => `${ms / MIN} min`
   it('tells a payer waiting on the holder, without naming them', () => {
     const fact = dropFacts(
       'item #3',
       { role: 'paidWaiting', until: 34 * MIN },
       null,
-      clock,
+      30 * MIN,
     )
-    expect(fact).toContain('held for another customer until 34 min')
+    expect(fact).toContain('held for another customer for up to 4 more minutes')
     expect(fact).toContain('send their money back')
   })
   it('asks a customer who lost to an earlier payer where to refund', () => {
-    expect(dropFacts('item #3', { role: 'refund' }, null, clock)).toContain(
+    expect(dropFacts('item #3', { role: 'refund' }, null, 0)).toContain(
       'account number, bank and account name',
     )
+  })
+  it('offers other free pieces from the drop to someone who missed out', () => {
+    expect(
+      dropFacts('item #3', { role: 'released' }, null, 0, ['#2 (₦6,500)']),
+    ).toContain('still free: #2 (₦6,500)')
   })
 })
 

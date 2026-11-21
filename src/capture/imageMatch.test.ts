@@ -154,22 +154,29 @@ describe('matchPhoto', () => {
     expect(matchPhoto(fingerprint(receipt), stock)).toEqual({ kind: 'none' })
   })
 
-  it('cannot tell a thin belt apart, so it asks (the model breaks the tie)', () => {
-    const plain = dress([179, 38, 58])
-    const belted = photo(300, 450, cream, [
-      {
-        colour: [179, 38, 58],
-        inside: (u, v) =>
-          v > 0.2 && v < 0.9 && Math.abs(u - 0.5) < 0.1 + v * 0.25,
-      },
-      {
-        colour: [255, 255, 255],
-        inside: (u, v) => v > 0.47 && v < 0.485 && Math.abs(u - 0.5) < 0.2,
-      },
-    ])
-    const m = matchPhoto(fingerprint(thumbnail(plain, 96)), [
-      { item: 'plain', print: fingerprint(plain) },
-      { item: 'belted', print: fingerprint(belted) },
+  it('cannot be sure between cream and gold dots, so it asks the model', () => {
+    const dotted = (dot: RGB) =>
+      photo(300, 450, cream, [
+        {
+          colour: [179, 38, 58],
+          inside: (u, v) =>
+            v > 0.2 && v < 0.9 && Math.abs(u - 0.5) < 0.1 + v * 0.25,
+        },
+        {
+          colour: dot,
+          inside: (u, v) =>
+            v > 0.4 &&
+            v < 0.85 &&
+            Math.abs(u - 0.5) < 0.1 + v * 0.2 &&
+            Math.floor(u * 24) % 3 === 0 &&
+            Math.floor(v * 36) % 3 === 0,
+        },
+      ])
+    const creamDots = dotted([244, 233, 216])
+    const goldDots = dotted([232, 185, 35])
+    const m = matchPhoto(fingerprint(thumbnail(creamDots, 96)), [
+      { item: 'cream', print: fingerprint(creamDots) },
+      { item: 'gold', print: fingerprint(goldDots) },
     ])
     expect(m.kind).toBe('unsure')
   })

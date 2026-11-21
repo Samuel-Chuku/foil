@@ -197,7 +197,10 @@ export function DropCard(props: {
               {p.priceKobo !== null && ` · ${formatNaira(p.priceKobo)}`}
             </span>
             <span className="drop-status">
-              {s.state === 'available' && 'Available'}
+              {s.state === 'available' &&
+                (s.released.length > 0
+                  ? `Available again: ${s.released.map(who).join(', ')} did not pay in time`
+                  : 'Available')}
               {s.state === 'held' && (
                 <>
                   Held by {who(s.holder)} until {clock(s.until)}

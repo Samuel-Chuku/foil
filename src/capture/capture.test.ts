@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { draftProblem, draftPrompt, tidyDraft } from './draft'
+import { draftProblem, draftPrompt, tidyDraft, writesPidgin } from './draft'
 import { pickOrder, toOrderFields } from './orderFields'
 import { transcript } from './transcript'
 import { toRefundTo } from './refundDetails'
@@ -242,10 +242,43 @@ describe('complaint drafts', () => {
       { payment: null, amountKobo: null, items: [], complaint: true },
       'Customer: The headwrap has a tear. I am not happy.',
     )
-    expect(p).toContain('Reply calmly and kindly')
+    expect(p).toContain('Reply warmly and calmly')
+    expect(p).toContain('a photo of the problem')
     expect(p).toContain('Do not promise a refund')
     expect(
       draftPrompt({ payment: null, amountKobo: null, items: [] }, 'Hi'),
-    ).not.toContain('calmly')
+    ).not.toContain('warmly and calmly')
+  })
+})
+
+describe('writesPidgin', () => {
+  it("reads only the customer's lines", () => {
+    expect(writesPidgin('Customer (12:30): Bros abeg the jeans dey?')).toBe(
+      true,
+    )
+    expect(writesPidgin('Customer (12:30): Is the jeans available?')).toBe(
+      false,
+    )
+    expect(
+      writesPidgin('You (12:31): E dey.\nCustomer (12:32): Great, thanks'),
+    ).toBe(false)
+  })
+
+  it('gives Pidgin chats the style guide', () => {
+    const facts = { payment: null, amountKobo: null, items: [] }
+    expect(draftPrompt(facts, 'Customer (1:00): Abeg how much?')).toContain(
+      'Lagos Pidgin',
+    )
+    expect(draftPrompt(facts, 'Customer (1:00): How much?')).not.toContain(
+      'Lagos Pidgin',
+    )
+  })
+})
+
+describe('writesPidgin in English chats', () => {
+  it('is not fooled by English words', () => {
+    expect(
+      writesPidgin('Customer (9:00): Will the size 12 fit me? Don said so.'),
+    ).toBe(false)
   })
 })

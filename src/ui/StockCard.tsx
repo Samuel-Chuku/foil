@@ -28,7 +28,7 @@ const IMAGE_TYPES = 'image/png,image/jpeg,image/webp'
 // The vendor's list as typed. A changed count is a fresh count from now, so
 // earlier paid orders stop reducing it.
 function fromRows(rows: Row[], before: Product[], now: number): Product[] {
-  return rows.flatMap((r) => {
+  return rows.flatMap((r, rank) => {
     const name = r.name.trim()
     // A thrift piece may have only a photo.
     if (!name && !r.photo) return []
@@ -48,9 +48,11 @@ function fromRows(rows: Row[], before: Product[], now: number): Product[] {
           old.name === name &&
           old.priceKobo === priceKobo &&
           old.qty === qty &&
-          old.photo === r.photo
+          old.photo === r.photo &&
+          old.rank === rank
             ? old.updatedAt
             : now,
+        rank,
         ...(r.photo && { photo: r.photo }),
       },
     ]
@@ -245,6 +247,47 @@ export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
               </label>
               <span className="left" data-out={l !== null && l <= 0}>
                 {l === null ? '' : l <= 0 ? 'Sold out' : `${l} left`}
+              </span>
+              <span className="move">
+                <button
+                  type="button"
+                  className="link"
+                  disabled={n === 0}
+                  aria-label={`Move ${row.name || 'this product'} to the top`}
+                  onClick={() => edit([row, ...r.filter((_, k) => k !== n)])}
+                >
+                  Top
+                </button>
+                <button
+                  type="button"
+                  className="link"
+                  disabled={n === 0}
+                  aria-label={`Move ${row.name || 'this product'} up`}
+                  onClick={() =>
+                    edit(
+                      r.map((x, k) =>
+                        k === n - 1 ? row : k === n ? r[n - 1]! : x,
+                      ),
+                    )
+                  }
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="link"
+                  disabled={n === r.length - 1}
+                  aria-label={`Move ${row.name || 'this product'} down`}
+                  onClick={() =>
+                    edit(
+                      r.map((x, k) =>
+                        k === n + 1 ? row : k === n ? r[n + 1]! : x,
+                      ),
+                    )
+                  }
+                >
+                  ↓
+                </button>
               </span>
               <button
                 type="button"

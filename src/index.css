@@ -384,7 +384,7 @@ button.link {
 }
 .stock-row {
   display: grid;
-  grid-template-columns: 3.5rem 6rem 4rem minmax(0, 1fr) auto;
+  grid-template-columns: 3.5rem 6rem 4rem minmax(0, 1fr) auto auto;
   gap: 0.25rem 0.5rem;
   align-items: end;
   padding: 0.4rem 0;
@@ -594,4 +594,16 @@ button.link {
 }
 .queue .tag[data-label='complaint'] {
   color: #9a5b00;
+}
+.stock-row .move {
+  display: inline-flex;
+  gap: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+.stock-row .move button:disabled {
+  opacity: 0.35;
+}
+.choice[aria-pressed='true'] {
+  outline: 3px solid #2f7d32;
+  outline-offset: 1px;
 }

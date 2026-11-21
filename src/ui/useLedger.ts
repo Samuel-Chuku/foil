@@ -78,9 +78,12 @@ async function load(): Promise<LedgerData> {
       const c = credits.find((cr) => cr.id === x.id)
       return c ? [{ ...x, creditId: c.id, amountKobo: c.amountKobo }] : []
     }),
+    // The vendor's own order first, then by name for anything unplaced.
     products: products.sort(
       (a, b) =>
-        (a.dropNo ?? 0) - (b.dropNo ?? 0) || a.name.localeCompare(b.name),
+        (a.dropNo ?? 0) - (b.dropNo ?? 0) ||
+        (a.rank ?? Infinity) - (b.rank ?? Infinity) ||
+        a.name.localeCompare(b.name),
     ),
     drops: drops.sort((a, b) => b.createdAt - a.createdAt),
     chats,

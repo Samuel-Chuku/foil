@@ -2,11 +2,11 @@
 // match a status reply's thumbnail to stock photos as it would real ones.
 // Nothing here depicts a real brand or product.
 
-// The belted dress is the floral one with a thin white belt: too small a
-// difference for the code's coarse fingerprint, plain to the model. The demo
-// uses it to show a close call that the model breaks.
+// The gold-dot dress is the floral one with gold dots instead of cream: the
+// overall colours barely move, so the code's coarse fingerprint cannot be
+// sure, but the dots still show in a small thumbnail for the model to see.
 export type ThriftPiece =
-  'denim-jacket' | 'floral-dress' | 'belted-dress' | 'yellow-top' | 'boots'
+  'denim-jacket' | 'floral-dress' | 'gold-dot-dress' | 'yellow-top' | 'boots'
 
 type Picture = { mimeType: string; base64: string; src: string }
 
@@ -55,8 +55,8 @@ function drawPiece(
       return
     }
     case 'floral-dress':
-    case 'belted-dress': {
-      const belted = piece === 'belted-dress'
+    case 'gold-dot-dress': {
+      const gold = piece === 'gold-dot-dress'
       g.fillStyle = '#b9bdc4'
       g.fillRect(0, 0, w, h)
       g.fillStyle = '#b3263a'
@@ -69,17 +69,13 @@ function drawPiece(
       g.lineTo(w * 0.38, h * 0.38)
       g.closePath()
       g.fill()
-      g.fillStyle = '#f4e9d8'
+      g.fillStyle = gold ? '#e8b923' : '#f4e9d8'
       for (let i = 0; i < 40; i++) {
         const x = 0.25 + ((i * 37) % 50) / 100
         const y = 0.4 + ((i * 53) % 45) / 100
         g.beginPath()
-        g.arc(w * x, h * y, w * 0.018, 0, Math.PI * 2)
+        g.arc(w * x, h * y, w * 0.026, 0, Math.PI * 2)
         g.fill()
-      }
-      if (belted) {
-        g.fillStyle = '#ffffff'
-        g.fillRect(w * 0.37, h * 0.37, w * 0.26, h * 0.018)
       }
       return
     }

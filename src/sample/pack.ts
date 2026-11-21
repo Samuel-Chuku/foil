@@ -510,7 +510,7 @@ export const SAMPLE_CHATS: SampleChat[] = [
     ],
   },
   {
-    // Replies to the floral dress status; the belted dress looks almost the
+    // Replies to the floral dress status; the gold-dot dress looks almost the
     // same, so the code cannot be sure and the model breaks the tie.
     id: 'amaka',
     contactName: 'Amaka',
@@ -848,8 +848,8 @@ export const SAMPLE_THRIFT: {
   },
   { id: 'sample-thrift-dress', piece: 'floral-dress', naira: 6_500, dropNo: 2 },
   {
-    id: 'sample-thrift-belted',
-    piece: 'belted-dress',
+    id: 'sample-thrift-gold',
+    piece: 'gold-dot-dress',
     naira: 7_000,
     dropNo: 3,
   },
