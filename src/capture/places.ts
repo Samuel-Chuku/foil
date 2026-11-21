@@ -319,3 +319,8 @@ export function chatNames(state: State, chat: string): boolean {
   const t = normal(chat)
   return ALIASES.some((a) => a.state === state && has(a.words, t))
 }
+
+// Every name the desk knows for places in a state, for a model's vocabulary.
+export function placeNames(state: State): string[] {
+  return [state, ...PLACES[state]]
+}

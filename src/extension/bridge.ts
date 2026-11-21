@@ -9,8 +9,9 @@ import type { OpenChat } from '../ui/host'
 export type FromChat = {
   kind: 'chat'
   chat: OpenChat
-  // What the vendor clicked: a receipt to verify, or the order to capture.
-  action: 'verify' | 'capture'
+  // What the vendor clicked: a receipt to verify, the order to capture, or a
+  // voice note to read.
+  action: 'verify' | 'capture' | 'voice'
   messageId?: string
 }
 

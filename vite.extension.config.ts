@@ -13,12 +13,13 @@ export default defineConfig({
         sidepanel: 'src/extension/sidepanel.html',
         background: 'src/extension/background.ts',
         whatsapp: 'src/extension/whatsapp.ts',
+        whatsappMain: 'src/extension/whatsappMain.ts',
       },
       output: {
-        // The manifest names the service worker and the content script, so
+        // The manifest names the service worker and the content scripts, so
         // their files must not be hashed.
         entryFileNames: (chunk) =>
-          chunk.name === 'background' || chunk.name === 'whatsapp'
+          ['background', 'whatsapp', 'whatsappMain'].includes(chunk.name)
             ? `${chunk.name}.js`
             : 'assets/[name]-[hash].js',
       },

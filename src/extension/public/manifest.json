@@ -20,6 +20,12 @@
   "content_scripts": [
     {
       "matches": ["https://web.whatsapp.com/*"],
+      "js": ["whatsappMain.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://web.whatsapp.com/*"],
       "js": ["whatsapp.js"],
       "run_at": "document_idle"
     }

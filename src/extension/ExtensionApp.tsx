@@ -79,14 +79,11 @@ export default function ExtensionApp() {
       }
       setChat(message.chat)
       setTabId(sender.tab.id)
+      const nonce = Date.now()
       setRequest(
-        message.action === 'verify' && message.messageId
-          ? {
-              action: 'verify',
-              messageId: message.messageId,
-              nonce: Date.now(),
-            }
-          : { action: 'capture', nonce: Date.now() },
+        message.action !== 'capture' && message.messageId
+          ? { action: message.action, messageId: message.messageId, nonce }
+          : { action: 'capture', nonce },
       )
     }
     chrome.runtime.onMessage.addListener(listen)

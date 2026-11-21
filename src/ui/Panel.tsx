@@ -13,6 +13,17 @@ import { rulesForDraft } from '../capture/shopRules'
 import { followUpFacts, formatWait, waitingMin } from '../capture/followUp'
 import { deliveryFacts, describePlan, planDelivery } from '../capture/delivery'
 import { readReceiptImage } from '../ai/receipt'
+import { readVoiceNote, voiceRequest } from '../ai/voice'
+import {
+  clarifyLine,
+  LAGOS_STREETS,
+  voiceLine,
+  type VoiceNote,
+} from '../capture/voice'
+import { placeNames } from '../capture/places'
+import { cloudErrorText } from '../cloud/send'
+import { useApproval } from './useApproval'
+import { VoiceCard, type VoiceStep } from './VoiceCard'
 import type { Reading } from '../ai/run'
 import { draftPrompt, draftProblem } from '../capture/draft'
 import { toOrderFields } from '../capture/orderFields'
@@ -128,6 +139,9 @@ type Work = {
     form: OrderForm
   }>
   draft?: Step<Reading<string>>
+  voice?: VoiceStep
+  // What each voice note said, by message id, for the reply draft.
+  heard?: Record<string, VoiceNote>
   // Every receipt read in this chat, by message id, so saving an order can
   // apply them all in order: a first payment, then its balance.
   receipts?: Record<string, Receipt>
@@ -264,6 +278,7 @@ export function Panel(props: {
 }) {
   const { chat, ledger, device, host, shop } = props
   const online = useOnline()
+  const approval = useApproval()
   const { data, config } = ledger
   const [work, setWork] = useState<Record<string, Work>>({})
   const [appBank, setAppBank] = useState('')
@@ -391,7 +406,11 @@ export function Panel(props: {
   const request = props.request
   const handled = useRef<number | null>(null)
   const onRequest = useEffectEvent((r: PanelRequest) =>
-    r.action === 'verify' ? void verify(r.messageId) : void capture(),
+    r.action === 'verify'
+      ? void verify(r.messageId)
+      : r.action === 'voice'
+        ? void readVoice(r.messageId)
+        : void capture(),
   )
   useEffect(() => {
     if (!request || handled.current === request.nonce) return
@@ -420,6 +439,7 @@ export function Panel(props: {
           ? `(replying to the shop's status) ${m.text ?? ''}`
           : m.text,
         image: Boolean(m.image),
+        voice: Boolean(m.voice),
       }))
       const chatText = transcript(lines)
       const products = ledger.data?.products ?? []
@@ -565,6 +585,139 @@ export function Panel(props: {
     } catch (error) {
       patch(phone, { capture: { status: 'error', message: errorText(error) } })
     }
+  }
+
+  // A voice note is heard in the cloud, and only after the vendor has seen
+  // and approved exactly what goes: the shop's own vocabulary and the note.
+  async function readVoice(messageId: string) {
+    const chat = props.chat
+    const message = chat?.messages.find((m) => m.id === messageId)
+    const audio = message?.voice?.audio
+    if (!chat || !message?.voice || !audio) return
+    const phone = chat.phone
+    if (!online) {
+      patch(phone, {
+        voice: {
+          status: 'error',
+          message: 'You are offline. Nothing was sent.',
+        },
+      })
+      return
+    }
+    patch(phone, {
+      voice: { status: 'running', note: 'Waiting for your approval…' },
+    })
+    const approved = await approval.ask(
+      voiceRequest(
+        {
+          ...audio,
+          ...(message.voice.seconds !== null && {
+            seconds: message.voice.seconds,
+          }),
+        },
+        {
+          glossary: appConfig().pidginGlossary,
+          areas: placeNames('Lagos'),
+          streets: LAGOS_STREETS,
+          products: (data?.products ?? []).flatMap((p) =>
+            p.name && !p.dropId ? [p.name] : [],
+          ),
+        },
+      ),
+    )
+    if (!approved) {
+      patch(phone, { voice: undefined })
+      return
+    }
+    patch(phone, {
+      voice: { status: 'running', note: 'Listening in the cloud…' },
+    })
+    try {
+      const value = await readVoiceNote(approved)
+      setWork((w) => ({
+        ...w,
+        [phone]: {
+          ...w[phone],
+          voice: { status: 'done', value, used: false },
+          heard: { ...w[phone]?.heard, [messageId]: value.fields },
+        },
+      }))
+    } catch (error) {
+      patch(phone, {
+        voice: {
+          status: 'error',
+          message:
+            error instanceof SyntaxError
+              ? 'The cloud answer could not be read. Try again.'
+              : cloudErrorText(error),
+        },
+      })
+    }
+  }
+
+  // Puts what the voice note said into the order form: new items and empty
+  // fields only, so nothing the vendor or the chat already gave is replaced.
+  function applyVoice() {
+    if (!chat || current.voice?.status !== 'done') return
+    const note = current.voice.value.fields
+    const f = toOrderFields(note.order)
+    const products = data?.products ?? []
+    const heard = withListPrices(f.items, products).map((i) => ({
+      name: i.name,
+      qty: String(i.qty),
+      price: i.priceKobo === null ? '' : String(i.priceKobo / 100),
+      ...(i.productId && { productId: i.productId }),
+    }))
+    const base: OrderForm =
+      current.capture?.status === 'done'
+        ? current.capture.value.form
+        : {
+            delivery: toDeliveryForm(null),
+            customerName: '',
+            address: '',
+            landmark: '',
+            area: '',
+            amount: '',
+            items: [],
+          }
+    const known = new Set(base.items.map((i) => i.name.trim().toLowerCase()))
+    const items = [
+      ...base.items,
+      ...heard.filter((i) => !known.has(i.name.trim().toLowerCase())),
+    ]
+    const sum = items.every((i) => i.price)
+      ? items.reduce((n, i) => n + Number(i.qty) * Number(i.price), 0)
+      : 0
+    // The note itself is the source here, so the places it names count.
+    const plan = planDelivery(
+      f,
+      shop.rules,
+      [note.gloss, f.state, f.park, f.area, f.address].join('\n'),
+    )
+    const form: OrderForm = {
+      ...base,
+      // The name they say is theirs beats the name saved for the contact.
+      customerName:
+        f.customerName && base.customerName === chat.contactName
+          ? f.customerName
+          : base.customerName || f.customerName || chat.contactName,
+      address: base.address || f.address,
+      landmark: base.landmark || f.landmark,
+      area: base.area || f.area,
+      amount: base.amount || (sum ? String(sum) : ''),
+      delivery: base.delivery.method ? base.delivery : toDeliveryForm(plan),
+      items,
+    }
+    patch(chat.phone, {
+      capture: {
+        status: 'done',
+        value:
+          current.capture?.status === 'done'
+            ? { ...current.capture.value, form }
+            : { source: 'Cloud', ms: current.voice.value.ms, form },
+      },
+      voice: { ...current.voice, used: true },
+    })
   }
 
   function editForm(next: Partial<OrderForm>) {
@@ -726,6 +879,7 @@ export function Panel(props: {
             time: m.time,
             text: m.text,
             image: Boolean(m.image),
+            voice: Boolean(m.voice),
           })),
         ),
         device.consent,
@@ -837,12 +991,17 @@ export function Panel(props: {
       patch(phone, { draft: { status: 'running', note: 'Writing a reply…' } })
       const v = current.verify?.status === 'done' ? current.verify.value : null
       const chatText = transcript(
-        chat.messages.map((m) => ({
-          from: m.from,
-          time: m.time,
-          text: m.text,
-          image: Boolean(m.image),
-        })),
+        chat.messages.map((m) => {
+          // A voice note already heard reads as what it said, in English.
+          const heard = current.heard?.[m.id]
+          return {
+            from: m.from,
+            time: m.time,
+            text: m.text ?? (heard ? voiceLine(heard) : undefined),
+            image: Boolean(m.image),
+            voice: Boolean(m.voice),
+          }
+        }),
         2000,
       )
       // What they asked about: the order's lines, or before there is an
@@ -944,19 +1103,26 @@ export function Panel(props: {
                 )
               : []),
           ],
-          followUp: order
-            ? followUpFacts(
-                order,
-                host.now(),
-                shop.rules.paymentWaitMin,
-                config,
-                [
-                  ...new Set(
-                    data.credits.flatMap((c) => (c.bank ? [c.bank] : [])),
-                  ),
-                ],
-              )
-            : [],
+          followUp: [
+            ...(current.voice?.status === 'done'
+              ? [clarifyLine(current.voice.value.fields)].filter(
+                  (l): l is string => l !== null,
+                )
+              : []),
+            ...(order
+              ? followUpFacts(
+                  order,
+                  host.now(),
+                  shop.rules.paymentWaitMin,
+                  config,
+                  [
+                    ...new Set(
+                      data.credits.flatMap((c) => (c.bank ? [c.bank] : [])),
+                    ),
+                  ],
+                )
+              : []),
+          ],
           delivery: deliveryFacts(
             order?.deliveryPlan ?? null,
             shop.rules,
@@ -1572,6 +1738,15 @@ export function Panel(props: {
             )}
           </section>
 
+          {current.voice && (
+            <VoiceCard
+              step={current.voice}
+              badge={(r) => <Badge source={r.source} ms={r.ms} />}
+              hasForm={current.capture?.status === 'done'}
+              onUse={applyVoice}
+              onClose={() => patch(chat.phone, { voice: undefined })}
+            />
+          )}
           <section className="card" aria-labelledby="draft-h">
             <h3 id="draft-h">Reply</h3>
             {d?.status !== 'running' && (
@@ -1735,6 +1910,7 @@ export function Panel(props: {
         {ledger.books.state === 'failed' &&
           ` Books not updated yet (${ledger.books.message}); orders are safe on this computer.`}
       </p>
+      {approval.dialog}
     </aside>
   )
 }

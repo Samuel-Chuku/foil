@@ -2,7 +2,7 @@ import type { ChatMessage, OpenChat } from '../ui/host'
 import type { DraftReply, FromChat, Opened, ToChat } from './bridge'
 import { phoneFromText, sentByVendor, timeFrom } from './waParse'
 
-// Runs on web.whatsapp.com. It adds the desk's two buttons and reads the open
+// Runs on web.whatsapp.com. It adds the desk's buttons and reads the open
 // chat only when the vendor clicks one, taking only what is on screen. It
 // never sends, scrolls, opens other chats or clicks WhatsApp's own controls.
 
@@ -90,6 +90,56 @@ async function quotedPicture(row: Element) {
   return null
 }
 
+const VOICE_BUTTON =
+  'button[aria-label="Play voice message"], button[aria-label="Pause voice message"]'
+
+function isVoiceNote(row: Element): boolean {
+  return row.querySelector(VOICE_BUTTON) !== null
+}
+
+// The player's slider gives the note's length in seconds.
+function voiceSeconds(row: Element): number | null {
+  const max = Number(
+    row.querySelector('[role="slider"]')?.getAttribute('aria-valuemax'),
+  )
+  return Number.isFinite(max) && max > 0 ? max : null
+}
+
+// The audio of a voice note the vendor has already played in WhatsApp, from
+// the page's own player (see whatsappMain.ts). Null when it was not played.
+const VOICE_TAG = 'vendor-desk-voice'
+function playedSrc(id: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      window.removeEventListener('message', listen)
+      resolve(null)
+    }, 1000)
+    function listen(e: MessageEvent) {
+      const m = e.data as { tag?: string; id?: string; src?: string | null }
+      if (e.source !== window || m?.tag !== VOICE_TAG || m.id !== id) return
+      if (!('src' in m)) return
+      clearTimeout(timer)
+      window.removeEventListener('message', listen)
+      resolve(m.src ?? null)
+    }
+    window.addEventListener('message', listen)
+    window.postMessage({ tag: VOICE_TAG, ask: id })
+  })
+}
+
+async function voiceAudio(id: string) {
+  const src = await playedSrc(id)
+  if (!src) return null
+  const blob = await (await fetch(src)).blob()
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  }
+  // WhatsApp voice notes are Ogg files holding Opus audio.
+  return { mimeType: 'audio/ogg', base64: btoa(binary) }
+}
+
 async function readMessage(row: Element): Promise<ChatMessage | null> {
   const holder = row.querySelector('[data-id]')
   const id = holder?.getAttribute('data-id')
@@ -114,6 +164,7 @@ async function readMessage(row: Element): Promise<ChatMessage | null> {
     time: timeFrom(meta) || timeFrom(pre),
   }
   if (text) message.text = text
+  if (isVoiceNote(row)) message.voice = { seconds: voiceSeconds(row) }
   if (img) message.image = await imageOf(img)
   const quoted = await quotedPicture(row)
   if (quoted) {
@@ -122,7 +173,9 @@ async function readMessage(row: Element): Promise<ChatMessage | null> {
       status: /\bstatus\b/i.test(row.textContent ?? ''),
     }
   }
-  return message.text || message.image || message.quoted ? message : null
+  return message.text || message.image || message.quoted || message.voice
+    ? message
+    : null
 }
 
 async function readChat(): Promise<OpenChat> {
@@ -170,6 +223,23 @@ async function send(action: FromChat['action'], messageId?: string) {
   let chat: OpenChat
   try {
     chat = await readChat()
+    if (action === 'voice' && messageId) {
+      const audio = await voiceAudio(messageId)
+      if (!audio) {
+        toast(
+          'Play this voice note in WhatsApp first, for a second is enough, then click Read voice note again.',
+        )
+        return
+      }
+      chat = {
+        ...chat,
+        messages: chat.messages.map((m) =>
+          m.id === messageId && m.voice
+            ? { ...m, voice: { ...m.voice, audio } }
+            : m,
+        ),
+      }
+    }
   } catch (e) {
     toast(
       `The desk could not read this chat (${e instanceof Error ? e.message : String(e)}).`,
@@ -233,10 +303,23 @@ function decorate() {
     if (!id || !container || container.querySelector(`[${MARK}]`)) continue
     container.append(button('Verify payment', () => void send('verify', id)))
   }
+  for (const play of document.querySelectorAll(`#main ${VOICE_BUTTON}`)) {
+    const row = play.closest('[role="row"]')
+    const id = row?.querySelector('[data-id]')?.getAttribute('data-id')
+    const container = row?.querySelector('[data-testid="msg-container"]')
+    if (!id || !container || container.querySelector(`[${MARK}]`)) continue
+    container.append(button('Read voice note', () => void send('voice', id)))
+  }
 }
 
 let queued = false
-new MutationObserver(() => {
+const observer = new MutationObserver(() => {
+  // After the extension is updated, this copy of the script is cut off from
+  // it; it stops quietly and the reloaded page runs the new copy.
+  if (!chrome.runtime?.id) {
+    observer.disconnect()
+    return
+  }
   if (queued) return
   queued = true
   requestAnimationFrame(() => {
@@ -244,7 +327,8 @@ new MutationObserver(() => {
     decorate()
     announceChat()
   })
-}).observe(document.body, { childList: true, subtree: true })
+})
+observer.observe(document.body, { childList: true, subtree: true })
 
 // Places a draft in the message box of the chat it was written for, and only
 // if the vendor has not started typing. Never presses send.

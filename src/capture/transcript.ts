@@ -3,6 +3,7 @@ export type ChatLine = {
   time: string
   text?: string
   image?: boolean
+  voice?: boolean
 }
 
 // The chat as the model sees it: who said what, newest last, trimmed from the
@@ -10,7 +11,9 @@ export type ChatLine = {
 export function transcript(lines: ChatLine[], maxChars = 3000): string {
   const rendered = lines.map((l) => {
     const who = l.from === 'customer' ? 'Customer' : 'You'
-    const what = l.text?.trim() || (l.image ? '[sent an image]' : '')
+    const what =
+      l.text?.trim() ||
+      (l.image ? '[sent an image]' : l.voice ? '[sent a voice note]' : '')
     return `${who} (${l.time}): ${what}`
   })
   const kept: string[] = []

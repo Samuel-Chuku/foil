@@ -12,7 +12,11 @@ export type ChatMessage = {
   // The picture of what this message replies to, such as the vendor's
   // status; `status` when the reply is to a status.
   quoted?: ChatImage & { status: boolean }
+  // A voice note, with its audio only when the vendor asked to read it.
+  voice?: { seconds: number | null; audio?: VoiceAudio }
 }
+
+export type VoiceAudio = { mimeType: string; base64: string }
 
 export type OpenChat = {
   // The phone number as shown in the chat header.
@@ -44,3 +48,4 @@ export type PanelHost = {
 export type PanelRequest =
   | { action: 'verify'; messageId: string; nonce: number }
   | { action: 'capture'; nonce: number }
+  | { action: 'voice'; messageId: string; nonce: number }
