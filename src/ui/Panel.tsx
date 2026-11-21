@@ -96,6 +96,8 @@ import { lagosFromEpoch } from '../verify/time'
 import { MoneyFlowCard } from './MoneyFlowCard'
 import { BooksCard } from './BooksCard'
 import { ReceiptCard } from './ReceiptCard'
+import { ReceiptLookCard } from './ReceiptLookCard'
+import { useBrand } from './useBrand'
 import { receiptFor } from '../capture/customerReceipt'
 import { TrendsCard } from './TrendsCard'
 import type { ShopRulesApi } from './useShopRules'
@@ -284,6 +286,7 @@ export function Panel(props: {
   const { chat, ledger, device, host, shop } = props
   const online = useOnline()
   const approval = useApproval()
+  const brand = useBrand()
   const { data, config } = ledger
   const [work, setWork] = useState<Record<string, Work>>({})
   const [appBank, setAppBank] = useState('')
@@ -1773,6 +1776,7 @@ export function Panel(props: {
             <ReceiptCard
               key={order.id}
               receipt={receipt}
+              brand={brand.brand}
               onInsert={async (text) => {
                 await host.insertDraft(chat.phone, text)
               }}
@@ -1841,6 +1845,8 @@ export function Panel(props: {
       </section>
 
       <ShopRulesCard shop={shop} device={device} />
+
+      <ReceiptLookCard brand={brand} shopName={shop.rules.shopName} />
 
       <DropCard ledger={ledger} clock={clock} />
 

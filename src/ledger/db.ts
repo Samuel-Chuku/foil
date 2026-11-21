@@ -1,5 +1,6 @@
 import type { Credit } from '../verify/types'
 import type { ShopRules } from '../capture/shopRules'
+import type { Brand } from '../capture/brand'
 import type {
   ChatNote,
   Customer,
@@ -25,6 +26,8 @@ type Stores = {
   settings:
     | ({ id: 'shop-rules' } & ShopRules)
     | ({ id: 'gmail' } & GmailSettings)
+    // How receipts look: logo, colour and font.
+    | ({ id: 'brand' } & Brand)
     // Numbers the vendor gave for saved WhatsApp contacts, by contact name.
     | { id: 'contacts'; byName: Record<string, string> }
 }

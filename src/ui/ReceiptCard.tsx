@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
+import type { Brand } from '../capture/brand'
 import {
   receiptText,
   receiptTitle,
   type CustomerReceipt,
 } from '../capture/customerReceipt'
 import { formatNaira } from '../verify/money'
-import { drawCustomerReceipt, receiptBlob } from './receiptImage'
+import { receiptBlob } from './receiptImage'
+import { useReceiptPicture } from './useReceiptPicture'
 
 type Note = { kind: 'ok' | 'error'; text: string }
 
@@ -17,22 +19,18 @@ const canCopyImage = () =>
 // vendor sends it, never the desk.
 export function ReceiptCard(props: {
   receipt: CustomerReceipt
+  brand: Brand
   onInsert: (text: string) => Promise<void>
 }) {
   const { receipt } = props
-  // Redrawn when the receipt's contents change, not on every render.
-  const key = JSON.stringify(receipt)
-  const canvas = useMemo(
-    () => drawCustomerReceipt(JSON.parse(key) as CustomerReceipt),
-    [key],
-  )
-  const src = useMemo(() => canvas.toDataURL('image/png'), [canvas])
+  const picture = useReceiptPicture(receipt, props.brand)
   const [note, setNote] = useState<Note | null>(null)
   const fileName = `receipt-order-${receipt.orderCode}.png`
 
   async function copy() {
+    if (!picture) return
     try {
-      const blob = await receiptBlob(canvas)
+      const blob = await receiptBlob(picture.canvas)
       await navigator.clipboard.write([
         new ClipboardItem({ [blob.type]: blob }),
       ])
@@ -49,8 +47,9 @@ export function ReceiptCard(props: {
   }
 
   function download() {
+    if (!picture) return
     const link = document.createElement('a')
-    link.href = src
+    link.href = picture.src
     link.download = fileName
     link.click()
   }
@@ -85,21 +84,37 @@ export function ReceiptCard(props: {
           Add your shop name under Shop rules to show it on receipts.
         </p>
       )}
-      <img
-        src={src}
-        alt={`${receiptTitle(receipt)} for order ${receipt.orderCode}, ${formatNaira(receipt.paidKobo)} paid`}
-        className="receipt-preview"
-      />
+      {picture ? (
+        <img
+          src={picture.src}
+          alt={`${receiptTitle(receipt)} for order ${receipt.orderCode}, ${formatNaira(receipt.paidKobo)} paid`}
+          className="receipt-preview"
+        />
+      ) : (
+        <p className="hint" aria-live="polite">
+          Drawing the receipt…
+        </p>
+      )}
       <div className="actions">
         <button type="button" onClick={() => void insert()}>
           Put the text in the reply box
         </button>
         {canCopyImage() && (
-          <button type="button" className="quiet" onClick={() => void copy()}>
+          <button
+            type="button"
+            className="quiet"
+            disabled={!picture}
+            onClick={() => void copy()}
+          >
             Copy the picture
           </button>
         )}
-        <button type="button" className="quiet" onClick={download}>
+        <button
+          type="button"
+          className="quiet"
+          disabled={!picture}
+          onClick={download}
+        >
           Download the picture
         </button>
       </div>
