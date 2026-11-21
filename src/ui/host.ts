@@ -31,6 +31,12 @@ export type PanelHost = {
   // The time now, in Lagos wall-clock milliseconds. The demo runs its own
   // clock on the sample day.
   now(): number
+  // Opens a customer's chat, where the host can; the extension never drives
+  // WhatsApp Web, so it leaves this out.
+  openChat?(customerKey: string): void
+  // Reads the open chat again on the vendor's click, when the panel only
+  // knows which chat is open (see the WhatsApp content script).
+  readChat?(): Promise<OpenChat | null>
 }
 
 // What a click in the chat asks the panel to do. Each click carries a new

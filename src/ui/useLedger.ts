@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { appConfig } from '../config/active'
 import { syncBook, vendorId } from '../ledger/books'
 import { clearAll, getAll, putAll, remove } from '../ledger/db'
@@ -9,7 +9,9 @@ import {
   recheckOrders,
 } from '../ledger/ledger'
 import { applyRefunds, settle, type ExtraRow } from '../ledger/settle'
+import { latestAsk, noteFrom } from '../queue/queue'
 import type {
+  ChatNote,
   Customer,
   Drop,
   Order,
@@ -30,6 +32,8 @@ export type BooksSync =
   | { state: 'idle' }
   | { state: 'syncing' }
   | { state: 'synced' }
+  // Saved on the device; the books update once the connection is back.
+  | { state: 'offline' }
   | { state: 'failed'; message: string }
 
 export type LedgerData = {
@@ -39,6 +43,7 @@ export type LedgerData = {
   settlements: Settlement[]
   products: Product[]
   drops: Drop[]
+  chats: ChatNote[]
 }
 
 // Fixed for the session: Remote Config is applied before the first render.
@@ -47,7 +52,7 @@ const verifyConfig = () => appConfig().verify
 // Read straight from IndexedDB, so a step that waited seconds on the model
 // decides against the records as they are now.
 async function load(): Promise<LedgerData> {
-  const [orders, credits, customers, settlements, products, drops] =
+  const [orders, credits, customers, settlements, products, drops, chats] =
     await Promise.all([
       getAll('orders'),
       getAll('credits'),
@@ -55,6 +60,7 @@ async function load(): Promise<LedgerData> {
       getAll('settlements'),
       getAll('products'),
       getAll('drops'),
+      getAll('chats'),
     ])
   // Latest change first, so an order whose payment just landed rises to the top.
   orders.sort((a, b) => b.updatedAt - a.updatedAt)
@@ -77,6 +83,7 @@ async function load(): Promise<LedgerData> {
         (a.dropNo ?? 0) - (b.dropNo ?? 0) || a.name.localeCompare(b.name),
     ),
     drops: drops.sort((a, b) => b.createdAt - a.createdAt),
+    chats,
   }
 }
 
@@ -133,16 +140,43 @@ export function useLedger() {
 
   // The screen never waits on the cloud: orders are saved on the device first
   // and the books catch up whenever Firestore can be reached.
+  // Orders whose books entry has not reached the cloud yet, so they can be
+  // sent again when the connection returns.
+  const unsent = useRef(new Set<string>())
   const syncBooks = useCallback((orders: Order[]) => {
     if (orders.length === 0) return
-    setBooks({ state: 'syncing' })
+    for (const o of orders) unsent.current.add(o.id)
+    // Offline, Firestore queues the write on the device and sends it later;
+    // its promise only settles then, so the screen says so instead of
+    // showing "updating" for as long as the outage lasts.
+    setBooks(navigator.onLine ? { state: 'syncing' } : { state: 'offline' })
     vendorId()
       .then((uid) => Promise.all(orders.map((o) => syncBook(uid, o))))
-      .then(() => setBooks({ state: 'synced' }))
+      .then(() => {
+        for (const o of orders) unsent.current.delete(o.id)
+        if (unsent.current.size === 0) setBooks({ state: 'synced' })
+      })
       .catch((error: unknown) =>
-        setBooks({ state: 'failed', message: syncProblem(error) }),
+        setBooks(
+          navigator.onLine
+            ? { state: 'failed', message: syncProblem(error) }
+            : { state: 'offline' },
+        ),
       )
   }, [])
+
+  // Back online: anything that could not even be queued, such as a first
+  // sign-in that needed the network, is sent now.
+  useEffect(() => {
+    const retry = () => {
+      if (unsent.current.size === 0) return
+      void load().then((d) =>
+        syncBooks(d.orders.filter((o) => unsent.current.has(o.id))),
+      )
+    }
+    window.addEventListener('online', retry)
+    return () => window.removeEventListener('online', retry)
+  }, [syncBooks])
 
   const saveOrder = useCallback(
     async (order: Order, customer?: Customer) => {
@@ -390,6 +424,35 @@ export function useLedger() {
     [reload],
   )
 
+  // What the desk last read of a chat, for the waiting queue.
+  const noteChat = useCallback(
+    async (
+      key: string,
+      name: string,
+      messages: { from: 'customer' | 'vendor'; time: string; text?: string }[],
+    ) => {
+      const before = (await getAll('chats')).find((c) => c.id === key)
+      const next = noteFrom(key, name, messages, Date.now(), before)
+      if (!next) return
+      await putAll({ chats: [next] })
+      await reload()
+    },
+    [reload],
+  )
+
+  const labelChats = useCallback(
+    async (labelled: { id: string; label: ChatNote['label'] }[]) => {
+      const all = await getAll('chats')
+      const next = labelled.flatMap(({ id, label }) => {
+        const c = all.find((x) => x.id === id)
+        return c && label ? [{ ...c, label, labelledText: latestAsk(c) }] : []
+      })
+      await putAll({ chats: next })
+      await reload()
+    },
+    [reload],
+  )
+
   const reset = useCallback(async () => {
     setJustPaid([])
     await clearAll()
@@ -417,6 +480,8 @@ export function useLedger() {
     updateDrop,
     endDrop,
     releaseHold,
+    noteChat,
+    labelChats,
     reset,
     config: verifyConfig(),
   }

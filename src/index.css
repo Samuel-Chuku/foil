@@ -550,3 +550,48 @@ button.link {
 .drop-items li[data-state='sold'] .drop-status {
   color: #2f7d32;
 }
+.offline {
+  border-left: 3px solid #9a5b00;
+  padding: 0.35rem 0.6rem;
+  background: #9a5b0014;
+  font-size: 0.85rem;
+}
+.queue-section h4 {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.6rem 0 0.2rem;
+}
+.queue-section h4 span {
+  font-weight: normal;
+}
+.queue-section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.queue-section li {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #8883;
+}
+.queue-section[data-section='complaint'] h4 {
+  color: #9a5b00;
+}
+.queue .who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+.queue .tag {
+  font-size: 0.72rem;
+  font-weight: normal;
+  padding: 0 0.4rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+}
+.queue .tag[data-label='complaint'] {
+  color: #9a5b00;
+}

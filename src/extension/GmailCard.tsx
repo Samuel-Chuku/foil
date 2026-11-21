@@ -13,6 +13,9 @@ function statusText(
   bankName: (id: string) => string,
 ): string {
   if (!s || s.state === 'checking') return 'Checking…'
+  if (s.state === 'offline') {
+    return 'Offline. The desk will check again as soon as you are back online.'
+  }
   if (s.state === 'signed-out')
     return 'Signed out. Sign in again to keep reading alerts.'
   if (s.state === 'error') return `Could not check: ${s.message}`

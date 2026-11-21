@@ -163,3 +163,22 @@ export type GmailSettings = {
   // sender addresses instead.
   label: string
 }
+
+// What a message from a customer is about, from the waiting-queue sort.
+export type MessageLabel =
+  'order' | 'payment' | 'question' | 'complaint' | 'other'
+
+// The last thing the desk read in a customer's chat, kept on the device so
+// the queue can show who is waiting without reading WhatsApp again.
+export type ChatNote = {
+  // The customer key: their number, or "name:<contact>".
+  id: string
+  name: string
+  // Their latest messages as read, newest last, text only.
+  recent: { from: 'customer' | 'vendor'; time: string; text: string }[]
+  lastFrom: 'customer' | 'vendor'
+  readAt: number
+  // The sort's label for their latest messages, and which messages it saw.
+  label?: MessageLabel
+  labelledText?: string
+}

@@ -154,6 +154,26 @@ describe('matchPhoto', () => {
     expect(matchPhoto(fingerprint(receipt), stock)).toEqual({ kind: 'none' })
   })
 
+  it('cannot tell a thin belt apart, so it asks (the model breaks the tie)', () => {
+    const plain = dress([179, 38, 58])
+    const belted = photo(300, 450, cream, [
+      {
+        colour: [179, 38, 58],
+        inside: (u, v) =>
+          v > 0.2 && v < 0.9 && Math.abs(u - 0.5) < 0.1 + v * 0.25,
+      },
+      {
+        colour: [255, 255, 255],
+        inside: (u, v) => v > 0.47 && v < 0.485 && Math.abs(u - 0.5) < 0.2,
+      },
+    ])
+    const m = matchPhoto(fingerprint(thumbnail(plain, 96)), [
+      { item: 'plain', print: fingerprint(plain) },
+      { item: 'belted', print: fingerprint(belted) },
+    ])
+    expect(m.kind).toBe('unsure')
+  })
+
   it('matches nothing when the shop has no photos', () => {
     expect(matchPhoto(fingerprint(bag), [])).toEqual({ kind: 'none' })
   })

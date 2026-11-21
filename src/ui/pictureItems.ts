@@ -5,7 +5,13 @@ import { photoFrom } from './photos'
 
 export type PictureItem =
   | { messageId: string; kind: 'sure'; product: Product }
-  | { messageId: string; kind: 'unsure'; candidates: Product[] }
+  | {
+      messageId: string
+      kind: 'unsure'
+      candidates: Product[]
+      // The customer's picture, for the model to compare.
+      picture: { mimeType: string; base64: string }
+    }
 
 // Items the customer showed rather than named: the vendor's status they
 // replied to, or a photo they sent. Matched to stock photos in code. Returns
@@ -36,7 +42,12 @@ export async function pictureItems(
       items.push(
         match.kind === 'sure'
           ? { messageId: m.id, kind: 'sure', product: match.item }
-          : { messageId: m.id, kind: 'unsure', candidates: match.candidates },
+          : {
+              messageId: m.id,
+              kind: 'unsure',
+              candidates: match.candidates,
+              picture: { mimeType: picture.mimeType, base64: picture.base64 },
+            },
       )
     }
   }

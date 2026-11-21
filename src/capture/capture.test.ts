@@ -235,3 +235,17 @@ describe('refund details', () => {
     ).toEqual({ accountNumber: '', bank: '', accountName: '' })
   })
 })
+
+describe('complaint drafts', () => {
+  it('asks for a calm reply and no promises the rules do not make', () => {
+    const p = draftPrompt(
+      { payment: null, amountKobo: null, items: [], complaint: true },
+      'Customer: The headwrap has a tear. I am not happy.',
+    )
+    expect(p).toContain('Reply calmly and kindly')
+    expect(p).toContain('Do not promise a refund')
+    expect(
+      draftPrompt({ payment: null, amountKobo: null, items: [] }, 'Hi'),
+    ).not.toContain('calmly')
+  })
+})

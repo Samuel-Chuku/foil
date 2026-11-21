@@ -24,6 +24,8 @@ export type DraftFacts = {
   deliveryOwed?: boolean
   // The shop's own terms that may bear on this reply (see shopRules.ts).
   rules?: string[]
+  // The waiting-queue sort marked their latest messages as a complaint.
+  complaint?: boolean
 }
 
 // The engine decides; the model only words the decision. Each state becomes a
@@ -69,10 +71,13 @@ function extraLine(e: NonNullable<DraftFacts['extra']>[number]): string {
   }
 }
 
+const COMPLAINT =
+  'The customer is unhappy about something. Reply calmly and kindly: acknowledge what went wrong, apologise, do not argue or blame them, and say the shop is looking into it and will get back to them. Do not promise a refund, replacement or discount unless the shop rules below give one.'
+
 export function draftPrompt(facts: DraftFacts, chat: string): string {
   const items = facts.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
   return `You run a small Lagos shop and are replying to a customer on WhatsApp.
-Facts to convey: ${[paymentLine(facts), ...(facts.stock ?? []), ...(facts.followUp ?? []), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.delivery?.length ? `\nDelivery: ${facts.delivery.join(' ')}` : ''}${facts.rules?.length ? `\nShop rules. If the customer asks about anything these cover, such as a delivery fee, answer from them:\n${facts.rules.join('\n')}` : ''}
+Facts to convey: ${[...(facts.complaint ? [COMPLAINT] : []), paymentLine(facts), ...(facts.stock ?? []), ...(facts.followUp ?? []), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.delivery?.length ? `\nDelivery: ${facts.delivery.join(' ')}` : ''}${facts.rules?.length ? `\nShop rules. If the customer asks about anything these cover, such as a delivery fee, answer from them:\n${facts.rules.join('\n')}` : ''}
 Write one short WhatsApp reply of one to three sentences that conveys the facts and answers any question in the customer's latest messages, in the same language the customer uses (English or Nigerian Pidgin). Be warm and plain. Do not add facts, prices, fees, hours or promises that are not given here. Output only the reply text.
 
 Chat:

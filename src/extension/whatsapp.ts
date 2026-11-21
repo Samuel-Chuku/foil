@@ -1,5 +1,5 @@
 import type { ChatMessage, OpenChat } from '../ui/host'
-import type { DraftReply, FromChat, ToChat } from './bridge'
+import type { DraftReply, FromChat, Opened, ToChat } from './bridge'
 import { phoneFromText, sentByVendor, timeFrom } from './waParse'
 
 // Runs on web.whatsapp.com. It adds the desk's two buttons and reads the open
@@ -202,6 +202,23 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
 
 // WhatsApp re-renders often, so the buttons are put back whenever the chat
 // changes on screen.
+// Tells the panel which chat is now open, by name and number only, so it can
+// show that customer's order at once. No messages are read here.
+let lastOpened = ''
+function announceChat() {
+  if (!document.querySelector('#main header')) return
+  const { name, phone } = chatHeader()
+  const key = phone ?? `name:${name}`
+  if (!name || key === lastOpened) return
+  lastOpened = key
+  const opened: Opened = {
+    kind: 'opened',
+    chat: { phone: key, contactName: name, messages: [] },
+  }
+  // The panel may be closed; then there is nobody to tell.
+  chrome.runtime.sendMessage(opened).catch(() => undefined)
+}
+
 function decorate() {
   const header = document.querySelector('#main header')
   if (header && !header.querySelector(`[${MARK}]`)) {
@@ -225,12 +242,15 @@ new MutationObserver(() => {
   requestAnimationFrame(() => {
     queued = false
     decorate()
+    announceChat()
   })
 }).observe(document.body, { childList: true, subtree: true })
 
 // Places a draft in the message box of the chat it was written for, and only
 // if the vendor has not started typing. Never presses send.
-async function insertDraft(m: ToChat): Promise<DraftReply> {
+async function insertDraft(
+  m: Extract<ToChat, { kind: 'insert-draft' }>,
+): Promise<DraftReply> {
   if (chatKey() !== m.phone) {
     return {
       ok: false,
@@ -259,6 +279,10 @@ async function insertDraft(m: ToChat): Promise<DraftReply> {
 
 chrome.runtime.onMessage.addListener((message, _sender, reply) => {
   const m = message as ToChat
+  if (m?.kind === 'read-chat') {
+    void readChat().then(reply, () => reply(null))
+    return true
+  }
   if (m?.kind !== 'insert-draft') return
   void insertDraft(m).then(reply)
   // Keeps the channel open for the answer above.

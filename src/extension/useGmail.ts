@@ -29,6 +29,7 @@ export type AccountStatus =
       unreadBanks: string[]
     }
   | { state: 'signed-out' }
+  | { state: 'offline' }
   | { state: 'error'; message: string }
 
 // No setup needed: with no label, the known bank alert addresses are searched.
@@ -140,6 +141,19 @@ export function useGmail(ledger: LedgerApi) {
 
   const checkAll = useCallback(async () => {
     if (!settings) return
+    // Offline, nothing can be fetched; the next check after reconnecting
+    // looks back a full day, so no alert is missed.
+    if (!navigator.onLine) {
+      setStatus(
+        Object.fromEntries(
+          settings.accounts.map((a) => [
+            a.email,
+            { state: 'offline' } as const,
+          ]),
+        ),
+      )
+      return
+    }
     const senders = ledger.config.banks.flatMap((b) => b.alertSenders)
     for (const a of settings.accounts) {
       await checkAccount(a.email, settings, senders)
@@ -155,10 +169,15 @@ export function useGmail(ledger: LedgerApi) {
   useEffect(() => {
     if (!ready) return
     void latest.current()
+    const back = () => void latest.current()
+    window.addEventListener('online', back)
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') void latest.current()
     }, EVERY_MS)
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('online', back)
+    }
   }, [ready])
 
   // Adds an account, or signs one in again, with Google's account chooser.

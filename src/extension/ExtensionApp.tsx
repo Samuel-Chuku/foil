@@ -7,7 +7,7 @@ import { useDevice } from '../ui/useDevice'
 import { useLedger } from '../ui/useLedger'
 import { useShopRules } from '../ui/useShopRules'
 import { lagosFromEpoch } from '../verify/time'
-import { isFromChat, type DraftReply, type ToChat } from './bridge'
+import { isFromChat, isOpened, type DraftReply, type ToChat } from './bridge'
 import { GmailCard } from './GmailCard'
 import { useGmail } from './useGmail'
 
@@ -61,7 +61,17 @@ export default function ExtensionApp() {
       message: unknown,
       sender: chrome.runtime.MessageSender,
     ): void => {
-      if (!isFromChat(message) || sender.tab?.id === undefined) return
+      if (sender.tab?.id === undefined) return
+      // Switching chats: show that customer's order, without their messages.
+      if (isOpened(message)) {
+        const tab = sender.tab.id
+        setChat((current) =>
+          current?.phone === message.chat.phone ? current : message.chat,
+        )
+        setTabId(tab)
+        return
+      }
+      if (!isFromChat(message)) return
       const name = byNameKey(message.chat)
       // A number shown in Contact info is learnt without asking.
       if (name && message.chat.shownPhone) {
@@ -83,12 +93,16 @@ export default function ExtensionApp() {
     return () => chrome.runtime.onMessage.removeListener(listen)
   }, [])
 
-  const name = byNameKey(chat)
-  const learnt = name ? (chat?.shownPhone ?? byName[name]) : undefined
   // The panel files the customer under the number; drafts still go to the
   // chat as WhatsApp knows it.
-  const shown: OpenChat | null =
-    chat && learnt ? { ...chat, phone: learnt } : chat
+  const resolve = (c: OpenChat | null): OpenChat | null => {
+    const n = byNameKey(c)
+    const number = n ? (c?.shownPhone ?? byName[n]) : undefined
+    return c && number ? { ...c, phone: number } : c
+  }
+  const name = byNameKey(chat)
+  const learnt = name ? (chat?.shownPhone ?? byName[name]) : undefined
+  const shown = resolve(chat)
 
   const host: PanelHost = {
     insertDraft: async (phone, text) => {
@@ -108,6 +122,19 @@ export default function ExtensionApp() {
       if (!reply.ok) throw new Error(reply.reason)
     },
     now: () => lagosFromEpoch(Date.now()),
+    // A panel button on a chat the panel only knows by name: read it now,
+    // on that click.
+    readChat: async () => {
+      if (tabId === null) return null
+      const message: ToChat = { kind: 'read-chat' }
+      const read = (await chrome.tabs.sendMessage(tabId, message)) as
+        OpenChat | null | undefined
+      if (!read) return null
+      const n = byNameKey(read)
+      if (n && read.shownPhone) void remember(n, read.shownPhone)
+      setChat(read)
+      return resolve(read)
+    },
   }
 
   return (

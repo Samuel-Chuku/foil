@@ -14,6 +14,7 @@ import {
 import { drawPiecePhoto, statusThumbnail } from '../sample/productImage'
 import { drawReceipt } from '../sample/receiptImage'
 import { photoFrom } from '../ui/photos'
+import { customerKey } from '../ledger/ledger'
 import type { Product } from '../ledger/types'
 import { importBankApp, type BankAppResult } from '../ui/bankApp'
 import type { OpenChat, PanelHost, PanelRequest } from '../ui/host'
@@ -129,6 +130,13 @@ export default function DemoApp() {
     insertDraft: (phone, text) => setDrafts((d) => ({ ...d, [phone]: text })),
     // The sample day's clock: mid-afternoon, then later once time passes.
     now: () => SAMPLE_DAY_MS + (later ? 16 * 60 + 10 : 15 * 60 + 30) * 60_000,
+    openChat: (key) => {
+      const found = chats.find((c) => customerKey(c.phone) === key)
+      if (found) {
+        setView('chats')
+        setOpenPhone(found.phone)
+      }
+    },
   }
 
   // Stands in for the extension's inbox watch: every alert that has arrived

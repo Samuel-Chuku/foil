@@ -2,8 +2,11 @@
 // match a status reply's thumbnail to stock photos as it would real ones.
 // Nothing here depicts a real brand or product.
 
+// The belted dress is the floral one with a thin white belt: too small a
+// difference for the code's coarse fingerprint, plain to the model. The demo
+// uses it to show a close call that the model breaks.
 export type ThriftPiece =
-  'denim-jacket' | 'floral-dress' | 'yellow-top' | 'boots'
+  'denim-jacket' | 'floral-dress' | 'belted-dress' | 'yellow-top' | 'boots'
 
 type Picture = { mimeType: string; base64: string; src: string }
 
@@ -51,7 +54,9 @@ function drawPiece(
       }
       return
     }
-    case 'floral-dress': {
+    case 'floral-dress':
+    case 'belted-dress': {
+      const belted = piece === 'belted-dress'
       g.fillStyle = '#b9bdc4'
       g.fillRect(0, 0, w, h)
       g.fillStyle = '#b3263a'
@@ -71,6 +76,10 @@ function drawPiece(
         g.beginPath()
         g.arc(w * x, h * y, w * 0.018, 0, Math.PI * 2)
         g.fill()
+      }
+      if (belted) {
+        g.fillStyle = '#ffffff'
+        g.fillRect(w * 0.37, h * 0.37, w * 0.26, h * 0.018)
       }
       return
     }

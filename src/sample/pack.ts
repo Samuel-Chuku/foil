@@ -509,6 +509,38 @@ export const SAMPLE_CHATS: SampleChat[] = [
       },
     ],
   },
+  {
+    // Replies to the floral dress status; the belted dress looks almost the
+    // same, so the code cannot be sure and the model breaks the tie.
+    id: 'amaka',
+    contactName: 'Amaka',
+    phone: '+234 800 000 0014',
+    expected: 'awaiting',
+    messages: [
+      {
+        id: 'am1',
+        from: 'customer',
+        time: '15:31',
+        statusReply: 'floral-dress',
+        text: 'Abeg how much for this one?',
+      },
+    ],
+  },
+  {
+    // Unhappy about an earlier order: the waiting-queue sort marks it.
+    id: 'efe',
+    contactName: 'Efe',
+    phone: '+234 800 000 0015',
+    expected: 'awaiting',
+    messages: [
+      {
+        id: 'ef1',
+        from: 'customer',
+        time: '15:18',
+        text: 'Good afternoon. The headwrap you sent me yesterday has a tear along the edge. I am really not happy.',
+      },
+    ],
+  },
 ]
 
 const GTBANK = 'gens@gtbank.com'
@@ -815,6 +847,12 @@ export const SAMPLE_THRIFT: {
     dropNo: 1,
   },
   { id: 'sample-thrift-dress', piece: 'floral-dress', naira: 6_500, dropNo: 2 },
+  {
+    id: 'sample-thrift-belted',
+    piece: 'belted-dress',
+    naira: 7_000,
+    dropNo: 3,
+  },
   { id: 'sample-thrift-top', piece: 'yellow-top', naira: 3_000 },
   { id: 'sample-thrift-boots', piece: 'boots', naira: 12_000 },
 ]

@@ -67,8 +67,11 @@ import {
 import { ExtraMoney } from './ExtraMoney'
 import { ShopRulesCard } from './ShopRulesCard'
 import { StockCard } from './StockCard'
+import { QueueCard } from './QueueCard'
+import { useOnline } from './useOnline'
 import { DropCard } from './DropCard'
 import { pictureItems } from './pictureItems'
+import { pickPhoto } from '../ai/photoPick'
 import {
   DEFAULT_HOLD_MIN,
   dropFacts,
@@ -110,6 +113,8 @@ type OrderForm = {
     productId?: string
     // Stock photos close to the customer's picture, for the vendor to pick.
     choices?: string[]
+    // Where the pre-selected pick came from, when the model broke a tie.
+    pickedBy?: Reading<unknown>['source']
   }[]
   // When the customer asked for a drop item: their place in line.
   claimedAt?: number
@@ -258,6 +263,7 @@ export function Panel(props: {
   inbox?: ReactNode
 }) {
   const { chat, ledger, device, host, shop } = props
+  const online = useOnline()
   const { data, config } = ledger
   const [work, setWork] = useState<Record<string, Work>>({})
   const [appBank, setAppBank] = useState('')
@@ -270,6 +276,15 @@ export function Panel(props: {
   const openOrder = (orders: Order[], id: string | null) =>
     orders.find((o) => o.customerId === id && o.delivery === 'pending') ?? null
   const order = data ? openOrder(data.orders, customerId) : null
+
+  // Each read of a chat is noted for the waiting queue, on this device.
+  const { noteChat } = ledger
+  const messages = chat?.messages
+  const contactName = chat?.contactName ?? ''
+  useEffect(() => {
+    if (!messages?.length || !customerId) return
+    void noteChat(customerId, contactName, messages)
+  }, [messages, customerId, contactName, noteChat])
   const current = chat ? (work[chat.phone] ?? {}) : {}
   // Lagos is a fixed hour ahead of UTC.
   const LAGOS_OFFSET_MS = 3_600_000
@@ -314,7 +329,15 @@ export function Panel(props: {
   const settle = (row: ExtraRow, state: Settlement['state']) =>
     void ledger.settleCredit(row, state, customerId)
 
-  async function verify(messageId?: string) {
+  // The chat with its messages. When the panel knows only which chat is
+  // open, the click that needs it reads it now.
+  async function readOpenChat(): Promise<OpenChat | null> {
+    if (!props.chat || props.chat.messages.length > 0) return props.chat
+    return (await host.readChat?.()) ?? props.chat
+  }
+
+  async function verify(messageId?: string, given?: OpenChat) {
+    const chat = given ?? (await readOpenChat())
     if (!chat) return
     const phone = chat.phone
     const message = messageId
@@ -377,6 +400,7 @@ export function Panel(props: {
   }, [request])
 
   async function capture() {
+    const chat = await readOpenChat()
     if (!chat) return
     const phone = chat.phone
     patch(phone, { capture: { status: 'running', note: 'Getting ready…' } })
@@ -405,6 +429,44 @@ export function Panel(props: {
         products,
         appConfig().photoMatch,
       )
+      // A close call between stock photos goes to the model, which looks at
+      // the customer's picture beside the two or three nearest photos.
+      const picks = new Map<
+        string,
+        { productId: string; source: Reading<unknown>['source'] }
+      >()
+      for (const p of pictures.items) {
+        if (p.kind !== 'unsure') continue
+        const photos = p.candidates.flatMap((c) =>
+          c.photo
+            ? [
+                {
+                  mimeType: 'image/jpeg',
+                  base64: c.photo.thumb.split(',')[1] ?? '',
+                },
+              ]
+            : [],
+        )
+        if (photos.length < 2) continue
+        patch(phone, {
+          capture: {
+            status: 'running',
+            note: 'Comparing their picture with your closest photos…',
+          },
+        })
+        const pick = await pickPhoto(p.picture, photos, device.consent)
+        const chosen =
+          pick.fields === null ? undefined : p.candidates[pick.fields]
+        if (chosen) {
+          picks.set(p.messageId, { productId: chosen.id, source: pick.source })
+        }
+      }
+      patch(phone, {
+        capture: {
+          status: 'running',
+          note: 'Reading the order from the chat…',
+        },
+      })
       const reading = await readOrder(chatText, device.consent)
       const f = toOrderFields(reading.fields)
       const shown = new Set(
@@ -430,12 +492,21 @@ export function Panel(props: {
               priceKobo: p.product.priceKobo,
               productId: p.product.id,
             }
-          : {
-              name: '',
-              qty: 1,
-              priceKobo: null,
-              choices: p.candidates.map((c) => c.id),
-            },
+          : (() => {
+              const pick = picks.get(p.messageId)
+              const chosen = p.candidates.find((c) => c.id === pick?.productId)
+              return {
+                name: chosen ? chosen.name || 'Item from photo' : '',
+                qty: 1,
+                priceKobo: chosen?.priceKobo ?? null,
+                choices: p.candidates.map((c) => c.id),
+                ...(chosen &&
+                  pick && {
+                    productId: chosen.id,
+                    pickedBy: pick.source,
+                  }),
+              }
+            })(),
       )
       // A named line the photo already covers is not counted twice.
       const named = f.items.filter((i) => {
@@ -445,7 +516,10 @@ export function Panel(props: {
       const items = [
         ...fromPictures,
         ...withListPrices(named, products),
-      ] as (OrderItem & { choices?: string[] })[]
+      ] as (OrderItem & {
+        choices?: string[]
+        pickedBy?: Reading<unknown>['source']
+      })[]
       const listTotal = items.every((i) => i.priceKobo !== null)
         ? items.reduce((n, i) => n + i.qty * (i.priceKobo ?? 0), 0)
         : null
@@ -464,6 +538,7 @@ export function Panel(props: {
           price: i.priceKobo === null ? '' : String(i.priceKobo / 100),
           ...(i.productId && { productId: i.productId }),
           ...(i.choices && { choices: i.choices }),
+          ...(i.pickedBy && { pickedBy: i.pickedBy }),
         })),
       }
       patch(phone, {
@@ -477,7 +552,7 @@ export function Panel(props: {
       // A photo of an item is not a receipt.
       for (const m of chat.messages) {
         if (pictures.productImages.has(m.id)) continue
-        if (m.image && !current.receipts?.[m.id]) await verify(m.id)
+        if (m.image && !current.receipts?.[m.id]) await verify(m.id, chat)
       }
     } catch (error) {
       patch(phone, { capture: { status: 'error', message: errorText(error) } })
@@ -745,6 +820,7 @@ export function Panel(props: {
   }
 
   async function draft() {
+    const chat = await readOpenChat()
     if (!chat || !data) return
     const phone = chat.phone
     patch(phone, { draft: { status: 'running', note: 'Getting ready…' } })
@@ -881,6 +957,8 @@ export function Panel(props: {
             balance > 0 &&
             paidKobo(order, data.credits) >= order.amountKobo,
           rules: rulesForDraft(shop.rules, chatText),
+          complaint:
+            data.chats.find((x) => x.id === customerId)?.label === 'complaint',
         },
         chatText,
       )
@@ -982,6 +1060,13 @@ export function Panel(props: {
       <header>
         <h2>Payment desk</h2>
         <DeviceStatus device={device} />
+        {!online && (
+          <p className="offline" role="status">
+            You are offline. Reading receipts, capturing orders and drafting
+            replies still work on this computer. Your books and bank alert
+            emails catch up when you are back online.
+          </p>
+        )}
       </header>
 
       {ledger.justPaid.length > 0 && data && (
@@ -1033,7 +1118,11 @@ export function Panel(props: {
           <section className="card" aria-labelledby="pay-h">
             <h3 id="pay-h">Payment</h3>
             {!hasReceipt && (
-              <p className="empty">No receipt in this chat yet.</p>
+              <p className="empty">
+                {chat?.messages.length === 0
+                  ? 'Click Verify payment under a receipt in the chat to check it.'
+                  : 'No receipt in this chat yet.'}
+              </p>
             )}
             {hasReceipt && v?.status !== 'running' && (
               <button
@@ -1285,7 +1374,16 @@ export function Panel(props: {
                 {c.value.form.items.map((item, n) => (
                   <fieldset key={n} className="item">
                     <legend>Item {n + 1}</legend>
-                    {item.choices && !item.productId && (
+                    {item.pickedBy && (
+                      <p className="hint">
+                        <span className="badge" data-source={item.pickedBy}>
+                          {item.pickedBy}
+                        </span>{' '}
+                        Their picture was close to a few of your photos; the
+                        model picked this one. Tap another below if it is wrong.
+                      </p>
+                    )}
+                    {item.choices && (!item.productId || item.pickedBy) && (
                       <div
                         className="choices"
                         role="group"
@@ -1309,6 +1407,7 @@ export function Panel(props: {
                                       ? {
                                           ...x,
                                           productId: p.id,
+                                          pickedBy: undefined,
                                           name: p.name || 'Item from photo',
                                           price:
                                             p.priceKobo === null
@@ -1463,6 +1562,13 @@ export function Panel(props: {
         </>
       )}
 
+      <QueueCard
+        ledger={ledger}
+        device={device}
+        delivers={shop.rules.methods.length > 0}
+        onOpen={host.openChat}
+      />
+
       <section className="card" aria-labelledby="today-h">
         <h3 id="today-h">Today&apos;s orders</h3>
         {!data && !ledger.loadError && <p>Loading…</p>}
@@ -1584,6 +1690,8 @@ export function Panel(props: {
         books in the cloud hold only amounts and payment states.
         {ledger.books.state === 'syncing' && ' Updating your books…'}
         {ledger.books.state === 'synced' && ' Books up to date.'}
+        {ledger.books.state === 'offline' &&
+          ' Saved on this computer; your books update when you are back online.'}
         {ledger.books.state === 'failed' &&
           ` Books not updated yet (${ledger.books.message}); orders are safe on this computer.`}
       </p>

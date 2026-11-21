@@ -58,7 +58,15 @@ export function useDevice() {
 
   // Called from a click, which Chrome requires before it downloads the model.
   const ready = useCallback(async () => {
-    if (consent) return
+    if (consent) {
+      // The cloud fallback cannot help without a connection.
+      if (!navigator.onLine && (await deviceState()) !== 'available') {
+        throw new Error(
+          'You are offline and this computer has no on-device model, so this step needs the internet.',
+        )
+      }
+      return
+    }
     const now = await deviceState()
     setState(now)
     if (now === 'unavailable') {
@@ -66,6 +74,11 @@ export function useDevice() {
       throw new NeedsConsent()
     }
     if (now !== 'available') {
+      if (!navigator.onLine) {
+        throw new Error(
+          'The on-device model has not finished downloading. Connect to the internet once to download it; after that this works offline.',
+        )
+      }
       setProgress(0)
       try {
         await prepareReceiptModel(setProgress)
