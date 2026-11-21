@@ -66,6 +66,31 @@ export function pickOrder(json: unknown): RawOrder {
 const PICKUP =
   /\bpick(ing)?[\s-]?((it|them|am|the \w+)\s)?up\b|\bcollect (it|them|am) (from|at)\b/i
 
+// Customers write quantities as words ("two of the caps"), and the model
+// copies them as written.
+const WORDS = [
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+]
+
+function quantity(v: string): number {
+  const n = Number.parseInt(v, 10)
+  if (n > 0) return n
+  const t = v.trim().toLowerCase()
+  if (/^(a )?dozen$/.test(t)) return 12
+  return WORDS.indexOf(t) + 1 || 1
+}
+
 // Arithmetic happens here, not in the model: a stated total wins, otherwise
 // the items are summed only when every one of them has a price.
 export function toOrderFields(raw: RawOrder): OrderFields {
@@ -73,7 +98,7 @@ export function toOrderFields(raw: RawOrder): OrderFields {
     .filter((i) => i.name)
     .map((i) => ({
       name: i.name,
-      qty: Math.max(1, Number.parseInt(i.quantity, 10) || 1),
+      qty: quantity(i.quantity),
       priceKobo: parseNairaKobo(i.price),
     }))
   const summed = items.every((i) => i.priceKobo !== null)

@@ -105,6 +105,17 @@ describe('order fields', () => {
       toOrderFields({ ...pickOrder({}), items: items.slice(0, 1) }).amountKobo,
     ).toBe(2_400_000)
   })
+
+  it('reads quantities written as words', () => {
+    const items = ['two', 'Three ', 'a dozen', 'some', '0'].map((quantity) => ({
+      name: 'Cap',
+      quantity,
+      price: '',
+    }))
+    expect(
+      toOrderFields({ ...pickOrder({}), items }).items.map((i) => i.qty),
+    ).toEqual([2, 3, 12, 1, 1])
+  })
 })
 
 describe('draft', () => {
