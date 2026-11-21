@@ -70,6 +70,7 @@ import { StockCard } from './StockCard'
 import { DropCard } from './DropCard'
 import { pictureItems } from './pictureItems'
 import {
+  DEFAULT_HOLD_MIN,
   dropFacts,
   itemState,
   messageTime,
@@ -795,9 +796,10 @@ export function Panel(props: {
       )
       // Drop items follow the hold and the line, not the stock count.
       const holdOf = (dropId: string | undefined) =>
-        data.drops.find((x) => x.id === dropId)?.holdMin ?? 30
-      // A customer whose hold ended, or who lost the item, is not quoted a
-      // price for it.
+        data.drops.find((x) => x.id === dropId)?.holdMin ?? DEFAULT_HOLD_MIN
+      // A customer who is not getting the item, or whose money waits on
+      // someone else's hold, is not told "payment received, order confirmed"
+      // or quoted a price; the drop fact says what is happening instead.
       let outOfLine = false
       const dropLines = asked
         .filter((a) => a.product.dropId)
@@ -808,8 +810,11 @@ export function Panel(props: {
           const price =
             product.priceKobo === null ? null : formatNaira(product.priceKobo)
           const it = `About ${called(product)}:`
-          if (role?.role === 'bought') return []
-          if (role?.role === 'released' || role?.role === 'lost') {
+          if (role?.role === 'bought' && !role.late) return []
+          if (
+            role &&
+            ['released', 'lost', 'paidWaiting', 'refund'].includes(role.role)
+          ) {
             outOfLine = true
           }
           return [
@@ -820,7 +825,9 @@ export function Panel(props: {
         })
       const prompt = draftPrompt(
         {
-          payment: order?.payment.state ?? v?.verdict.kind ?? null,
+          payment: outOfLine
+            ? null
+            : (order?.payment.state ?? v?.verdict.kind ?? null),
           // A transfer still being confirmed is spoken of by its own amount;
           // the order's total, delivery included, once it is paid or asked for.
           amountKobo: outOfLine

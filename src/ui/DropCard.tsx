@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { itemState, type Claim } from '../capture/drop'
+import { DEFAULT_HOLD_MIN, itemState, type Claim } from '../capture/drop'
 import type { Drop, Product, ProductPhoto } from '../ledger/types'
 import { formatNaira, parseNairaKobo } from '../verify/money'
 import { photoFromFile } from './photos'
@@ -18,9 +18,13 @@ export function DropCard(props: {
   const data = ledger.data
   const live = data?.drops.find((d) => d.endedAt === null) ?? null
   const [name, setName] = useState('')
-  const [hold, setHold] = useState('30')
+  // A new drop starts with the hold time the shop used last.
+  const [typedHold, setHold] = useState<string | null>(null)
+  const hold = typedHold ?? String(data?.drops[0]?.holdMin ?? DEFAULT_HOLD_MIN)
   const [items, setItems] = useState<NewItem[]>([])
   const [note, setNote] = useState<string | null>(null)
+  // A new hold time typed for the running drop, until saved.
+  const [newHold, setNewHold] = useState<string | null>(null)
   // Holds run out on their own, so the card looks again every half minute.
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -44,7 +48,7 @@ export function DropCard(props: {
   }
 
   async function start() {
-    const holdMin = Math.max(1, Number.parseInt(hold, 10) || 30)
+    const holdMin = Math.max(1, Number.parseInt(hold, 10) || DEFAULT_HOLD_MIN)
     const at = Date.now()
     const drop: Drop = {
       id: crypto.randomUUID(),
@@ -212,12 +216,61 @@ export function DropCard(props: {
                   </button>
                 </>
               )}
-              {s.state === 'paid' && `Paid by ${who(s.buyer)}`}
+              {s.state === 'held' && s.paidWaiting.length > 0 && (
+                <span className="hint">
+                  {' '}
+                  Already paid and waiting: {s.paidWaiting.map(who).join(', ')}.
+                  It is theirs if the hold runs out.
+                </span>
+              )}
+              {s.state === 'paid' &&
+                `Paid by ${who(s.buyer)}${s.late ? ' after their hold' : ''}`}
               {s.state === 'sold' && `Sold to ${who(s.buyer)}`}
+              {(s.state === 'paid' || s.state === 'sold') &&
+                s.others
+                  .filter((c) => c.order.payment.state === 'matched')
+                  .map((c) => (
+                    <span key={c.order.id} className="error">
+                      {' '}
+                      Refund owed to {who(c)}
+                      {c.order.amountKobo !== null &&
+                        ` (${formatNaira(c.order.amountKobo)})`}
+                      : they paid after it went to someone else.
+                    </span>
+                  ))}
             </span>
           </li>
         ))}
       </ol>
+      <form
+        className="hold-edit"
+        onSubmit={(e) => {
+          e.preventDefault()
+          const holdMin = Number.parseInt(newHold ?? '', 10)
+          if (!holdMin || holdMin < 1) return
+          void ledger
+            .updateDrop({ ...live, holdMin })
+            .then(() => setNewHold(null))
+        }}
+      >
+        <label>
+          Hold for payment (minutes){' '}
+          <input
+            inputMode="numeric"
+            value={newHold ?? String(live.holdMin)}
+            onChange={(e) => setNewHold(e.target.value)}
+          />
+        </label>{' '}
+        {newHold !== null && newHold !== String(live.holdMin) && (
+          <button type="submit" className="quiet">
+            Save
+          </button>
+        )}
+      </form>
+      <p className="hint">
+        A new hold time applies to every hold in this drop, including the
+        current one.
+      </p>
       <button
         type="button"
         className="quiet"

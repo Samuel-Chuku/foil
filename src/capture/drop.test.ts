@@ -92,14 +92,40 @@ describe('itemState', () => {
     expect(s.state).toBe('available')
   })
 
-  it('goes to whoever paid first, and is sold once handed over', () => {
+  it('keeps the holder first while someone else pays out of turn', () => {
+    // Ade paid at 20 while Bisi held it until 34.
     const orders = [claim('bisi', 1, 4), paid(claim('ade', 2, 3), 20)]
     const s = itemState(item, orders, 30, 21 * MIN)
+    expect(s.state === 'held' && s.holder.order.id).toBe('bisi')
+    expect(s.state === 'held' && s.paidWaiting.map((c) => c.order.id)).toEqual([
+      'ade',
+    ])
+    // Bisi does not pay in time, so it goes to Ade, who already paid.
+    const after = itemState(item, orders, 30, 35 * MIN)
+    expect(after.state === 'paid' && after.buyer.order.id).toBe('ade')
+  })
+
+  it('gives it to a late payer whose turn had passed, if nobody else paid', () => {
+    // Bisi's hold ended at 34; Ade held it until 64; Bisi paid at 40.
+    const orders = [paid(claim('bisi', 1, 4), 40), claim('ade', 2, 3)]
+    expect(itemState(item, orders, 30, 50 * MIN).state).toBe('held')
+    const s = itemState(item, orders, 30, 65 * MIN)
+    expect(s.state === 'paid' && s.buyer.order.id).toBe('bisi')
+    expect(s.state === 'paid' && s.late).toBe(true)
+  })
+
+  it('lets the holder win over an earlier late payment', () => {
+    const orders = [paid(claim('bisi', 1, 4), 40), paid(claim('ade', 2, 3), 50)]
+    const s = itemState(item, orders, 30, 55 * MIN)
     expect(s.state === 'paid' && s.buyer.order.id).toBe('ade')
-    const handed = orders.map((o) =>
-      o.id === 'ade' ? { ...o, delivery: 'collected' as const } : o,
-    )
-    expect(itemState(item, handed, 30, 21 * MIN).state).toBe('sold')
+    expect(roleOf(s, 'bisi')).toEqual({ role: 'refund' })
+  })
+
+  it('is sold once handed over', () => {
+    const orders = [
+      { ...paid(claim('ade', 2, 3), 10), delivery: 'collected' as const },
+    ]
+    expect(itemState(item, orders, 30, 11 * MIN).state).toBe('sold')
   })
 })
 
@@ -144,8 +170,27 @@ describe('roleOf and dropFacts', () => {
       30,
       10 * MIN,
     )
-    expect(roleOf(s, 'bisi')).toEqual({ role: 'bought' })
+    expect(roleOf(s, 'bisi')).toEqual({ role: 'bought', late: false })
     expect(roleOf(s, 'ade')).toEqual({ role: 'lost' })
+  })
+})
+
+describe('late payment drafts', () => {
+  const clock = (ms: number) => `${ms / MIN} min`
+  it('tells a payer waiting on the holder, without naming them', () => {
+    const fact = dropFacts(
+      'item #3',
+      { role: 'paidWaiting', until: 34 * MIN },
+      null,
+      clock,
+    )
+    expect(fact).toContain('held for another customer until 34 min')
+    expect(fact).toContain('send their money back')
+  })
+  it('asks a customer who lost to an earlier payer where to refund', () => {
+    expect(dropFacts('item #3', { role: 'refund' }, null, clock)).toContain(
+      'account number, bank and account name',
+    )
   })
 })
 

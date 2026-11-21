@@ -822,7 +822,7 @@ export const SAMPLE_THRIFT: {
 export const SAMPLE_DROP: Drop = {
   id: 'sample-drop',
   name: 'Saturday thrift drop',
-  holdMin: 30,
+  holdMin: 10,
   createdAt: 0,
   endedAt: null,
 }

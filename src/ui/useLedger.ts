@@ -361,6 +361,14 @@ export function useLedger() {
     [reload],
   )
 
+  const updateDrop = useCallback(
+    async (drop: Drop) => {
+      await putAll({ drops: [drop] })
+      await reload()
+    },
+    [reload],
+  )
+
   const endDrop = useCallback(
     async (drop: Drop) => {
       await putAll({ drops: [{ ...drop, endedAt: Date.now() }] })
@@ -406,6 +414,7 @@ export function useLedger() {
     saveProducts,
     rekeyCustomer,
     startDrop,
+    updateDrop,
     endDrop,
     releaseHold,
     reset,
