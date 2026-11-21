@@ -58,10 +58,7 @@ export function TrendsCard(props: {
     } catch (e) {
       setReview({
         status: 'error',
-        message:
-          e instanceof SyntaxError
-            ? 'The review came back in a form the desk could not read. Try again.'
-            : cloudErrorText(e),
+        message: cloudErrorText(e),
       })
     }
   }

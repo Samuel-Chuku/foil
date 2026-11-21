@@ -11,6 +11,7 @@ import type { Source } from '../ai/run'
 import { appConfig } from '../config/active'
 import { ai } from '../firebase'
 import { partsOf, type Approved } from './approval'
+import { errorMessage } from './errors'
 
 // Cloud-only jobs (voice notes, the books chat, other languages, Maps) never
 // rely on automatic fallback, so each uses an explicit cloud-only instance,
@@ -61,21 +62,6 @@ async function timed(
   }
 }
 
-// Plain words for the failures a free-tier cloud call meets.
-export function cloudErrorText(e: unknown): string {
-  const raw = e instanceof Error ? e.message : String(e)
-  if (!navigator.onLine) return 'You are offline. Nothing was sent.'
-  if (/429|quota|resource.?exhausted/i.test(raw)) {
-    return 'The free cloud allowance is used up for now. Try again in a minute; everything on this computer still works.'
-  }
-  if (/403|app.?check|permission/i.test(raw)) {
-    return 'The cloud refused this app. Reload the panel and try again.'
-  }
-  if (/413|too large|size/i.test(raw)) {
-    return 'That file is too large to send. Try a shorter one.'
-  }
-  if (/safety|blocked/i.test(raw)) {
-    return 'The cloud declined to answer this one.'
-  }
-  return 'The cloud request did not go through. Try again.'
-}
+// Cloud failures in plain words; see errors.ts.
+export const cloudErrorText = (e: unknown): string =>
+  errorMessage(e, navigator.onLine)

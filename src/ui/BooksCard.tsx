@@ -112,10 +112,7 @@ export function BooksCard(props: {
       const answer = await askBooks(chat.current, approved)
       setTurns((t) => t.map((x, i) => (i === at ? { ...x, answer } : x)))
     } catch (e) {
-      const error =
-        e instanceof SyntaxError
-          ? 'The answer came back in a form the desk could not read. Try again.'
-          : cloudErrorText(e)
+      const error = cloudErrorText(e)
       setTurns((t) => t.map((x, i) => (i === at ? { ...x, error } : x)))
     } finally {
       setBusy(false)

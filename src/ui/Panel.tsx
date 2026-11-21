@@ -21,6 +21,7 @@ import {
   type VoiceNote,
 } from '../capture/voice'
 import { placeNames } from '../capture/places'
+import { errorMessage } from '../cloud/errors'
 import { cloudErrorText } from '../cloud/send'
 import { useApproval } from './useApproval'
 import { VoiceCard, type VoiceStep } from './VoiceCard'
@@ -190,7 +191,7 @@ function errorText(error: unknown): string {
   if (error instanceof NeedsConsent) {
     return 'This computer has no on-device model. Choose above whether to use the cloud instead.'
   }
-  return error instanceof Error ? error.message : String(error)
+  return errorMessage(error, navigator.onLine)
 }
 
 function Badge(props: { source: Reading<unknown>['source']; ms: number }) {
@@ -659,10 +660,7 @@ export function Panel(props: {
       patch(phone, {
         voice: {
           status: 'error',
-          message:
-            error instanceof SyntaxError
-              ? 'The cloud answer could not be read. Try again.'
-              : cloudErrorText(error),
+          message: cloudErrorText(error),
         },
       })
     }
