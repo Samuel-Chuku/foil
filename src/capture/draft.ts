@@ -98,7 +98,7 @@ export function draftPrompt(facts: DraftFacts, chat: string): string {
     : 'Reply in the same language the customer uses.'
   return `You run a small Lagos shop and are replying to a customer on WhatsApp.
 Facts to convey: ${[...(facts.complaint ? [COMPLAINT] : []), paymentLine(facts), ...(facts.stock ?? []), ...(facts.followUp ?? []), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.delivery?.length ? `\nDelivery: ${facts.delivery.join(' ')}` : ''}${facts.rules?.length ? `\nShop rules, for your reference only. If the customer asks about anything these cover, such as a delivery fee, answer from them; otherwise leave them out, and never mention "shop rules" by name:\n${facts.rules.join('\n')}` : ''}
-Write one short WhatsApp reply of one to three sentences that conveys the facts and answers any question in the customer's latest messages. ${style} Be warm and plain. Do not add facts, prices, fees, hours or promises that are not given here, and do not say you will check or confirm anything these facts already answer. Output only the reply text.
+Write one short WhatsApp reply of one to three sentences that conveys the facts and answers any question in the customer's latest messages. ${style} Be warm and plain. Never use words a Lagos shop would not, such as "Ahoy", "Salamat" or "Eekoo", never join words with a slash such as "brother/sister", and never leave a placeholder in brackets. Do not add facts, prices, fees, hours or promises that are not given here, and do not say you will check or confirm anything these facts already answer. Output only the reply text.
 
 Chat:
 ${chat}`
@@ -114,6 +114,15 @@ export function tidyDraft(text: string): string {
 // Customers are never accused. A draft that slips into that language is
 // thrown away rather than shown.
 const ACCUSING = /\b(fake|fraud\w*|scam\w*|forged?|counterfeit)\b/i
+
+// Words and forms the model has produced that no Lagos vendor would send:
+// foreign greetings, invented slang, "brother/sister" hedges, [placeholders].
+const ODD = /\b(ahoy|salamat|e+koo)\b|\b[a-z]+\/[a-z]+\b|\[[^\]]*\]/i
+
+// The odd phrase in a draft, so it can be written again once.
+export function oddWording(text: string): string | null {
+  return ODD.exec(text)?.[0] ?? null
+}
 
 export function draftProblem(text: string): string | null {
   if (!text.trim()) return 'The draft came back empty.'

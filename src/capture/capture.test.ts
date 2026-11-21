@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { draftProblem, draftPrompt, tidyDraft, writesPidgin } from './draft'
+import {
+  draftProblem,
+  draftPrompt,
+  oddWording,
+  tidyDraft,
+  writesPidgin,
+} from './draft'
 import { pickOrder, toOrderFields } from './orderFields'
 import { transcript } from './transcript'
 import { toRefundTo } from './refundDetails'
@@ -216,6 +222,19 @@ describe('draft', () => {
     expect(draftProblem('This receipt is fake.')).not.toBeNull()
     expect(draftProblem('Thank you, e don land!')).toBeNull()
     expect(draftProblem('  ')).not.toBeNull()
+  })
+
+  it('catches wording no Lagos vendor would send', () => {
+    expect(oddWording('Ahoy! Your order is ready.')).toBe('Ahoy')
+    expect(oddWording('Salamat for your order!')).toBe('Salamat')
+    expect(oddWording('e don reach my eekoo yet')).toBe('eekoo')
+    expect(oddWording('No problem, my brother/sister!')).toBe('brother/sister')
+    expect(oddWording('Hello [customer name], thank you.')).toBe(
+      '[customer name]',
+    )
+    expect(
+      oddWording('Paid 21/11, ₦12,500 received. Abeg wait small.'),
+    ).toBeNull()
   })
 })
 

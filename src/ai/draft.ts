@@ -1,4 +1,4 @@
-import { tidyDraft } from '../capture/draft'
+import { oddWording, tidyDraft } from '../capture/draft'
 import { privateModels, TEXT_ONLY } from './device'
 import { generateText, type Reading } from './run'
 
@@ -10,6 +10,18 @@ export async function writeDraft(
   prompt: string,
   cloudConsent: boolean,
 ): Promise<Reading<string>> {
-  const { text, source, ms } = await generateText(model(cloudConsent), [prompt])
-  return { fields: tidyDraft(text), source, ms }
+  const first = await generateText(model(cloudConsent), [prompt])
+  const draft = tidyDraft(first.text)
+  const odd = oddWording(draft)
+  if (!odd) return { fields: draft, source: first.source, ms: first.ms }
+  // One more try, told what to avoid; the second answer stands either way so
+  // the vendor is never left without a draft to edit.
+  const again = await generateText(model(cloudConsent), [
+    `${prompt}\n\nDo not write "${odd}".`,
+  ])
+  return {
+    fields: tidyDraft(again.text),
+    source: again.source,
+    ms: first.ms + again.ms,
+  }
 }
