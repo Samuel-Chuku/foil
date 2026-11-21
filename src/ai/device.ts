@@ -6,6 +6,7 @@ import {
 } from 'firebase/ai'
 import { appConfig } from '../config/active'
 import { ai } from '../firebase'
+import { generateText } from './run'
 
 export type DeviceState =
   'unavailable' | 'downloadable' | 'downloading' | 'available'
@@ -77,4 +78,15 @@ export function privateModels(options: {
     })
     return consented
   }
+}
+
+// Loads the model into memory before the vendor's first click, which
+// otherwise waits several seconds longer. Text only, nothing private.
+let warmModel: GenerativeModel | undefined
+export async function warmUp(): Promise<void> {
+  warmModel ??= getGenerativeModel(ai, {
+    mode: InferenceMode.ONLY_ON_DEVICE,
+    onDeviceParams: { createOptions: TEXT_AND_IMAGE },
+  })
+  await generateText(warmModel, ['Reply with the word OK.'])
 }

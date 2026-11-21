@@ -161,7 +161,10 @@ function DeviceStatus(props: { device: DeviceApi }) {
       ? `Downloading the on-device model: ${Math.round(device.progress * 100)}%`
       : {
           checking: 'Checking for the on-device model…',
-          available: 'On-device model ready',
+          available:
+            device.warm === 'warming'
+              ? 'Loading the on-device model so your first click is quick…'
+              : 'On-device model ready',
           downloadable:
             'The on-device model downloads the first time you use it.',
           downloading: 'The on-device model is downloading.',
@@ -172,6 +175,12 @@ function DeviceStatus(props: { device: DeviceApi }) {
   return (
     <div className="device">
       <p aria-live="polite">{line}</p>
+      {device.waiting > 0 && (
+        <p className="hint" aria-live="polite">
+          {device.waiting} more {device.waiting === 1 ? 'step' : 'steps'}{' '}
+          waiting for the model; they run one at a time.
+        </p>
+      )}
       {device.consent && (
         <p>
           Cloud fallback is on.{' '}
@@ -628,6 +637,7 @@ export function Panel(props: {
         <button
           type="button"
           className="quiet"
+          disabled={device.busy}
           onClick={() => void readRefund(row.key)}
         >
           {row.settlement.refundTo
@@ -869,7 +879,11 @@ export function Panel(props: {
               <p className="empty">No receipt in this chat yet.</p>
             )}
             {hasReceipt && v?.status !== 'running' && (
-              <button type="button" onClick={() => void verify()}>
+              <button
+                type="button"
+                disabled={device.busy}
+                onClick={() => void verify()}
+              >
                 {v ? 'Verify again' : 'Verify payment'}
               </button>
             )}
@@ -1078,7 +1092,11 @@ export function Panel(props: {
               </div>
             )}
             {!order && !c && (
-              <button type="button" onClick={() => void capture()}>
+              <button
+                type="button"
+                disabled={device.busy}
+                onClick={() => void capture()}
+              >
                 Capture order from chat
               </button>
             )}
@@ -1088,7 +1106,11 @@ export function Panel(props: {
                 <p className="error" role="alert">
                   {c.message}
                 </p>
-                <button type="button" onClick={() => void capture()}>
+                <button
+                  type="button"
+                  disabled={device.busy}
+                  onClick={() => void capture()}
+                >
                   Try again
                 </button>
               </>
@@ -1203,7 +1225,11 @@ export function Panel(props: {
           <section className="card" aria-labelledby="draft-h">
             <h3 id="draft-h">Reply</h3>
             {d?.status !== 'running' && (
-              <button type="button" onClick={() => void draft()}>
+              <button
+                type="button"
+                disabled={device.busy}
+                onClick={() => void draft()}
+              >
                 {d?.status === 'done' ? 'Draft again' : 'Draft a reply'}
               </button>
             )}
@@ -1280,7 +1306,7 @@ export function Panel(props: {
           <input
             type="file"
             accept="image/png,image/jpeg"
-            disabled={bankApp?.status === 'running'}
+            disabled={bankApp?.status === 'running' || device.busy}
             onChange={(e) => {
               const file = e.target.files?.[0]
               e.target.value = ''

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
-import { deviceState, type DeviceState } from '../ai/device'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { deviceState, warmUp, type DeviceState } from '../ai/device'
+import { modelLoad } from '../ai/run'
 import { prepareReceiptModel } from '../ai/receipt'
 
 // Raised instead of quietly using the cloud when this machine has no model.
@@ -24,9 +25,25 @@ export function useDevice() {
   const [progress, setProgress] = useState<number | null>(null)
   const [consent, setConsentState] = useState(storedConsent)
   const [asking, setAsking] = useState(false)
+  // Whether the model has been loaded into memory since the panel opened.
+  const [warm, setWarm] = useState<'no' | 'warming' | 'yes'>('no')
+  const load = useSyncExternalStore(modelLoad.subscribe, modelLoad.get)
 
   useEffect(() => {
-    void deviceState().then(setState)
+    let live = true
+    void deviceState().then((s) => {
+      if (!live) return
+      setState(s)
+      if (s !== 'available') return
+      setWarm('warming')
+      // A failed warm-up only means the first click is slower.
+      void warmUp()
+        .catch(() => undefined)
+        .then(() => live && setWarm('yes'))
+    })
+    return () => {
+      live = false
+    }
   }, [])
 
   const setConsent = useCallback((yes: boolean) => {
@@ -67,6 +84,10 @@ export function useDevice() {
     setConsent,
     askConsent: () => setAsking(true),
     ready,
+    warm,
+    // A model step is running; buttons that start another wait for it.
+    busy: load.running || load.waiting > 0,
+    waiting: load.waiting,
   }
 }
 
