@@ -126,6 +126,52 @@ export function rulesLines(rules: ShopRules): string[] {
   ]
 }
 
+// The answers to the common questions, worked out here so the model only has
+// to read them: small on-device models garble long lists they must filter.
+export function answerLines(
+  orders: Order[],
+  credits: Credit[],
+  products: Product[],
+): string[] {
+  const byCode = (a: Order, b: Order) => Number(a.code) - Number(b.code)
+  // "#73, #76": each number stands apart, which small models copy better
+  // than bare runs of numbers they tend to merge.
+  const list = (os: Order[]) =>
+    os.length
+      ? os
+          .sort(byCode)
+          .map((o) => `#${o.code}`)
+          .join(', ')
+      : 'none'
+  const unpaid = orders.filter(
+    (o) =>
+      (o.payment.state !== 'matched' || (balanceKobo(o, credits) ?? 0) > 0) &&
+      (o.delivery === 'pending' || o.delivery === 'out'),
+  )
+  const toSend = orders.filter(
+    (o) =>
+      o.payment.state === 'matched' &&
+      (balanceKobo(o, credits) ?? 0) <= 0 &&
+      o.delivery === 'pending' &&
+      o.deliveryPlan?.method !== 'pickup',
+  )
+  const counted = products
+    .filter((p) => !p.dropId && p.name.trim())
+    .map((p) => ({ p, left: leftOf(p, orders, products) }))
+    .filter((x) => x.left !== null)
+  const soldOut = counted
+    .filter((x) => x.left! <= 0)
+    .map((x) => x.p.name.trim())
+  const low = counted
+    .filter((x) => x.left! > 0 && x.left! <= 2)
+    .map((x) => `${x.p.name.trim()} (${x.left} left)`)
+  return [
+    `Unpaid or part-paid orders still open, by number: ${list(unpaid)}.`,
+    `Paid orders still to send out: ${list(toSend)}.`,
+    `Sold out: ${soldOut.join(', ') || 'nothing'}. Running low: ${low.join(', ') || 'nothing'}.`,
+  ]
+}
+
 export function businessText(parts: {
   books: string
   trends: string
@@ -143,6 +189,8 @@ export function businessText(parts: {
   const drop = dropLines(parts.drops, parts.products, parts.orders, parts.now)
   const rules = rulesLines(parts.rules)
   return [
+    'Quick answers:',
+    ...answerLines(parts.orders, parts.credits, parts.products),
     parts.books,
     parts.trends,
     `Open orders, by number (${open.length}):`,
@@ -158,5 +206,58 @@ export function businessText(parts: {
 
 export function deskInstructions(): string {
   const w = shopWords()
-  return `You are the assistant for ${w.shop}. Answer the owner's questions about their business from the facts below only: today's books, this week's trends against last week, open orders by number with their items, payment and delivery, stock, any running drop, customers waiting by type, money owed back, and the shop's own rules. Write short, plain, practical ${w.language}, with ${w.money}, and refer to orders by number. If one of the shop's charts would help the answer, name it in "chart", otherwise "none". You do not know customers' names, phone numbers or addresses; if a question needs them, say those details stay on the shop's computer and the panel shows them. Never call a payment or a customer fake or a fraud. Do not give financial, tax, loan or investment advice.`
+  return `You are the assistant for ${w.shop}. Answer the owner's questions about their business from the facts below only: today's books, this week's trends against last week, open orders by number with their items, payment and delivery, stock, any running drop, customers waiting by type, money owed back, and the shop's own rules. Write short, plain, practical ${w.language}, with ${w.money}, and refer to orders by number, copying each order number exactly as listed. If one of the shop's charts would help the answer, name it in "chart", otherwise "none". You do not know customers' names, phone numbers or addresses; if a question needs them, say those details stay on the shop's computer and the panel shows them. Never call a payment or a customer fake or a fraud. Do not give financial, tax, loan or investment advice.`
+}
+
+export type Exchange = { question: string; answer: string }
+
+// The on-device model takes one request at a time and holds no chat, so each
+// question carries the shop's facts and the last few exchanges with it.
+// About 4 characters make a token; the device's limit is 9,216 tokens, so
+// the request is kept well under it.
+export const DEVICE_ASK_MAX_CHARS = 24_000
+
+export function deviceAskPrompt(
+  instructions: string,
+  charts: string,
+  facts: string,
+  history: Exchange[],
+  question: string,
+): string | null {
+  const recent = history
+    .slice(-3)
+    .map((e) => `Owner asked: ${e.question}\nYou answered: ${e.answer}`)
+    .join('\n')
+  const prompt = [
+    instructions,
+    charts,
+    facts,
+    ...(recent ? [`Earlier in this conversation:\n${recent}`] : []),
+    `Question: ${question}`,
+  ].join('\n\n')
+  // Too long for the device: the caller asks the cloud instead.
+  return prompt.length > DEVICE_ASK_MAX_CHARS ? null : prompt
+}
+
+// Small on-device models sometimes merge neighbouring numbers when copying a
+// list ("#78, #80" becomes "#780", sharing the 8). A number in an answer that
+// is not one of the shop's orders, but reads as two that are, either side by
+// side or overlapping by a digit, is put back as both.
+export function repairOrderNumbers(answer: string, codes: string[]): string {
+  const known = new Set(codes)
+  return answer.replace(/#(\d{2,})\b/g, (whole, digits: string) => {
+    if (known.has(digits)) return whole
+    for (let i = 1; i < digits.length; i++) {
+      const pairs = [
+        [digits.slice(0, i), digits.slice(i)],
+        [digits.slice(0, i + 1), digits.slice(i)],
+      ]
+      for (const [a, b] of pairs) {
+        if (a && b && a !== b && known.has(a) && known.has(b)) {
+          return `#${a}, #${b}`
+        }
+      }
+    }
+    return whole
+  })
 }

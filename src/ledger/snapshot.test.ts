@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { EMPTY_RULES } from '../capture/shopRules'
 import { newOrder } from './ledger'
 import {
+  answerLines,
+  repairOrderNumbers,
   businessText,
+  DEVICE_ASK_MAX_CHARS,
+  deviceAskPrompt,
   openOrderLines,
   stockLines,
   waitingLine,
@@ -90,5 +94,85 @@ describe('business snapshot', () => {
     })
     expect(text).not.toMatch(/2348000000001|Sample Customer/)
     expect(text).toContain('Open orders, by number (1):')
+  })
+})
+
+describe('deviceAskPrompt', () => {
+  it('carries the facts, the last three exchanges and the question', () => {
+    const history = [1, 2, 3, 4].map((n) => ({
+      question: `q${n}`,
+      answer: `a${n}`,
+    }))
+    const p = deviceAskPrompt('Rules.', 'Charts.', 'Facts.', history, 'Now?')!
+    expect(p).toContain('Facts.')
+    expect(p).not.toContain('q1')
+    expect(p).toContain('Owner asked: q4\nYou answered: a4')
+    expect(p.endsWith('Question: Now?')).toBe(true)
+  })
+
+  it('declines a request too long for the device', () => {
+    expect(
+      deviceAskPrompt('', '', 'x'.repeat(DEVICE_ASK_MAX_CHARS), [], 'Now?'),
+    ).toBeNull()
+  })
+})
+
+describe('answerLines', () => {
+  it('works out unpaid, to-send and stock answers in code', () => {
+    const paid = order('3', {})
+    const lines = answerLines(
+      [
+        order('2'),
+        {
+          ...paid,
+          payment: { ...paid.payment, state: 'matched', creditId: 'cr' },
+        },
+        order('1'),
+      ],
+      [
+        {
+          id: 'cr',
+          bank: null,
+          direction: 'credit',
+          reversal: false,
+          amountKobo: 700_000,
+          sender: '',
+          narration: '',
+          sessionId: null,
+          reference: null,
+          at: null,
+          source: 'alert',
+          strength: 'alert received',
+        },
+      ],
+      [{ ...product, qty: 2 }],
+    )
+    expect(lines[0]).toBe(
+      'Unpaid or part-paid orders still open, by number: #1, #2.',
+    )
+    expect(lines[1]).toBe('Paid orders still to send out: #3.')
+    // Order 3 is paid for the two headwraps the shop counted.
+    expect(lines[2]).toBe('Sold out: Headwrap. Running low: nothing.')
+  })
+})
+
+describe('repairOrderNumbers', () => {
+  it('splits a merged pair back into two real orders', () => {
+    const codes = ['69', '71', '78', '80', '83']
+    expect(repairOrderNumbers('Orders #69, #71, #780, #83.', codes)).toBe(
+      'Orders #69, #71, #78, #80, #83.',
+    )
+  })
+
+  it('splits two orders written side by side', () => {
+    expect(repairOrderNumbers('Send #7781.', ['77', '81'])).toBe(
+      'Send #77, #81.',
+    )
+  })
+
+  it('leaves real orders and unknowable numbers alone', () => {
+    expect(repairOrderNumbers('Order #71 and #999.', ['71'])).toBe(
+      'Order #71 and #999.',
+    )
   })
 })

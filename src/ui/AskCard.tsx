@@ -1,6 +1,14 @@
 import type { ChatSession } from 'firebase/ai'
 import { useRef, useState, type ReactNode } from 'react'
-import { askBooks, booksChat, deskRequest, followUpRequest } from '../ai/books'
+import {
+  askBooks,
+  askOnDevice,
+  booksChat,
+  deskRequest,
+  followUpRequest,
+} from '../ai/books'
+import { market } from '../config/market'
+import { chartMenu } from '../ledger/charts'
 import type { Reading } from '../ai/run'
 import {
   approve,
@@ -13,7 +21,12 @@ import type { ShopRules } from '../capture/shopRules'
 import { chartSpec } from '../ledger/charts'
 import { booksText, dayBooks } from '../ledger/dayBooks'
 import type { Answer } from '../ledger/report'
-import { businessText } from '../ledger/snapshot'
+import {
+  businessText,
+  deskInstructions,
+  deviceAskPrompt,
+  repairOrderNumbers,
+} from '../ledger/snapshot'
 import { trends, trendsText } from '../ledger/trends'
 import { Chart } from './Chart'
 import type { Lagos } from './TrendsCard'
@@ -35,9 +48,11 @@ type Turn = {
   error?: string
 }
 
-// A chat with the cloud about the whole business, on every tab. It is sent
-// the shop's own facts (orders by number, items, stock, money and rules)
-// after the vendor sees them, and never a customer's name, phone or address.
+// A chat about the whole business, on every tab. With Chrome's model ready,
+// questions are answered on this computer and nothing leaves it. Otherwise,
+// or when the vendor asks for it, the cloud answers after the vendor sees
+// exactly what is sent: the shop's own facts, never a customer's name, phone
+// or address.
 export function AskCard(props: {
   ledger: LedgerApi
   rules: ShopRules
@@ -47,6 +62,8 @@ export function AskCard(props: {
   online: boolean
   ask: (request: CloudRequest) => Promise<Approved | null>
   badge: (r: Reading<unknown>) => ReactNode
+  // Whether Chrome's built-in model is ready on this computer.
+  deviceReady: boolean
 }) {
   const { data, config } = props.ledger
   const bankName = (id: string | null) =>
@@ -97,9 +114,54 @@ export function AskCard(props: {
     setTurns([])
   }
 
-  async function send(asked: string) {
+  // On the device when the model is ready and the market's reply language is
+  // one it supports; the cloud otherwise.
+  const onDevice = props.deviceReady && market().reply.onDevice
+
+  async function send(asked: string, viaCloud = false) {
     const typed = asked.trim()
     if (!typed || !facts || busy) return
+    if (onDevice && !viaCloud) {
+      const prompt = deviceAskPrompt(
+        deskInstructions(),
+        chartMenu(),
+        facts,
+        turns.flatMap((t) =>
+          t.answer?.source === 'On device'
+            ? [{ question: t.question, answer: t.answer.fields.text }]
+            : [],
+        ),
+        typed,
+      )
+      if (prompt) {
+        setQuestion('')
+        setBusy(true)
+        const at = turns.length
+        setTurns((t) => [...t, { question: typed }])
+        try {
+          const read = await askOnDevice(prompt)
+          // Order numbers are checked against the shop's real orders.
+          const answer = {
+            ...read,
+            fields: {
+              ...read.fields,
+              text: repairOrderNumbers(
+                read.fields.text,
+                (data?.orders ?? []).map((o) => o.code),
+              ),
+            },
+          }
+          setTurns((t) => t.map((x, i) => (i === at ? { ...x, answer } : x)))
+        } catch (e) {
+          const error = cloudErrorText(e)
+          setTurns((t) => t.map((x, i) => (i === at ? { ...x, error } : x)))
+        } finally {
+          setBusy(false)
+        }
+        return
+      }
+      // Too long for the device: the cloud path below asks first.
+    }
     if (!props.online) {
       setTurns((t) => [
         ...t,
@@ -145,10 +207,9 @@ export function AskCard(props: {
       <h3 id="ask-h">Ask the desk</h3>
       {turns.length === 0 && (
         <p className="hint">
-          Ask anything about your orders, stock, money or week. Answers come
-          from Google&apos;s Gemini service, and your first question shows you
-          exactly what it will be sent: your shop&apos;s facts, never
-          customers&apos; names, phones or addresses.
+          {onDevice
+            ? 'Ask anything about your orders, stock, money or week. Answers come from the model on this computer, so nothing is sent. For a harder question, you can ask the cloud instead.'
+            : "Ask anything about your orders, stock, money or week. Answers come from Google's Gemini service, and your first question shows you exactly what it will be sent: your shop's facts, never customers' names, phones or addresses."}
         </p>
       )}
       {turns.length > 0 && (
@@ -165,6 +226,15 @@ export function AskCard(props: {
                     />
                   )}
                   {props.badge(t.answer)}
+                  {t.answer.source === 'On device' && !busy && (
+                    <button
+                      type="button"
+                      className="link"
+                      onClick={() => void send(t.question, true)}
+                    >
+                      Ask the cloud instead
+                    </button>
+                  )}
                 </>
               ) : t.error ? (
                 <p className="error" role="alert">

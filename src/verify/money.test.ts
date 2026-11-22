@@ -24,3 +24,11 @@ describe('money in each market', () => {
     expect(formatMoney(1_850_000, MARKETS.ng)).toBe('₦18,500')
   })
 })
+
+describe('two amounts in one field', () => {
+  it('reads as no single amount, so the items are summed instead', () => {
+    expect(parseMoney('₹2,499 + ₹120', MARKETS.in)).toBeNull()
+    expect(parseMoney('15000 plus 1500 delivery', MARKETS.ng)).toBeNull()
+    expect(parseMoney('−₦5,000', MARKETS.ng)).toBe(500_000)
+  })
+})

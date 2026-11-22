@@ -18,6 +18,11 @@ export const RAIL_NAME: Record<RailId, string> = {
 // when nothing is stored or storage is blocked.
 export function startMarket(): void {
   try {
+    // The first demo kept the city under "demo-market"; it is carried over
+    // so a returning visitor's city matches their saved sample data.
+    const old = localStorage.getItem('demo-market')
+    if (old && !localStorage.getItem(KEY)) localStorage.setItem(KEY, old)
+    localStorage.removeItem('demo-market')
     const stored = localStorage.getItem(KEY)
     if (isMarketId(stored)) setMarket(stored)
   } catch {

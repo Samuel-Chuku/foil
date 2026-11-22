@@ -63,8 +63,9 @@ export function pickOrder(json: unknown): RawOrder {
 }
 
 // "pick up", "pickup", "pick it up", "pick them up", "pick am up".
+// English and Portuguese ("retiro na loja", "vou buscar na loja").
 const PICKUP =
-  /\bpick(ing)?[\s-]?((it|them|am|the \w+)\s)?up\b|\bcollect (it|them|am) (from|at)\b/i
+  /\bpick(ing)?[\s-]?((it|them|am|the \w+)\s)?up\b|\bcollect (it|them|am) (from|at)\b|\bretir(o|ar|a)\b|\b(busco|buscar|pego|pegar)\b[^.]*\bloja\b/i
 
 // Customers write quantities as words ("two of the caps"), and the model
 // copies them as written.

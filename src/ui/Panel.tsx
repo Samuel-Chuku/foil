@@ -2160,6 +2160,7 @@ export function Panel(props: {
       </TabPanel>
 
       <AskCard
+        deviceReady={device.state === 'available'}
         ledger={ledger}
         rules={shop.rules}
         today={today}

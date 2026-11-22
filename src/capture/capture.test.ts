@@ -312,3 +312,22 @@ describe('writesPidgin in English chats', () => {
     ).toBe(false)
   })
 })
+
+describe('pickup in Portuguese', () => {
+  it('reads "retiro na loja" as a pickup', async () => {
+    const { toOrderFields } = await import('./orderFields')
+    const f = toOrderFields({
+      items: [],
+      total: '',
+      customerName: '',
+      address: '',
+      landmark: '',
+      area: '',
+      deliveryChoice: 'Retiro na loja',
+      state: '',
+      park: '',
+      payOnDelivery: '',
+    })
+    expect(f.pickup).toBe(true)
+  })
+})

@@ -77,6 +77,28 @@ function recoverSessionId(
   return value.ok ? value : null
 }
 
+const DAY_MIN = 1440
+
+// The reference's time falls a whole number of days away from the receipt's,
+// at the same time of day (allowing the bank's offsets and clock drift).
+function dateOnlyMisread(
+  stampedMs: number,
+  at: Stamp,
+  config: VerifyConfig,
+): boolean {
+  if (at.precision === 'day') return false
+  const gap = (at.ms - stampedMs) / MIN
+  return config.sessionOffsetsMin.some((o) => {
+    const off = gap - o
+    if (Math.abs(off) < DAY_MIN - config.clockToleranceMin) {
+      // Within a day: an ordinary time check, not a date misread.
+      return false
+    }
+    const r = ((off % DAY_MIN) + DAY_MIN) % DAY_MIN
+    return Math.min(r, DAY_MIN - r) <= config.clockToleranceMin
+  })
+}
+
 export function verifyReceipt(
   receipt: Receipt,
   ledger: Ledger,
@@ -106,11 +128,15 @@ export function verifyReceipt(
   const decoded = decodeSessionId(receipt.reference, config.rail)
   // One misread digit can move the date inside an ID by decades. Such an ID is
   // unreadable, not evidence: it must lead to "check", never to a mismatch.
+  // The same holds when the reference's time of day agrees with the receipt's
+  // but its date does not: date digits were swapped or misread ("12" for
+  // "21"), which an edit of the receipt's time would not produce.
   const readable: SessionIdResult =
     decoded.ok &&
     decoded.value.stampedMs !== null &&
     receipt.at &&
-    Math.abs(decoded.value.stampedMs - receipt.at.ms) > 366 * 86_400_000
+    (Math.abs(decoded.value.stampedMs - receipt.at.ms) > 366 * 86_400_000 ||
+      dateOnlyMisread(decoded.value.stampedMs, receipt.at, config))
       ? { ok: false, reason: 'date' }
       : decoded
   const notes: string[] = []

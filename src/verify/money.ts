@@ -6,7 +6,12 @@ import { market, type Market } from '../config/market'
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+// Two amounts written together ("₹2,499 + ₹120") are not one amount: joined
+// up they would read as ₹24,99,120.
+const TWO_AMOUNTS = /\d\s*(?:\+|\bplus\b|\band\b|&)\s*\D{0,3}\s*\d/i
+
 export function parseMoney(text: string, m: Market = market()): number | null {
+  if (TWO_AMOUNTS.test(text)) return null
   const c = m.currency
   let s = text.toLowerCase()
   // Longest marks first, so "rs." goes before "rs".

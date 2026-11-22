@@ -4,7 +4,8 @@ import { cloudModel, sendInChat } from '../cloud/send'
 import { CHART_IDS, chartMenu } from '../ledger/charts'
 import { pickAnswer, type Answer } from '../ledger/report'
 import { deskInstructions } from '../ledger/snapshot'
-import type { Reading } from './run'
+import { privateModels, TEXT_ONLY } from './device'
+import { generateJson, type Reading } from './run'
 
 // Multi-turn chat is cloud only on the web, so the books chat never relies
 // on fallback. Each reply is the words plus at most one of the desk's charts,
@@ -56,4 +57,25 @@ export async function askBooks(
 ): Promise<Reading<Answer>> {
   const { text, source, ms } = await sendInChat(chat, approved)
   return { fields: pickAnswer(JSON.parse(text) as unknown), source, ms }
+}
+
+// With Chrome's model ready, a question is answered on this computer and
+// nothing is sent: one self-contained request (see deviceAskPrompt), held to
+// the same answer-and-chart shape as the cloud chat.
+const deviceModel = privateModels({
+  createOptions: TEXT_ONLY,
+  onDeviceSchema: {
+    type: 'object',
+    properties: {
+      answer: { type: 'string' },
+      chart: { type: 'string', enum: [...CHART_IDS, 'none'] },
+    },
+    required: ['answer', 'chart'],
+    additionalProperties: false,
+  },
+})
+
+export async function askOnDevice(prompt: string): Promise<Reading<Answer>> {
+  const { json, source, ms } = await generateJson(deviceModel(false), [prompt])
+  return { fields: pickAnswer(json), source, ms }
 }

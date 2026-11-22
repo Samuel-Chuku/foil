@@ -213,3 +213,36 @@ describe('receipt status words in Portuguese', () => {
     expect(toReceipt(raw('Pix enviado'), cfg).amountKobo).toBe(15_000)
   })
 })
+
+describe('a Pix ID beside other fields', () => {
+  it('is read as written, not glued to the next field', () => {
+    setMarket('br')
+    const r = decodeSessionId('E18236120202611211742aBcD3fGh1Jk ABC123XYZ')
+    expect(r.ok && r.value.digits).toBe('E18236120202611211742aBcD3fGh1Jk')
+  })
+})
+
+describe('a misread date inside a Pix ID', () => {
+  it('is a question, not a mismatch, when the time of day agrees', () => {
+    setMarket('br')
+    // Read as 12 Nov instead of 21 Nov; 18:10 UTC is 15:10 in São Paulo.
+    const misread = 'E00416968202611121810Zx8Cv6Bn4Mq'
+    const v = verifyReceipt(
+      receipt({ reference: misread, senderBank: 'inter', at: at(15, 10) }),
+      ledger([]),
+      verifyFor(DEFAULT_VERIFY),
+    )
+    expect(v.kind).not.toBe('mismatch')
+  })
+
+  it('still catches a receipt whose time was changed', () => {
+    setMarket('br')
+    const id = 'E00416968202611211810Zx8Cv6Bn4Mq'
+    const v = verifyReceipt(
+      receipt({ reference: id, senderBank: 'inter', at: at(12, 40) }),
+      ledger([]),
+      verifyFor(DEFAULT_VERIFY),
+    )
+    expect(v.kind).toBe('mismatch')
+  })
+})

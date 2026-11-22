@@ -68,7 +68,9 @@ function decodeUpi(text: string): SessionIdResult {
 // sequence) for its identifiers, and Pix providers document the UTC timestamp.
 const PIX = /\bE([0-9A-Z]{8})(\d{12})([A-Za-z0-9]{11})\b/
 function decodePix(text: string): SessionIdResult {
-  const m = PIX.exec(text.replace(/\s+/g, ''))
+  // Read as written first; only an ID broken by spaces is read with them
+  // removed, so it is never glued onto the field beside it.
+  const m = PIX.exec(text) ?? PIX.exec(text.replace(/\s+/g, ''))
   if (!m) {
     return /\bE[0-9A-Za-z]{24,40}\b/.test(text.replace(/\s+/g, ''))
       ? { ok: false, reason: 'length' }
