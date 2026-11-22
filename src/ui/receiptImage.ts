@@ -7,6 +7,7 @@ import {
   BUILTIN_FONTS,
   inkOn,
   readableOn,
+  tint,
   type Brand,
   type BrandFont,
 } from '../capture/brand'
@@ -22,6 +23,8 @@ const SCALE = 2
 const INK = '#1f1f1f'
 const MUTED = '#5e5e5e'
 const PAPER = '#f4f1ea'
+// A brighter base for brand tints, so the colour reads clearly.
+const BRAND_PAPER = '#fbfaf6'
 const RULE = '#d6d1c4'
 const GOOD = '#1b7a3a'
 const OWED = '#9a5b00'
@@ -54,7 +57,7 @@ export function drawCustomerReceipt(
   look: ReceiptLook = PLAIN_LOOK,
 ): HTMLCanvasElement {
   // Drawn on a canvas taller than needed, then cropped to what was drawn.
-  const H = 400 + r.lines.length * 30
+  const H = 460 + r.lines.length * 30
   const canvas = document.createElement('canvas')
   canvas.width = W * SCALE
   canvas.height = H * SCALE
@@ -63,16 +66,21 @@ export function drawCustomerReceipt(
   g.scale(SCALE, SCALE)
   const font = (weight: number, size: number) =>
     `${weight} ${size}px ${look.family}`
-  // Brand colour on the paper, for accents, only where it stays readable.
-  const accent = look.color ? readableOn(look.color, PAPER, INK) : INK
+  const brand = look.color
+  // With a brand colour, the whole receipt carries it: tinted paper, brand
+  // rules, a brand total bar and footer. Text colours are chosen to stay
+  // readable on each surface; the paid mark keeps its green.
+  const paper = brand ? tint(brand, BRAND_PAPER, 0.1) : PAPER
+  const accent = brand ? readableOn(brand, paper, INK) : INK
+  const ruleColour = brand ? tint(brand, paper, 0.45) : RULE
   const right = (text: string, y: number) => {
     g.textAlign = 'right'
     g.fillText(text, W - PAD, y)
     g.textAlign = 'left'
   }
   const rule = (y: number, dashed: boolean) => {
-    g.strokeStyle = dashed || !look.color ? RULE : accent
-    g.lineWidth = 1
+    g.strokeStyle = ruleColour
+    g.lineWidth = brand && !dashed ? 1.5 : 1
     g.setLineDash(dashed ? [4, 4] : [])
     g.beginPath()
     g.moveTo(PAD, y)
@@ -81,18 +89,41 @@ export function drawCustomerReceipt(
     g.setLineDash([])
   }
 
-  g.fillStyle = PAPER
+  g.fillStyle = paper
   g.fillRect(0, 0, W, H)
 
   // The header: a band in the brand colour when there is one, with the logo
   // on a paper tile so any logo shows on any colour.
-  const band = look.color !== null
-  const headerH = band ? LOGO + 32 : look.logo ? LOGO + 4 : 22
-  const top = band ? 0 : PAD - 4
-  if (band) {
-    g.fillStyle = look.color!
+  const headerH = brand ? LOGO + 32 : look.logo ? LOGO + 4 : 22
+  const top = brand ? 0 : PAD - 4
+  if (brand) {
+    g.fillStyle = brand
     g.fillRect(0, 0, W, headerH)
   }
+
+  // A faint watermark behind the items: the logo, or the shop's initial.
+  if (look.logo || brand) {
+    g.save()
+    // Multiply drops a logo's white background, so only its colours show.
+    g.globalCompositeOperation = 'multiply'
+    g.globalAlpha = 0.09
+    const cy = headerH + 190
+    if (look.logo) {
+      const box = 210
+      const sc = Math.min(box / look.logo.width, box / look.logo.height)
+      const w = look.logo.width * sc
+      const h = look.logo.height * sc
+      g.drawImage(look.logo, (W - w) / 2, cy - h / 2, w, h)
+    } else if (r.shop) {
+      g.fillStyle = brand!
+      g.font = font(700, 220)
+      g.textAlign = 'center'
+      g.textBaseline = 'middle'
+      g.fillText(r.shop.trim()[0]!.toUpperCase(), W / 2, cy)
+    }
+    g.restore()
+  }
+
   let textX = PAD
   if (look.logo) {
     const box = LOGO
@@ -101,8 +132,8 @@ export function drawCustomerReceipt(
     const h = look.logo.height * scale
     const x = PAD
     const ly = top + (headerH - box) / 2
-    if (band) {
-      g.fillStyle = PAPER
+    if (brand) {
+      g.fillStyle = paper
       g.beginPath()
       g.roundRect(x - 4, ly - 4, box + 8, box + 8, 8)
       g.fill()
@@ -110,16 +141,23 @@ export function drawCustomerReceipt(
     g.drawImage(look.logo, x + (box - w) / 2, ly + (box - h) / 2, w, h)
     textX = PAD + box + 16
   }
-  const headInk = band ? inkOn(look.color!) : INK
+  const headInk = brand ? inkOn(brand) : INK
   const mid = top + headerH / 2 + 7
   g.fillStyle = headInk
   g.font = font(700, 20)
-  g.fillText(fit(g, r.shop || 'Receipt', W - textX - PAD - 90), textX, mid)
-  g.fillStyle = band ? headInk : MUTED
-  g.globalAlpha = band ? 0.85 : 1
-  g.font = font(500, 14)
-  right(`Order ${r.orderCode}`, mid)
-  g.globalAlpha = 1
+  const orderSpace = r.orderCode ? 90 : 0
+  g.fillText(
+    fit(g, r.shop || 'Receipt', W - textX - PAD - orderSpace),
+    textX,
+    mid,
+  )
+  if (r.orderCode) {
+    g.fillStyle = brand ? headInk : MUTED
+    g.globalAlpha = brand ? 0.85 : 1
+    g.font = font(500, 14)
+    right(`Order ${r.orderCode}`, mid)
+    g.globalAlpha = 1
+  }
   let y = top + headerH - 4
 
   // The paid mark: a filled circle with a tick, drawn rather than an emoji
@@ -130,7 +168,7 @@ export function drawCustomerReceipt(
   g.beginPath()
   g.arc(PAD + 14, y - 6, 14, 0, Math.PI * 2)
   g.fill()
-  g.strokeStyle = PAPER
+  g.strokeStyle = paper
   g.lineWidth = 3
   g.lineCap = 'round'
   g.beginPath()
@@ -168,11 +206,19 @@ export function drawCustomerReceipt(
   rule(y, false)
 
   y += 30
-  g.fillStyle = accent
+  if (brand) {
+    g.fillStyle = brand
+    g.beginPath()
+    g.roundRect(PAD - 12, y - 23, W - PAD * 2 + 24, 34, 10)
+    g.fill()
+    g.fillStyle = inkOn(brand)
+  } else {
+    g.fillStyle = accent
+  }
   g.font = font(700, 16)
   g.fillText('Total', PAD, y)
   right(formatNaira(r.totalKobo), y)
-  y += 30
+  y += 32
   g.font = font(500, 15)
   g.fillStyle = GOOD
   g.fillText('Paid', PAD, y)
@@ -195,28 +241,36 @@ export function drawCustomerReceipt(
     g.fillText(`Transfer ref ending ${r.refEnding}`, PAD, y)
   }
 
-  y += 24
-  rule(y, true)
-  y += 30
-  g.fillStyle = INK
-  g.font = font(500, 14)
-  g.textAlign = 'center'
-  g.fillText(
-    fit(
-      g,
-      r.shop
-        ? `Thank you for shopping with ${r.shop}!`
-        : 'Thank you for your order!',
-      W - PAD * 2,
-    ),
-    W / 2,
-    y,
-  )
-  g.textAlign = 'left'
+  const thanks = r.shop
+    ? `Thank you for shopping with ${r.shop}!`
+    : 'Thank you for your order!'
+  let end: number
+  if (brand) {
+    // A footer band to match the header.
+    y += 26
+    g.fillStyle = brand
+    g.fillRect(0, y, W, 50)
+    g.fillStyle = inkOn(brand)
+    g.font = font(600, 14)
+    g.textAlign = 'center'
+    g.fillText(fit(g, thanks, W - PAD * 2), W / 2, y + 30)
+    g.textAlign = 'left'
+    end = y + 50
+  } else {
+    y += 24
+    rule(y, true)
+    y += 30
+    g.fillStyle = INK
+    g.font = font(500, 14)
+    g.textAlign = 'center'
+    g.fillText(fit(g, thanks, W - PAD * 2), W / 2, y)
+    g.textAlign = 'left'
+    end = y + PAD
+  }
 
   const out = document.createElement('canvas')
   out.width = W * SCALE
-  out.height = Math.ceil((y + PAD) * SCALE)
+  out.height = Math.ceil(end * SCALE)
   out.getContext('2d')?.drawImage(canvas, 0, 0)
   return out
 }

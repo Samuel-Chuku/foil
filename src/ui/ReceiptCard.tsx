@@ -22,10 +22,13 @@ export function ReceiptCard(props: {
   brand: Brand
   onInsert: (text: string) => Promise<void>
 }) {
-  const { receipt } = props
+  // The shop may keep order numbers off what customers see.
+  const receipt = props.brand.showOrderNumber
+    ? props.receipt
+    : { ...props.receipt, orderCode: '' }
   const picture = useReceiptPicture(receipt, props.brand)
   const [note, setNote] = useState<Note | null>(null)
-  const fileName = `receipt-order-${receipt.orderCode}.png`
+  const fileName = `receipt-order-${props.receipt.orderCode}.png`
 
   async function copy() {
     if (!picture) return
@@ -87,7 +90,7 @@ export function ReceiptCard(props: {
       {picture ? (
         <img
           src={picture.src}
-          alt={`${receiptTitle(receipt)} for order ${receipt.orderCode}, ${formatNaira(receipt.paidKobo)} paid`}
+          alt={`${receiptTitle(receipt)} for order ${props.receipt.orderCode}, ${formatNaira(receipt.paidKobo)} paid`}
           className="receipt-preview"
         />
       ) : (

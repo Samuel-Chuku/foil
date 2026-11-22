@@ -2,8 +2,8 @@ import { Schema, type ChatSession } from 'firebase/ai'
 import type { Approved, CloudRequest } from '../cloud/approval'
 import { cloudModel, sendInChat } from '../cloud/send'
 import { CHART_IDS, chartMenu } from '../ledger/charts'
-import { BOOKS_INSTRUCTIONS } from '../ledger/dayBooks'
 import { pickAnswer, type Answer } from '../ledger/report'
+import { DESK_INSTRUCTIONS } from '../ledger/snapshot'
 import type { Reading } from './run'
 
 // Multi-turn chat is cloud only on the web, so the books chat never relies
@@ -23,23 +23,16 @@ export function booksChat(): ChatSession {
   return model().startChat()
 }
 
-export function booksRequest(
-  books: string,
-  trends: string,
+export function deskRequest(
+  facts: string,
   question: string,
   replaced: string[],
 ): CloudRequest {
   return {
-    feature: 'Ask about your books',
+    feature: 'Ask the desk',
     reason:
-      'Chat answers come from the cloud model; the computer cannot hold a conversation yet. Only totals and order numbers are sent, never who paid.',
-    texts: [
-      BOOKS_INSTRUCTIONS,
-      chartMenu(),
-      books,
-      trends,
-      `Question: ${question}`,
-    ],
+      "Chat answers come from the cloud model; the computer cannot hold a conversation yet. The shop's own facts are sent: orders by number, items, stock, money and rules, never customers' names, phones or addresses.",
+    texts: [DESK_INSTRUCTIONS, chartMenu(), facts, `Question: ${question}`],
     replaced,
   }
 }
@@ -50,8 +43,8 @@ export function followUpRequest(
   replaced: string[],
 ): CloudRequest {
   return {
-    feature: 'Ask about your books',
-    reason: 'This question joins the chat about the books you already sent.',
+    feature: 'Ask the desk',
+    reason: 'This question joins the chat about the facts you already sent.',
     texts: [`Question: ${question}`],
     replaced,
   }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { toOrderFields } from './orderFields'
-import { clarifyLine, pickVoice, voiceLine, voicePrompt } from './voice'
+import {
+  checkStreet,
+  clarifyLine,
+  pickVoice,
+  voiceLine,
+  voicePrompt,
+} from './voice'
 
 describe('voice note', () => {
   it('keeps the order, never a price, and flags what was unclear', () => {
@@ -66,5 +72,47 @@ describe('voice note', () => {
     expect(p).toContain('plain black cap')
     expect(p).toContain('Lagos streets: Bode Thomas Street')
     expect(p).toMatch(/not write out what was said word for word/)
+  })
+})
+
+describe('checkStreet', () => {
+  const streets = ['Bode Thomas Street', 'Admiralty Way', 'Allen Avenue']
+
+  it('corrects a near-certain spelling of a known street', () => {
+    expect(checkStreet('4 Bode Tomas Street, Surulere', streets)).toEqual({
+      address: '4 Bode Thomas Street, Surulere',
+      street: null,
+    })
+  })
+
+  it('offers a close known street for the vendor to confirm', () => {
+    expect(checkStreet('2 Admiral Way', streets).street).toEqual({
+      heard: 'Admiral Way',
+      suggestion: 'Admiralty Way',
+    })
+  })
+
+  it('marks a street it cannot vouch for, without guessing', () => {
+    expect(checkStreet('4 Potiskum Street, Surulere', streets).street).toEqual({
+      heard: 'Potiskum Street',
+      suggestion: null,
+    })
+  })
+
+  it('leaves a bare area or landmark alone', () => {
+    expect(checkStreet('Surulere', streets).street).toBeNull()
+    expect(checkStreet('', streets).street).toBeNull()
+  })
+
+  it('makes an unknown street unclear, and the draft confirms it by name', () => {
+    const note = pickVoice(
+      {
+        items: [{ name: 'Ankara gown', quantity: '1' }],
+        address: '4 Potiskum Street, Surulere',
+      },
+      streets,
+    )
+    expect(note.unsure).toContain('address')
+    expect(clarifyLine(note)).toContain('it sounded like "Potiskum Street"')
   })
 })

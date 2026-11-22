@@ -95,6 +95,7 @@ import {
 import { lagosFromEpoch } from '../verify/time'
 import { MoneyFlowCard } from './MoneyFlowCard'
 import { BooksCard } from './BooksCard'
+import { AskCard } from './AskCard'
 import { ReceiptCard } from './ReceiptCard'
 import { ReceiptLookCard } from './ReceiptLookCard'
 import { useBrand } from './useBrand'
@@ -645,6 +646,42 @@ export function Panel(props: {
     } catch (error) {
       patch(phone, { capture: { status: 'error', message: errorText(error) } })
     }
+  }
+
+  // The vendor confirms the well-known street a half-heard one is close to;
+  // the address is then no longer unclear.
+  function takeStreet(known: string) {
+    if (!chat) return
+    const phone = chat.phone
+    setWork((w) => {
+      const v = w[phone]?.voice
+      if (v?.status !== 'done' || !v.value.fields.street) return w
+      const old = v.value.fields
+      const heardAs = old.street!.heard
+      const fields: VoiceNote = {
+        ...old,
+        order: {
+          ...old.order,
+          address: old.order.address.replace(heardAs, known),
+        },
+        unsure: old.unsure.filter((u) => u !== 'address'),
+        street: null,
+      }
+      const heard = Object.fromEntries(
+        Object.entries(w[phone]?.heard ?? {}).map(([k, n]) => [
+          k,
+          n === old ? fields : n,
+        ]),
+      )
+      return {
+        ...w,
+        [phone]: {
+          ...w[phone],
+          voice: { ...v, value: { ...v.value, fields } },
+          heard,
+        },
+      }
+    })
   }
 
   // A voice note is heard in the cloud, and only after the vendor has seen
@@ -1823,6 +1860,7 @@ export function Panel(props: {
                 badge={(r) => <Badge source={r.source} ms={r.ms} />}
                 hasForm={current.capture?.status === 'done'}
                 onUse={applyVoice}
+                onStreet={takeStreet}
                 onClose={() => patch(chat.phone, { voice: undefined })}
               />
             )}
@@ -1902,14 +1940,7 @@ export function Panel(props: {
 
         <DropCard ledger={ledger} clock={clock} />
 
-        <BooksCard
-          ledger={ledger}
-          today={today}
-          lagos={lagos}
-          online={online}
-          ask={approval.ask}
-          badge={(r) => <Badge source={r.source} ms={r.ms} />}
-        />
+        <BooksCard ledger={ledger} today={today} lagos={lagos} />
 
         <TrendsCard
           ledger={ledger}
@@ -2019,6 +2050,17 @@ export function Panel(props: {
 
         <StockCard ledger={ledger} device={device} />
       </TabPanel>
+
+      <AskCard
+        ledger={ledger}
+        rules={shop.rules}
+        today={today}
+        lagos={lagos}
+        now={() => Date.now()}
+        online={online}
+        ask={approval.ask}
+        badge={(r) => <Badge source={r.source} ms={r.ms} />}
+      />
 
       <p className="privacy">
         Customer names, phone numbers and addresses stay on this computer. Your

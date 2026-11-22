@@ -905,3 +905,18 @@ button.link {
   max-width: 46rem;
   padding: 1rem 1.5rem 2rem;
 }
+
+.ask-desk .suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+.ask-desk .books-chat {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.ask-desk form input {
+  width: 100%;
+  box-sizing: border-box;
+}

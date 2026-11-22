@@ -69,6 +69,97 @@ export type VoiceNote = {
   language: string
   // Item names and field names the model was unsure of.
   unsure: string[]
+  // The street as heard, checked against well-known streets in code.
+  street: StreetCheck | null
+}
+
+export type StreetCheck = {
+  heard: string
+  // A well-known street it is close to, for the vendor to confirm.
+  suggestion: string | null
+}
+
+const SUFFIX =
+  /\b(street|st|road|rd|avenue|ave|way|close|crescent|drive|lane|expressway)\b\.?/gi
+const core = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(SUFFIX, '')
+    .replace(/[^a-z]/g, '')
+// How a name sounds, roughly: consonants only, with the sounds Nigerian
+// English and speech-to-text swap most (b/p, d/t/th, c/k/g) merged.
+const sound = (s: string) =>
+  core(s)
+    .replace(/th/g, 't')
+    .replace(/ph/g, 'f')
+    .replace(/b/g, 'p')
+    .replace(/d/g, 't')
+    .replace(/[cqg]/g, 'k')
+    .replace(/z/g, 's')
+    .replace(/[aeiouyhw]/g, '')
+    .replace(/(.)\1+/g, '$1')
+
+function distance(a: string, b: string): number {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i]
+    for (let j = 1; j <= b.length; j++) {
+      row[j] = Math.min(
+        prev[j]! + 1,
+        row[j - 1]! + 1,
+        prev[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1),
+      )
+    }
+    prev = row
+  }
+  return prev[b.length]!
+}
+
+const likeness = (a: string, b: string) =>
+  1 - distance(a, b) / Math.max(a.length, b.length, 1)
+
+// The street part of an address: no house number, nothing after a comma.
+export const streetOf = (address: string) =>
+  address
+    .split(',')[0]!
+    .replace(/^\s*(no\.?\s*)?\d+[a-z]?\s*,?\s*/i, '')
+    .trim()
+
+// Near-certain spellings are corrected; close ones are offered for the
+// vendor to confirm; anything else is a street the desk cannot vouch for.
+const SURE = 0.9
+const CLOSE = 0.75
+
+export function checkStreet(
+  address: string,
+  streets: string[],
+): { address: string; street: StreetCheck | null } {
+  const heard = streetOf(address)
+  // Only what reads as a street is checked: a bare area or landmark is not.
+  const looksLikeStreet =
+    /\b(street|st|road|rd|avenue|ave|way|close|crescent|drive|lane|expressway)\b/i.test(
+      heard,
+    ) || /^\s*(no\.?\s*)?\d/i.test(address)
+  if (!core(heard) || !looksLikeStreet) return { address, street: null }
+  const best = streets
+    .map((known) => ({
+      known,
+      score: Math.max(
+        likeness(core(heard), core(known)),
+        likeness(sound(heard), sound(known)),
+      ),
+    }))
+    .sort((a, b) => b.score - a.score)[0]
+  if (best && best.score >= SURE) {
+    return { address: address.replace(heard, best.known), street: null }
+  }
+  return {
+    address,
+    street: {
+      heard,
+      suggestion: best && best.score >= CLOSE ? best.known : null,
+    },
+  }
 }
 
 export function voicePrompt(vocabulary: {
@@ -106,8 +197,13 @@ const text = (v: unknown) =>
 
 const yes = (v: unknown) => /^(yes|true)$/i.test(text(v))
 
-// The model's JSON is untrusted input: keep only the expected shape.
-export function pickVoice(json: unknown): VoiceNote {
+// The model's JSON is untrusted input: keep only the expected shape. A
+// street the desk does not know is marked unclear, so the draft confirms it
+// before anything is sent to the wrong door.
+export function pickVoice(
+  json: unknown,
+  streets: string[] = LAGOS_STREETS,
+): VoiceNote {
   const o = (json && typeof json === 'object' ? json : {}) as Record<
     string,
     unknown
@@ -127,6 +223,8 @@ export function pickVoice(json: unknown): VoiceNote {
       .filter((u) => UNSURE_NAMES.includes(u)),
   )
   for (const i of items) if (i.unsure && i.name) unsure.add(i.name)
+  const checked = checkStreet(text(o.address), streets)
+  if (checked.street) unsure.add('address')
   return {
     order: {
       items: items
@@ -135,7 +233,7 @@ export function pickVoice(json: unknown): VoiceNote {
       // Prices are the shop's to say, never heard from a voice note.
       total: '',
       customerName: text(o.customerName),
-      address: text(o.address),
+      address: checked.address,
       landmark: text(o.landmark),
       area: text(o.area),
       deliveryChoice: text(o.deliveryChoice),
@@ -147,6 +245,7 @@ export function pickVoice(json: unknown): VoiceNote {
     gloss: text(o.gloss),
     language: text(o.language),
     unsure: [...unsure],
+    street: checked.street,
   }
 }
 
@@ -161,7 +260,14 @@ export function clarifyLine(note: VoiceNote): string | null {
       return [`how many ${u} they want, or which one they mean`]
     if (u === 'quantity' || u === 'items')
       return [`how many of each item they want`]
-    if (u === 'address') return ['their full delivery address']
+    if (u === 'address') {
+      const st = note.street
+      return [
+        st
+          ? `the street name (it sounded like "${st.heard}"${st.suggestion ? `; it may be ${st.suggestion}` : ''})`
+          : 'their full delivery address',
+      ]
+    }
     return ['where exactly to deliver']
   })
   const unique = [...new Set(asks)]

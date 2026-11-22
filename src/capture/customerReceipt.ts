@@ -9,6 +9,7 @@ import type { Credit } from '../verify/types'
 
 export type CustomerReceipt = {
   shop: string
+  // Empty when the shop keeps order numbers off its receipts.
   orderCode: string
   customer: string | null
   // When the last of the money landed, Lagos wall-clock; null if the bank
@@ -119,7 +120,7 @@ export const receiptTitle = (r: CustomerReceipt) =>
 export function receiptText(r: CustomerReceipt): string {
   return [
     `*${receiptTitle(r)}* ✅`,
-    [r.shop, `Order ${r.orderCode}`].filter(Boolean).join(' · '),
+    [r.shop, r.orderCode && `Order ${r.orderCode}`].filter(Boolean).join(' · '),
     ...(r.paidAt !== null ? [receiptTime(r.paidAt)] : []),
     '',
     ...r.lines.map(

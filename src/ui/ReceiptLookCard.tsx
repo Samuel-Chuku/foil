@@ -38,8 +38,9 @@ export function ReceiptLookCard(props: { brand: BrandApi; shopName: string }) {
     null,
   )
   const look = draft ?? saved
+  const sample = preview(props.shopName || 'Your shop')
   const picture = useReceiptPicture(
-    preview(props.shopName || 'Your shop'),
+    look.showOrderNumber ? sample : { ...sample, orderCode: '' },
     look,
   )
   const change = (next: Partial<Brand>) => {
@@ -207,6 +208,15 @@ export function ReceiptLookCard(props: { brand: BrandApi; shopName: string }) {
         </label>
       </fieldset>
 
+      <label>
+        <input
+          type="checkbox"
+          checked={look.showOrderNumber}
+          onChange={(e) => change({ showOrderNumber: e.target.checked })}
+        />{' '}
+        Show the order number on receipts
+      </label>
+
       <h4>Preview</h4>
       {picture ? (
         <img
@@ -241,7 +251,12 @@ export function ReceiptLookCard(props: { brand: BrandApi; shopName: string }) {
           <button
             type="button"
             className="quiet"
-            onClick={() => void save(PLAIN_BRAND)}
+            onClick={() =>
+              void save({
+                ...PLAIN_BRAND,
+                showOrderNumber: saved.showOrderNumber,
+              })
+            }
           >
             Back to the plain style
           </button>

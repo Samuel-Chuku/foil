@@ -33,12 +33,15 @@ export type Brand = {
   // "#1d3b53", or null for the plain style.
   color: string | null
   font: BrandFont
+  // Whether receipts show the order number; some shops keep it internal.
+  showOrderNumber: boolean
 }
 
 export const PLAIN_BRAND: Brand = {
   logo: null,
   color: null,
   font: { kind: 'builtin', id: 'simple' },
+  showOrderNumber: true,
 }
 
 const HEX = /^#[0-9a-f]{6}$/i
@@ -73,6 +76,7 @@ export function parseBrand(raw: unknown): Brand {
         : null,
     color: typeof r.color === 'string' && HEX.test(r.color) ? r.color : null,
     font,
+    showOrderNumber: r.showOrderNumber !== false,
   }
 }
 
@@ -162,4 +166,15 @@ export function logoColors(pixels: Uint8ClampedArray, max = 4): string[] {
     if (picked.length === max) break
   }
   return picked
+}
+
+// The brand colour mixed into the paper, so the whole receipt carries the
+// brand while text stays readable on it.
+export function tint(color: string, paper: string, amount: number): string {
+  const [a, b] = [channels(color), channels(paper)]
+  return toHex(
+    a[0] * amount + b[0] * (1 - amount),
+    a[1] * amount + b[1] * (1 - amount),
+    a[2] * amount + b[2] * (1 - amount),
+  )
 }

@@ -7,6 +7,7 @@ import {
   parseBrand,
   PLAIN_BRAND,
   readableOn,
+  tint,
 } from './brand'
 
 const px = (...rgba: [number, number, number, number][]) =>
@@ -77,5 +78,21 @@ describe('logoColors', () => {
       [168, 109, 149, 255],
     )
     expect(logoColors(pixels)).toEqual(['#1d3b53', '#e6aa14'])
+  })
+})
+
+describe('tint', () => {
+  it('mixes the brand into the paper and keeps dark text readable', () => {
+    expect(tint('#000000', '#ffffff', 0.5)).toBe('#808080')
+    for (const brand of ['#7a1f5c', '#1d3b53', '#f5d000', '#e34948']) {
+      expect(contrast('#1f1f1f', tint(brand, '#fbfaf6', 0.1))).toBeGreaterThan(
+        12,
+      )
+    }
+  })
+
+  it('shows the order number unless the shop turned it off', () => {
+    expect(parseBrand({}).showOrderNumber).toBe(true)
+    expect(parseBrand({ showOrderNumber: false }).showOrderNumber).toBe(false)
   })
 })

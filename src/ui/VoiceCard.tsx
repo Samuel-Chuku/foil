@@ -14,6 +14,7 @@ export function VoiceCard(props: {
   badge: (r: Reading<unknown>) => ReactNode
   hasForm: boolean
   onUse: () => void
+  onStreet: (known: string) => void
   onClose: () => void
 }) {
   const { step } = props
@@ -33,6 +34,7 @@ export function VoiceCard(props: {
           used={step.used}
           hasForm={props.hasForm}
           onUse={props.onUse}
+          onStreet={props.onStreet}
         />
       )}
       {step.status !== 'running' && (
@@ -50,6 +52,7 @@ function VoiceResult(props: {
   used: boolean
   hasForm: boolean
   onUse: () => void
+  onStreet: (known: string) => void
 }) {
   const { note } = props
   const unsure = (name: string) => note.unsure.includes(name)
@@ -86,6 +89,27 @@ function VoiceResult(props: {
               {[o.deliveryChoice, place].filter(Boolean).join(': ')}
               {['address', 'area', 'state', 'landmark'].some(unsure) && (
                 <span className="tag unsure"> unclear</span>
+              )}
+            </dd>
+          </>
+        )}
+        {note.street && (
+          <>
+            <dt>Street</dt>
+            <dd>
+              Heard as &ldquo;{note.street.heard}&rdquo;, which the desk cannot
+              check, so the reply will ask the customer to confirm it.
+              {note.street.suggestion && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => props.onStreet(note.street!.suggestion!)}
+                  >
+                    It is {note.street.suggestion}
+                  </button>
+                </>
               )}
             </dd>
           </>
