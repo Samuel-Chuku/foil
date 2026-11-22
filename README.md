@@ -23,7 +23,7 @@ Customers' names, phone numbers, addresses and chats never leave the computer by
 | **Hybrid surface used** | `ONLY_ON_DEVICE` for six private features, `PREFER_ON_DEVICE` after consent, `ONLY_IN_CLOUD` for audio, multi-turn chat and multi-day review ([§7](#7-hybrid-inference-feature-by-feature))                                               |
 | **Headline result**     | Receipts read on device in a median **3.4 s**; **every** wrong reading became "check this", never a false match ([§11](#11-measured-not-asserted))                                                                                        |
 | **Privacy**             | Approval dialog on every cloud call; books in Firestore hold amounts and states only, behind closed-schema rules ([§10](#10-privacy-and-data-flow))                                                                                       |
-| **Tests**               | 376 unit tests and 7 Firestore-rules emulator tests ([§13](#13-testing))                                                                                                                                                                  |
+| **Tests**               | 389 unit tests and 7 Firestore-rules emulator tests ([§13](#13-testing))                                                                                                                                                                  |
 | **Firebase products**   | AI Logic, App Check, Remote Config, Cloud Firestore, Authentication, Hosting ([§12](#12-firebase-products-used))                                                                                                                          |
 | **Licence**             | [Apache-2.0](LICENSE)                                                                                                                                                                                                                     |
 
@@ -70,15 +70,15 @@ The hard part is not reading a receipt. It is deciding, safely, whether a specif
 
 No install, no account and no keys. Everything in the demo is invented and stays in your browser.
 
-| Step | Do this                                                                              | You should see                                                                                                                              |
-| ---- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Open the hosted demo in desktop Chrome                                               | A short introduction; the panel on the right shows the on-device model's state                                                              |
-| 2    | Choose **Start with Adaeze's chat**, then click **Verify payment** under her receipt | Amount, sender, bank, session ID and time, a verdict **Paid** with its reason, and an **On device** badge with the seconds it took          |
-| 3    | Click **Capture order from chat**, **Save order**, then **Draft a reply**            | The order with list prices and the Yaba delivery fee; a reply in WhatsApp's message box asking for the ₦1,500 balance, not sent             |
-| 4    | Open **Inbox** and choose **Let time pass**                                          | Late bank alerts arrive; waiting orders turn paid on their own and appear under **Now paid**                                                |
-| 5    | In **Ask the desk** at the foot of the panel, choose **What should I restock?**      | An approval dialog listing exactly what will be sent (no customer names); after **Send this**, an answer with a chart and a **Cloud** badge |
-| 6    | Open the **Today** tab, then **Your business over time**, and **Write a review**     | Six charts drawn on the device; a cloud review whose findings each carry one of those charts                                                |
-| 7    | Back in Adaeze's chat, use **Receipt for the customer**                              | A receipt picture to copy or download, and a text version for the message box; the shop's look is set under **Shop** > **Receipt look**     |
+| Step | Do this                                                                              | You should see                                                                                                                                                                                                                                               |
+| ---- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | Open the hosted demo in desktop Chrome                                               | A short introduction; the panel on the right shows the on-device model's state                                                                                                                                                                               |
+| 2    | Choose **Start with Adaeze's chat**, then click **Verify payment** under her receipt | Amount, sender, bank, session ID and time, a verdict **Paid** with its reason, and an **On device** badge with the seconds it took                                                                                                                           |
+| 3    | Click **Capture order from chat**, **Save order**, then **Draft a reply**            | The order with list prices and the Yaba delivery fee; a reply in WhatsApp's message box asking for the ₦1,500 balance, not sent                                                                                                                              |
+| 4    | Open **Inbox** and choose **Let time pass**                                          | Late bank alerts arrive; waiting orders turn paid on their own and appear under **Now paid**                                                                                                                                                                 |
+| 5    | In **Ask the desk** at the foot of the panel, choose **What should I restock?**      | With the on-device model, an answer in about 3 seconds with an **On device** badge and nothing sent. Without it, an approval dialog listing exactly what will be sent (no customer names); after **Send this**, an answer with a chart and a **Cloud** badge |
+| 6    | Open the **Today** tab, then **Your business over time**, and **Write a review**     | Six charts drawn on the device; a cloud review whose findings each carry one of those charts                                                                                                                                                                 |
+| 7    | Back in Adaeze's chat, use **Receipt for the customer**                              | A receipt picture to copy or download, and a text version for the message box; the shop's look is set under **Shop** > **Receipt look**                                                                                                                      |
 
 **Another market?** Choose **Mumbai: UPI** or **São Paulo: Pix** at the top of the demo. Priya's UPI receipt is matched by its 12-digit UPI reference; in São Paulo, Fernanda's receipt says Itaú while its Pix ID carries Nubank's bank code, so it does not match, and replies are drafted in Portuguese through the cloud after approval.
 
@@ -88,7 +88,7 @@ No install, no account and no keys. Everything in the demo is invented and stays
 
 ```bash
 npm install
-npm test             # expect: 376 passed, covering matching, parsing, books, receipts, errors
+npm test             # expect: 389 passed, covering matching, parsing, books, receipts, errors
 npm run test:rules   # expect: 7 passed against the Firestore emulator (needs Java)
 npm run typecheck && npm run lint   # expect: no output
 ```
@@ -163,7 +163,7 @@ The receipt picture can carry the shop's own look: its logo (with colours sugges
 - **Money not tied to an order:** double payments and overpayments are recorded as refund owed, refunded or kept, and outgoing refund alerts are matched automatically. The desk records decisions; it never moves money.
 - **Books for the day:** totals, part payments, refunds, deliveries and open orders by number.
 - **Your business over time:** sales, order hours, time to payment, money by bank and top items over 7, 14 or 30 days, as six charts, with a written review from the cloud.
-- **Ask the desk:** a chat about the whole business ("which orders still need sending?", "what should I restock?", "how did this week compare with last?"). It is sent the shop's own facts, orders by number, items, stock, money and rules, never customers' names, phones or addresses. Answers can carry a chart.
+- **Ask the desk:** a chat about the whole business ("which orders still need sending?", "what should I restock?", "how did this week compare with last?"). It is sent the shop's own facts, orders by number, items, stock, money and rules, never customers' names, phones or addresses. Answers can carry a chart. When Chrome's model is ready, each question is answered on the device and nothing is sent; **Ask the cloud instead** sends it after approval. Common answers, such as which orders are unpaid or ready to send, are worked out in code first, and order numbers in an on-device answer are checked against the real orders.
 - **Offline and power cuts:** records are saved on the device with strict durability, and the cloud books catch up when the connection returns.
 
 ![A chat answer comparing this week with last week, with a stacked chart of paid and still-open sales by day, marked Cloud](docs/images/books-chat-chart.png)
@@ -172,20 +172,21 @@ The receipt picture can carry the shop's own look: its logo (with colours sugges
 
 Every AI call goes through the **Firebase AI Logic** web SDK. Each feature has its **own model instance with its own inference mode**, chosen for what that feature needs.
 
-| Feature                                  | Inference mode                                     | Why it runs there                                                                    |
-| ---------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Read a receipt screenshot                | `ONLY_ON_DEVICE`                                   | Image input; customer and bank details never leave the computer                      |
-| Read a bank-app history screenshot       | `ONLY_ON_DEVICE`                                   | The seller's own account data                                                        |
-| Parse an unfamiliar bank alert email     | `ONLY_ON_DEVICE` (known banks use rules, no model) | The seller's own account data                                                        |
-| Capture order and delivery details       | `ONLY_ON_DEVICE`                                   | Customer names, phones and addresses                                                 |
-| Draft a reply in English or Pidgin       | `ONLY_ON_DEVICE`                                   | Built from the customer's chat                                                       |
-| Draft a reply in Brazilian Portuguese    | `ONLY_IN_CLOUD`, after approval, names swapped out | Chrome's built-in model documents English, Japanese, Spanish, German and French only |
-| Sort the waiting queue                   | `ONLY_ON_DEVICE`                                   | High volume, private, no cost per message                                            |
-| Any of the above, after explicit consent | `PREFER_ON_DEVICE`                                 | Computers without the model can still use the desk                                   |
-| Read a voice note                        | `ONLY_IN_CLOUD`, after approval                    | The on-device model does not take audio                                              |
-| Ask the desk                             | `ONLY_IN_CLOUD`, after approval, shop facts only   | Multi-turn chat does not run on device on the web                                    |
-| Review the last 7 to 30 days             | `ONLY_IN_CLOUD`, after approval, totals only       | Reasoning across many days with structured output                                    |
-| Match a payment                          | Rules, no model                                    | A payment decision must be explainable and repeatable                                |
+| Feature                                  | Inference mode                                     | Why it runs there                                                                                  |
+| ---------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Read a receipt screenshot                | `ONLY_ON_DEVICE`                                   | Image input; customer and bank details never leave the computer                                    |
+| Read a bank-app history screenshot       | `ONLY_ON_DEVICE`                                   | The seller's own account data                                                                      |
+| Parse an unfamiliar bank alert email     | `ONLY_ON_DEVICE` (known banks use rules, no model) | The seller's own account data                                                                      |
+| Capture order and delivery details       | `ONLY_ON_DEVICE`                                   | Customer names, phones and addresses                                                               |
+| Draft a reply in English or Pidgin       | `ONLY_ON_DEVICE`                                   | Built from the customer's chat                                                                     |
+| Draft a reply in Brazilian Portuguese    | `ONLY_IN_CLOUD`, after approval, names swapped out | Chrome's built-in model documents English, Japanese, Spanish, German and French only               |
+| Sort the waiting queue                   | `ONLY_ON_DEVICE`                                   | High volume, private, no cost per message                                                          |
+| Any of the above, after explicit consent | `PREFER_ON_DEVICE`                                 | Computers without the model can still use the desk                                                 |
+| Read a voice note                        | `ONLY_IN_CLOUD`, after approval                    | The on-device model does not take audio                                                            |
+| Ask the desk                             | `ONLY_ON_DEVICE` when the model is ready           | One self-contained request per question, carrying the facts and the last exchanges                 |
+| Ask the desk, cloud                      | `ONLY_IN_CLOUD`, after approval, shop facts only   | On request, in Portuguese, or without the model; multi-turn chat runs only in the cloud on the web |
+| Review the last 7 to 30 days             | `ONLY_IN_CLOUD`, after approval, totals only       | Reasoning across many days with structured output                                                  |
+| Match a payment                          | Rules, no model                                    | A payment decision must be explainable and repeatable                                              |
 
 Each private feature gets two instances: one that can never leave the device, and one used only after the seller consents to the cloud on a computer without the model ([`src/ai/device.ts`](src/ai/device.ts)):
 
@@ -339,9 +340,31 @@ Measured on 21 November 2026 on a laptop with an RTX 3060 Mobile, Chrome 157 and
 | Drafts in the customer's language, with no odd wording | 30/30               |
 | Median time on device: receipt, order, draft           | 3.4 s, 3.3 s, 2.0 s |
 
+**Mumbai (UPI) and São Paulo (Pix)**, measured the same way on 22 November 2026 (3 passes over each city's synthetic sample day):
+
+| What                                             | Mumbai              | São Paulo                |
+| ------------------------------------------------ | ------------------- | ------------------------ |
+| Every call on device                             | 9/9                 | 12/12                    |
+| Receipt amount, sender and status                | 9/9 each            | 12/12 each               |
+| Reference (UPI reference or Pix ID) read exactly | 8/9                 | 10/12                    |
+| Payment verdicts                                 | 9/9                 | 11/12                    |
+| Order totals, items, quantities and pickup       | 9/9 each            | 11/12, 12/12, 12/12, 6/6 |
+| Replies in English, with no odd wording          | 9/9                 | cloud by design          |
+| Median time on device: receipt, order, reply     | 3.7 s, 3.6 s, 2.4 s | 3.7 s, 3.4 s, –          |
+
+Measuring the new markets also found and fixed four engine faults:
+
+- a Pix ID glued to the next field;
+- Portuguese pickup phrases not recognised;
+- two amounts in one field read as one;
+- a misread date inside a reference treated as a mismatch.
+
+The one São Paulo verdict miss was a misread Pix ID that became _check this_.
+
 - **Both missed verdicts came out as _check this_**, which hands the decision to the seller. A misread session ID caused each one; neither was a false match or a false mismatch. That is the design working: a misread ID becomes a question, not a wrong answer.
 - **The first on-device call** after Chrome starts took 16 seconds while the model loaded. The panel warms the model up in the background, so the seller's first click is usually quick.
-- **Cloud calls** took 6 to 12 seconds for voice notes, 1.5 to 3 seconds for the review, and up to about 8 seconds for Ask the desk with a full day's facts.
+- **Cloud calls** took 6 to 12 seconds for voice notes, 1.5 to 3 seconds for the review, and up to about 8 seconds for Ask the desk with a full day's facts. Ask the desk on the device answered in about 3 seconds.
+- **Ask the desk on the device** sometimes ran neighbouring order numbers together ("#78, #80" written as "#780"). Common answers are now worked out in code and given to the model, and order numbers in an answer are checked against the shop's real orders.
 - **Lessons that shaped the design:**
   - Constraining amounts to a JSON _number_ made the model drop the thousands comma (₦45,000.00 became 450000). Reading amounts as text and parsing them in code fixed it.
   - A voice note heard "Bode Thomas Street" as "Potiskum Street". Street names are now checked in code against well-known streets: near-certain spellings are corrected, close ones are suggested for the seller to confirm, and unknown ones make the draft ask the customer to confirm the street by name.
@@ -351,7 +374,7 @@ Measured on 21 November 2026 on a laptop with an RTX 3060 Mobile, Chrome 157 and
 | Product                                      | How it is used                                                                                                                                                                         |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Firebase AI Logic** (Gemini Developer API) | Hybrid on-device and cloud inference, per-feature inference modes, JSON-schema and regex-constrained output on device, structured output, multi-turn chat and audio input in the cloud |
-| **App Check**                                | reCAPTCHA Enterprise on the hosted demo; a debug token in the extension during development                                                                                             |
+| **App Check**                                | reCAPTCHA Enterprise on the hosted demo; the extension gets real reCAPTCHA Enterprise tokens through a small bridge page on the hosted domain, which only the extension may embed      |
 | **Remote Config**                            | The cloud model name, matching thresholds, bank details and alert patterns, photo-match thresholds and the Pidgin glossary, with in-code defaults when offline                         |
 | **Cloud Firestore**                          | The seller's books and refund decisions, with an offline cache and closed-schema, owner-only security rules                                                                            |
 | **Authentication**                           | Anonymous sign-in, so the books have an owner without the seller creating an account                                                                                                   |
@@ -360,7 +383,7 @@ Measured on 21 November 2026 on a laptop with an RTX 3060 Mobile, Chrome 157 and
 ## 13. Testing
 
 ```bash
-npm test             # 376 unit tests for all pure logic
+npm test             # 389 unit tests for all pure logic
 npm run test:rules   # 7 Firestore rules tests against the local emulators (needs Java)
 npm run typecheck
 npm run lint
@@ -410,7 +433,7 @@ What does not change between markets: the "did the money land?" matching, orders
 
 ## 15. Limitations
 
-- **Lagos is measured; Mumbai and São Paulo are spot-checked.** The accuracy numbers above are for Lagos. The Mumbai and São Paulo sample days were run through the on-device model by hand and reached their intended verdicts, but have not had a repeated, labelled measurement yet. Alert sender addresses for Indian and Brazilian banks are fictional placeholders until each bank's real address is confirmed.
+- **Synthetic sample days.** All three cities were measured on invented, clean sample days. Alert sender addresses for Indian and Brazilian banks are fictional placeholders until each bank's real address is confirmed.
 - **Desktop only.** Chrome on phones always uses the cloud, and many sellers sell from a phone. On-device Android is the natural next platform.
 - **Hardware.** The on-device model needs a supported GPU and a one-time download. Computers without it fall back to the cloud only with the seller's consent.
 - **Synthetic accuracy set.** The measured numbers are on invented, clean inputs. Real receipts can be cropped, compressed or photographed, and real alert formats vary.
@@ -419,7 +442,7 @@ What does not change between markets: the "did the money land?" matching, orders
 - **WhatsApp Web changes.** The content script reads the page as displayed; a WhatsApp Web redesign may need selector updates. It never automates WhatsApp, in line with WhatsApp's terms.
 - **Gmail only** for alert emails in this version. Bank SMS alerts are not read.
 - **Free-tier cloud.** The cloud features run on the Gemini Developer API free tier, so heavy use can hit rate limits; the error says so plainly, and the device features keep working.
-- **The extension's App Check** uses a development debug token, so judges are pointed to the hosted demo ([§18](#18-roadmap-and-production-path)).
+- **The extension's App Check bridge** answers only the extension ID it was set up for, so a copy built from this repository needs its own Firebase project and bridge. Judges are pointed to the hosted demo.
 
 ## 16. Design decisions
 
@@ -428,7 +451,7 @@ What does not change between markets: the "did the money land?" matching, orders
 - **Why rules for matching, not the model?** A payment decision must be repeatable and explainable. The model is good at reading messy images and text; the rules are good at deciding.
 - **Why a side panel beside WhatsApp Web?** Sellers already work there. A separate app would mean exporting chats and copying details, which is exactly the work being removed.
 - **Why an approval dialog on every cloud job?** It turns a privacy promise into something the seller can see, every time.
-- **Why the cloud for voice, chat and reviews only?** Those are the jobs Chrome's model cannot do on the web (audio, multi-turn chat) or does not need to see private data for (totals). Everything that touches a customer's details stays on the device.
+- **Why the cloud for voice, chat and reviews only?** Those are the jobs Chrome's model cannot do on the web (audio, multi-turn chat) or does not need to see private data for (totals). Even Ask the desk answers single questions on the device when it can. Everything that touches a customer's details stays on the device.
 
 ## 17. Provenance and originality
 
@@ -439,7 +462,6 @@ What does not change between markets: the "did the money land?" matching, orders
 
 ## 18. Roadmap and production path
 
-- **Real attestation for the extension:** the side panel gets an App Check token from a small page on the hosted domain using reCAPTCHA Enterprise, replacing the debug token.
 - **Bank data without email:** a fintech webhook or open-banking feed behind a small server would replace reading alert emails, keeping the same matching rules.
 - **Delivery runs:** grouping the day's approved delivery areas and landmarks into rider runs with Grounding with Google Maps.
 - **Android:** the same engine with on-device inference on phones, where most sellers already sell.
@@ -467,13 +489,13 @@ cp .env.example .env.local   # then fill in your Firebase web config and reCAPTC
 npm run dev                  # open the printed URL in desktop Chrome
 ```
 
-1. On first run, the App Check SDK prints a **debug token** in the browser console. Register it in the Firebase console under App Check > Apps > Manage debug tokens, and put it in `.env.local` as `VITE_APPCHECK_DEBUG_TOKEN`.
+1. For local development, the App Check SDK prints a **debug token** in the browser console on first run. Register it in the Firebase console under App Check > Apps > Manage debug tokens, and put it in `.env.local` as `VITE_APPCHECK_DEBUG_TOKEN`. Production builds never include it.
 2. Deploy the security rules: `npx firebase login`, then `npx firebase deploy --only firestore:rules`.
 3. Optional: set the Remote Config parameters listed in [`src/config/parse.ts`](src/config/parse.ts) to change the cloud model, thresholds or bank details without a release.
 
 ### The Chrome extension
 
-**Judges: please use the hosted demo.** The extension attests to App Check with a development debug token, which cannot be published, so a build from this repository needs your own Firebase project, set up as above.
+**Judges: please use the hosted demo.** The extension gets real App Check tokens from a bridge page on the hosted domain, and that page answers only the extension ID it was set up for. A build from this repository needs your own Firebase project, set up as above.
 
 ```bash
 npm run build:extension
@@ -481,27 +503,28 @@ npm run build:extension
 
 1. Open `chrome://extensions`, turn on **Developer mode**, choose **Load unpacked** and select the `dist-extension` folder.
 2. Open WhatsApp Web, then the extension's side panel. A short **Getting started** card explains the first steps.
-3. For bank alerts from Gmail, create a "Web application" OAuth client whose redirect URI is `https://<extension id>.chromiumapp.org/`, and set `VITE_GMAIL_WEB_CLIENT_ID` before building.
+3. For real App Check tokens, deploy the hosted app, put your extension's ID in `src/bridge/protocol.ts` and in the `/appcheck.html` header in `firebase.json`, and set `VITE_APPCHECK_BRIDGE_URL` to your `https://<project>.web.app/appcheck.html` before building. Without it, the extension uses your debug token.
+4. For bank alerts from Gmail, create a "Web application" OAuth client whose redirect URI is `https://<extension id>.chromiumapp.org/`, and set `VITE_GMAIL_WEB_CLIENT_ID` before building.
 
 ### Troubleshooting
 
 | Symptom                                       | What to do                                                                                                                |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | "This computer has no on-device model"        | Check `chrome://on-device-internals`; on two-GPU laptops run Chrome on the dedicated GPU; or allow the cloud in the panel |
-| "The cloud refused this app"                  | The App Check debug token is missing or not registered in the console                                                     |
+| "The cloud refused this app"                  | The App Check debug token is missing or not registered, or the bridge page does not list your extension's ID              |
 | "The free cloud allowance is used up for now" | The Gemini free tier hit its limit; wait a minute. On-device features and the rules keep working                          |
 | The books say "the books refused the update"  | Deploy the current `firestore.rules`                                                                                      |
 
 ## 20. Hackathon rules compliance
 
-| Rule                                                | How this project meets it                                                                                                                                         |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Every AI call goes through Firebase AI Logic        | All model calls use the Firebase AI Logic web SDK. Chrome's `LanguageModel.availability()` is called directly only to show the model's state, never for inference |
-| Firebase AI Logic is imported and called at runtime | Every feature in [§7](#7-hybrid-inference-feature-by-feature) calls it on the seller's click                                                                      |
-| App Check is enabled                                | reCAPTCHA Enterprise on the hosted demo; debug tokens are kept in `.env.local`, never committed                                                                   |
-| No secrets or personal data in the repo             | `.env.example` holds empty values; sample data, screenshots and tests are invented                                                                                |
-| Open-source licence                                 | Apache-2.0, at the repository root                                                                                                                                |
-| Free to use, in English                             | The demo needs no account and costs nothing to use                                                                                                                |
+| Rule                                                | How this project meets it                                                                                                                                           |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Every AI call goes through Firebase AI Logic        | All model calls use the Firebase AI Logic web SDK. Chrome's `LanguageModel.availability()` is called directly only to show the model's state, never for inference   |
+| Firebase AI Logic is imported and called at runtime | Every feature in [§7](#7-hybrid-inference-feature-by-feature) calls it on the seller's click                                                                        |
+| App Check is enabled                                | reCAPTCHA Enterprise on the hosted demo and, through a bridge page, in the extension; debug tokens are for local development, kept in `.env.local`, never committed |
+| No secrets or personal data in the repo             | `.env.example` holds empty values; sample data, screenshots and tests are invented                                                                                  |
+| Open-source licence                                 | Apache-2.0, at the repository root                                                                                                                                  |
+| Free to use, in English                             | The demo needs no account and costs nothing to use                                                                                                                  |
 
 ## Licence
 
