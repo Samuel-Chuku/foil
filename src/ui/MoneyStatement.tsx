@@ -18,31 +18,19 @@ function dayTitle(day: string | null): string {
 const sums = (inKobo: number, outKobo: number) =>
   `In ${formatMoney(inKobo)} · Out ${formatMoney(outKobo)}`
 
-export function MoneyFlowCard(props: { ledger: LedgerApi }) {
+// The full statement: every alert, by day and then by bank. Shown inside the
+// money dashboard, below its latest alerts.
+export function MoneyStatement(props: { ledger: LedgerApi }) {
   const { data, config } = props.ledger
   const bankName = (id: string | null) =>
     config.banks.find((b) => b.id === id)?.name ?? 'Bank not known'
   const days = data
     ? moneyFlow(data.credits, data.orders, data.settlements)
     : []
-  const today = days[0]
 
   return (
-    <details className="card shop-rules money-flow">
-      <summary>
-        <h3>Money in and out</h3>
-        <span className="hint">
-          {!data
-            ? 'Loading…'
-            : !today
-              ? 'Nothing read from your banks yet.'
-              : `${dayTitle(today.day)}: ${sums(today.inKobo, today.outKobo)}`}
-        </span>
-      </summary>
-      <p className="hint">
-        Every credit and debit read from your alerts and bank-app screenshots,
-        newest first. It stays on this computer.
-      </p>
+    <details className="money-flow">
+      <summary>Every alert, by day and bank</summary>
       {days.map((d) => (
         <section key={d.day ?? 'undated'} className="flow-day">
           <h4>

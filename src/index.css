@@ -1057,3 +1057,10 @@ button.link {
   stroke: var(--page-bg);
   stroke-width: 2;
 }
+.money-flow {
+  margin-top: 0.75rem;
+}
+.money-flow > summary {
+  cursor: pointer;
+  font-weight: 600;
+}

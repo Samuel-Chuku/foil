@@ -3,6 +3,7 @@ import type { ChartSpec } from '../ledger/charts'
 import { moneyPulse, type Side } from '../ledger/pulse'
 import { formatMoney } from '../verify/money'
 import { Chart } from './Chart'
+import { MoneyStatement } from './MoneyStatement'
 import type { LedgerApi } from './useLedger'
 
 const SPANS = [7, 14, 30] as const
@@ -167,6 +168,7 @@ export function MoneyPulseCard(props: { ledger: LedgerApi; now: number }) {
               </li>
             ))}
           </ul>
+          <MoneyStatement ledger={props.ledger} />
           <p className="hint">
             Counted only from your banks&rsquo; own alerts and your bank-app
             screenshots, never from a customer&rsquo;s receipt. Reversals are

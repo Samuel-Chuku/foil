@@ -94,7 +94,6 @@ import {
   unclaimedFacts,
 } from '../capture/drop'
 import { lagosFromEpoch } from '../verify/time'
-import { MoneyFlowCard } from './MoneyFlowCard'
 import { MoneyPulseCard } from './MoneyPulseCard'
 import { BooksCard } from './BooksCard'
 import { market } from '../config/market'
@@ -2146,8 +2145,6 @@ export function Panel(props: {
             app.
           </p>
         </section>
-
-        <MoneyFlowCard ledger={ledger} />
       </TabPanel>
 
       <TabPanel id="shop" current={tab}>
