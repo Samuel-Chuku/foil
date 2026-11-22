@@ -1,10 +1,10 @@
 # Vendor payment desk (working title)
 
-**Did the money actually land? A payment desk for WhatsApp sellers that checks every transfer receipt against the seller's own bank alerts, with the private reading done by AI on their own computer.**
+**Did the money actually land? A payment desk for anyone who sells in chats and gets paid by instant transfer: it checks every payment screenshot against the seller's own bank alerts, with the private reading done by AI on the seller's own computer.**
 
 _Built for #BuildHybridAI 2026, with Firebase AI Logic hybrid inference._
 
-In Lagos, a great deal of small retail happens in WhatsApp chats, and customers pay by bank transfer with a screenshot as proof. The desk sits beside WhatsApp Web as a Chrome side panel. On the seller's click, Chrome's built-in model reads the receipt on the seller's computer; plain rules match it against the seller's own bank alert emails; and the desk captures the order, drafts the reply into the message box (never sending it) and makes a receipt for the customer.
+From Lagos to Mumbai to São Paulo, millions of small businesses sell in chat apps and get paid by instant transfer, with a screenshot as the customer's proof. Forged screenshots are a known scam in every one of those markets ([§3](#3-the-problem)). This build starts in Lagos, where it is built and measured end to end for Nigerian bank transfers, and its engine is designed to carry to other instant-payment markets ([§14](#14-scope-what-the-desk-does-and-does-not-claim)). The desk sits beside WhatsApp Web as a Chrome side panel. On the seller's click, Chrome's built-in model reads the receipt on the seller's computer; plain rules match it against the seller's own bank alert emails; and the desk captures the order, drafts the reply into the message box (never sending it) and makes a receipt for the customer.
 
 Customers' names, phone numbers, addresses and chats never leave the computer by default. The cloud is used only for jobs the device cannot do (hearing voice notes, holding a conversation about the business, reviewing a week of trading), and each time the seller first sees exactly what will be sent and approves it.
 
@@ -14,17 +14,18 @@ Customers' names, phone numbers, addresses and chats never leave the computer by
 
 ## Status at a glance
 
-|                         |                                                                                                                                                                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Hosted demo**         | Link to follow at release. Sample data, no sign-up, any desktop Chrome ([§2](#2-try-it-in-five-minutes))                                                                                    |
-| **Demo video**          | Link to follow at release                                                                                                                                                                   |
-| **Chrome extension**    | Manifest V3 side panel for WhatsApp Web and Gmail, built from this repository ([§19](#19-run-it-yourself))                                                                                  |
-| **Hybrid surface used** | `ONLY_ON_DEVICE` for six private features, `PREFER_ON_DEVICE` after consent, `ONLY_IN_CLOUD` for audio, multi-turn chat and multi-day review ([§7](#7-hybrid-inference-feature-by-feature)) |
-| **Headline result**     | Receipts read on device in a median **3.4 s**; **every** wrong reading became "check this", never a false match ([§11](#11-measured-not-asserted))                                          |
-| **Privacy**             | Approval dialog on every cloud call; books in Firestore hold amounts and states only, behind closed-schema rules ([§10](#10-privacy-and-data-flow))                                         |
-| **Tests**               | 343 unit tests and 7 Firestore-rules emulator tests ([§13](#13-testing))                                                                                                                    |
-| **Firebase products**   | AI Logic, App Check, Remote Config, Cloud Firestore, Authentication, Hosting ([§12](#12-firebase-products-used))                                                                            |
-| **Licence**             | [Apache-2.0](LICENSE)                                                                                                                                                                       |
+|                         |                                                                                                                                                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hosted demo**         | Link to follow at release. Sample data, no sign-up, any desktop Chrome ([§2](#2-try-it-in-five-minutes))                                                                                              |
+| **Demo video**          | Link to follow at release                                                                                                                                                                             |
+| **Markets**             | Built and measured for Nigeria (NIP bank transfers); the problem and the approach apply wherever chat sellers are paid by instant transfer, such as UPI, Pix, M-Pesa and GCash ([§3](#3-the-problem)) |
+| **Chrome extension**    | Manifest V3 side panel for WhatsApp Web and Gmail, built from this repository ([§19](#19-run-it-yourself))                                                                                            |
+| **Hybrid surface used** | `ONLY_ON_DEVICE` for six private features, `PREFER_ON_DEVICE` after consent, `ONLY_IN_CLOUD` for audio, multi-turn chat and multi-day review ([§7](#7-hybrid-inference-feature-by-feature))           |
+| **Headline result**     | Receipts read on device in a median **3.4 s**; **every** wrong reading became "check this", never a false match ([§11](#11-measured-not-asserted))                                                    |
+| **Privacy**             | Approval dialog on every cloud call; books in Firestore hold amounts and states only, behind closed-schema rules ([§10](#10-privacy-and-data-flow))                                                   |
+| **Tests**               | 343 unit tests and 7 Firestore-rules emulator tests ([§13](#13-testing))                                                                                                                              |
+| **Firebase products**   | AI Logic, App Check, Remote Config, Cloud Firestore, Authentication, Hosting ([§12](#12-firebase-products-used))                                                                                      |
+| **Licence**             | [Apache-2.0](LICENSE)                                                                                                                                                                                 |
 
 ![The demo: a sample WhatsApp chat on the left and the desk's side panel on the right, showing a receipt verified on device in 4.6 seconds](docs/images/verify-on-device.jpg)
 
@@ -94,19 +95,29 @@ npm run typecheck && npm run lint   # expect: no output
 
 ## 3. The problem
 
-Sellers do this by hand, many times a day:
+Small businesses everywhere now sell through chat apps: WhatsApp alone had more than 200 million monthly users of its Business app by mid-2023, the last figure Meta published ([TechCrunch](https://techcrunch.com/2023/06/27/whatsapp-business-crosses-200m-maus-introduces-personlized-messages-feature/)). In much of the world they are paid by instant transfer, with customers sending a screenshot as proof, and forged or recycled screenshots are a documented scam in each of these markets:
 
-- **Check the money really arrived**, often across several bank accounts, while forged and edited receipts are common. In a September 2026 Sahara Reporters survey, 52% of 330 traders said they had been hit by fake payment receipts.
+| Market      | How chat sellers are paid                                                                                                                                                                                              | What is documented                                                                                                                                                                                                                                                                                        |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nigeria     | Bank transfer (NIP)                                                                                                                                                                                                    | Of 330 traders surveyed, 52% had fallen victim to fake transactions at least once, and 15% stopped accepting transfers after repeated incidents ([Sahara Reporters, Sep 2026](https://saharareporters.com/2026/09/20/investigation-how-online-platform-slipcraft-helps-scammers-fake-transfers-generate)) |
+| India       | UPI: 24.07 billion transactions in September 2026 alone ([NPCI data via StartupTalky](https://startuptalky.com/upi-transactions-september-2026/))                                                                      | Shops hand over goods against fake Google Pay screenshots ([Onmanorama, Sep 2026](https://www.onmanorama.com/news/kerala/2026/09/01/google-pay-scam-jewelry-theft-muvattupuzha.html))                                                                                                                     |
+| Brazil      | Pix: 76 billion transactions in 2026 up to October ([Banco Central via Agência Gov](https://agenciagov.ebc.com.br/noticias/202611/pix-celebra-6-anos-como-motor-de-inclusao-e-eficiencia-financeira-em-todo-o-brasil)) | Scammers send a fake Pix receipt ("comprovante falso") to get goods without paying ([Nubank](https://blog.nubank.com.br/comprovante-de-pix-falso-como-identificar-esse-golpe/))                                                                                                                           |
+| Kenya       | M-Pesa                                                                                                                                                                                                                 | Fake M-Pesa messages, where victims find no money arrived only after checking their balance ([The Star, Mar 2025](https://www.the-star.co.ke/news/2025-03-27-explainer-what-you-need-to-know-about-m-pesa-fraud-schemes))                                                                                 |
+| Philippines | GCash                                                                                                                                                                                                                  | Templates for fake GCash receipts reportedly sold online ([Unbox, Jul 2024](https://unbox.ph/news/fake-gcash-receipts/))                                                                                                                                                                                  |
+
+In every one of these markets the official advice is the same: **check that the money is in your own account, not the screenshot.** Nubank, for example, tells sellers not to hand over the product until they have checked their balance and statement. Sellers do that check by hand, many times a day, alongside everything else:
+
+- **Check the money really arrived**, often across several accounts, while customers wait.
 - **Match each payment to the right customer and order**, when several people pay similar amounts within minutes.
-- **Copy details out of the chat:** names, phone numbers, addresses, landmarks and items, typed in English and Nigerian Pidgin, sometimes as voice notes.
+- **Copy details out of the chat:** names, phone numbers, addresses, landmarks and items, often in a local language or a mix, sometimes as voice notes.
 - **Reply quickly**, before the customer loses patience and buys elsewhere.
 - **Close the day knowing** what is paid, what is still open and what is owed back to someone who paid twice.
 
-Sending goods against a receipt that never turned into money is a direct loss. Holding goods back while checking slowly loses sales. Most sellers cannot use payment links or dedicated accounts for every sale ([§16](#16-design-decisions)), so plain transfers and screenshots remain the norm.
+Sending goods against a screenshot that never turned into money is a direct loss. Holding goods back while checking slowly loses sales. Most sellers cannot use payment links or dedicated accounts for every sale ([§16](#16-design-decisions)), so plain transfers and screenshots remain the norm.
 
 ## 4. The idea: did the money land?
 
-Most tools ask **"is this receipt image fake?"**. This desk asks **"did the money land in the seller's account?"** It reads what the receipt claims, then checks it against evidence the forger does not control: the seller's own bank alert emails, or a screenshot of the seller's own banking app.
+Most tools ask **"is this receipt image fake?"**. This desk asks **"did the money land in the seller's account?"**, which is the check every bank and payment app already tells sellers to make. It reads what the receipt claims, then checks it against evidence the forger does not control: the seller's own bank alert emails, or a screenshot of the seller's own banking app.
 
 > **AI reads, rules decide.** The model extracts fields from images and text. Every payment decision is made by plain, testable rules, so each verdict comes with a reason the seller can check.
 
@@ -114,7 +125,8 @@ Around that answer, the desk finishes the job: the order, the delivery fee, the 
 
 ## 5. Who it is for
 
-- **Primary user:** a small business in Lagos selling on WhatsApp and Instagram, often one person with a helper and a rider, paid by plain bank transfers to banks such as GTBank, OPay, Moniepoint, Kuda and Access. They work from a laptop with WhatsApp Web and Gmail open; power cuts and patchy data are normal.
+- **Primary user:** a small business that sells in chats (clothes, shoes, accessories, food, thrift) and is paid by instant transfer, often one person with a helper and a rider, working from a laptop with WhatsApp Web and email open.
+- **Launch market: Lagos.** This build is made and measured for Lagos sellers paid by bank transfer to banks such as GTBank, OPay, Moniepoint, Kuda and Access, writing in English and Nigerian Pidgin, where power cuts and patchy data are normal. Lagos is a demanding first market: many banks with different alert formats, a documented fake-receipt problem, and sellers who work through outages.
 - **Two ways of selling:**
   - **Everyday:** customers chat, ask prices and pay at any time.
   - **Drops:** a timed sale posted to WhatsApp status, often of one-of-a-kind items, where many people reply at once and the first to pay wins.
@@ -378,8 +390,25 @@ The rules tests use a `demo-` project ID that can never reach a real project. On
 - Know about money the bank did not report. Without an alert email or a bank-app screenshot for an account, a payment to it shows as _not yet credited_.
 - Replace the seller's judgement. _Check this_ means exactly that, and the seller can always pick the credit or undo a decision.
 
+### Why Lagos first, and how it travels
+
+Lagos was chosen as the first market because the problem is acute and documented there, and because doing one market properly (real bank alert formats, real receipt layouts, Pidgin, delivery by area and park) proves more than a shallow version of many. The engine was built so that what is market-specific sits apart from what is not:
+
+| Part                                                                                                       | Market-neutral                     | Market-specific today                                                                           |
+| ---------------------------------------------------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| "Did the money land?" matching: one credit per order, time windows, names, reuse, reversals, part payments | Yes                                |                                                                                                 |
+| Orders, deliveries, stock, books, receipts, Ask the desk, approval dialog, privacy rules                   | Yes                                |                                                                                                 |
+| Bank list, alert sender addresses and patterns                                                             | Loaded from Remote Config          | Nigerian banks                                                                                  |
+| Transfer reference rules                                                                                   |                                    | NIP session IDs (structure, bank code, embedded time, reuse); each new rail needs its own rules |
+| Currency formatting                                                                                        |                                    | Naira                                                                                           |
+| Reply language and vocabulary                                                                              | Glossary loaded from Remote Config | English and Nigerian Pidgin                                                                     |
+| Sample data                                                                                                |                                    | A Lagos shop                                                                                    |
+
+Adding a market means adding its banks and alert formats, its transfer-reference rules (such as UPI's transaction reference or Pix's end-to-end ID), its currency and its reply language, without changing the matching engine, the privacy model or the hybrid routing.
+
 ## 15. Limitations
 
+- **One market built so far.** Bank formats, reference rules, currency, sample data and reply styles are Nigerian today; other markets need their own ([§14](#14-scope-what-the-desk-does-and-does-not-claim)).
 - **Desktop only.** Chrome on phones always uses the cloud, and many sellers sell from a phone. On-device Android is the natural next platform.
 - **Hardware.** The on-device model needs a supported GPU and a one-time download. Computers without it fall back to the cloud only with the seller's consent.
 - **Synthetic accuracy set.** The measured numbers are on invented, clean inputs. Real receipts can be cropped, compressed or photographed, and real alert formats vary.
@@ -412,7 +441,8 @@ The rules tests use a `demo-` project ID that can never reach a real project. On
 - **Bank data without email:** a fintech webhook or open-banking feed behind a small server would replace reading alert emails, keeping the same matching rules.
 - **Delivery runs:** grouping the day's approved delivery areas and landmarks into rider runs with Grounding with Google Maps.
 - **Android:** the same engine with on-device inference on phones, where most sellers already sell.
-- **More languages:** drafts in Yoruba, Igbo and Hausa through the cloud, with approval.
+- **More markets:** India (UPI), Brazil (Pix), Kenya (M-Pesa) and the Philippines (GCash), each with its own banks or wallets, reference rules, currency and reply language.
+- **More languages:** drafts in Yoruba, Igbo, Hausa, Hindi, Portuguese and Swahili, on device where quality allows and through the cloud with approval otherwise.
 
 ## 19. Run it yourself
 
