@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_VERIFY as config } from '../config/defaults'
 import { sampleHistory } from '../sample/history'
 import { CHART_IDS, chartSpec, sumOf } from './charts'
+import { dueKobo } from './ledger'
 import { pickAnswer, pickReport } from './report'
 import { shiftDay, trends, trendsText } from './trends'
 import type { Order } from './types'
@@ -29,10 +30,10 @@ describe('sampleHistory', () => {
     expect(data.credits.every((c) => c.sender === '')).toBe(true)
   })
 
-  it('pays every paid order with a credit of its amount', () => {
+  it('pays every paid order in full, delivery fee included', () => {
     for (const o of data.orders.filter((x) => x.payment.state === 'matched')) {
       const c = data.credits.find((x) => x.id === o.payment.creditId)
-      expect(c?.amountKobo).toBe(o.amountKobo)
+      expect(c?.amountKobo).toBe(dueKobo(o))
     }
   })
 })

@@ -14,14 +14,23 @@ const KEEP = 6
 export function noteFrom(
   key: string,
   name: string,
-  messages: { from: 'customer' | 'vendor'; time: string; text?: string }[],
+  messages: {
+    from: 'customer' | 'vendor'
+    time: string
+    text?: string
+    voice?: unknown
+  }[],
   now: number,
   before?: ChatNote,
 ): ChatNote | null {
+  // A voice note counts as a message, so a customer who only sent one is
+  // still sorted and shown as waiting.
+  const said = (m: (typeof messages)[number]) =>
+    m.text?.trim() || (m.voice ? '[sent a voice note]' : '')
   const recent = messages
-    .filter((m) => m.text?.trim())
+    .filter((m) => said(m))
     .slice(-KEEP)
-    .map((m) => ({ from: m.from, time: m.time, text: m.text!.trim() }))
+    .map((m) => ({ from: m.from, time: m.time, text: said(m) }))
   const last = messages.at(-1)
   if (!last) return null
   const note: ChatNote = {

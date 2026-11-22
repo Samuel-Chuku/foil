@@ -1,6 +1,6 @@
-import type { Order, Settlement } from '../ledger/types'
+import type { DeliveryPlan, Order, Settlement } from '../ledger/types'
 import type { Credit } from '../verify/types'
-import { SAMPLE_PRODUCTS } from './pack'
+import { SAMPLE_PRODUCTS, SAMPLE_SHOP_RULES } from './pack'
 
 // Two weeks of synthetic trading before the sample day, so the demo's
 // charts and review have trends to show. Orders carry no customer and
@@ -8,6 +8,14 @@ import { SAMPLE_PRODUCTS } from './pack'
 // fixed seed, so every visit sees the same history.
 
 const DAY = 86_400_000
+const NO_PLAN: DeliveryPlan = {
+  method: null,
+  area: '',
+  state: '',
+  park: '',
+  feeKobo: null,
+  paidTo: null,
+}
 const BANKS = ['gtbank', 'opay', 'moniepoint', 'kuda', 'access']
 // Orders on a typical Sunday to Saturday; Saturday is the shop's big day.
 const BY_WEEKDAY = [2, 3, 4, 4, 5, 6, 8]
@@ -51,6 +59,29 @@ export function sampleHistory(
   const credits: Credit[] = []
   const settlements: Settlement[] = []
   let code = 0
+  // Where orders go: the shop's own rider areas, pickup, and the odd park.
+  const pickPlan = (): DeliveryPlan => {
+    const r = rand()
+    if (r < 0.2) return { ...NO_PLAN, method: 'pickup' }
+    if (r < 0.28) {
+      return {
+        ...NO_PLAN,
+        method: 'nationwide',
+        state: 'Abuja',
+        park: 'Jabi',
+        feeKobo: 600_000,
+        paidTo: 'shop',
+      }
+    }
+    const area = pick(SAMPLE_SHOP_RULES.areaFees)
+    return {
+      ...NO_PLAN,
+      method: 'own-rider',
+      area: area.area,
+      feeKobo: area.feeKobo,
+      paidTo: 'rider',
+    }
+  }
 
   for (let back = days; back >= 1; back--) {
     const start = dayMs - back * DAY
@@ -77,6 +108,10 @@ export function sampleHistory(
         (s, i) => s + (i.priceKobo ?? 0) * i.qty,
         0,
       )
+      const plan = pickPlan()
+      // The transfer covers a delivery fee the shop collects.
+      const dueKobo =
+        amountKobo + (plan.paidTo === 'shop' ? (plan.feeKobo ?? 0) : 0)
       const createdAt = toEpoch(lagosAt)
       // Most pay within the hour; a few take a day; the newest may not
       // have paid yet.
@@ -113,7 +148,7 @@ export function sampleHistory(
           checkedAt: unpaid ? null : createdAt + Math.round(waitMin * 60_000),
         },
         receipt: null,
-        deliveryPlan: null,
+        deliveryPlan: plan,
         delivery: unpaid
           ? 'pending'
           : back <= 1
@@ -133,7 +168,7 @@ export function sampleHistory(
           bank: pick(BANKS),
           direction: 'credit',
           reversal: false,
-          amountKobo,
+          amountKobo: dueKobo,
           sender: '',
           narration: '',
           sessionId: null,

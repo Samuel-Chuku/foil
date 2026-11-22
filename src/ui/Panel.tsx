@@ -95,6 +95,8 @@ import {
 import { lagosFromEpoch } from '../verify/time'
 import { MoneyFlowCard } from './MoneyFlowCard'
 import { BooksCard } from './BooksCard'
+import { findOrders } from '../ledger/search'
+import { DeliveriesCard, DeliverySteps } from './DeliveriesCard'
 import { AskCard } from './AskCard'
 import { ReceiptCard } from './ReceiptCard'
 import { ReceiptLookCard } from './ReceiptLookCard'
@@ -120,6 +122,8 @@ type Verified = {
 
 type OrderForm = {
   delivery: DeliveryForm
+  // The address came from this customer's last saved order, for checking.
+  addressFromLast?: boolean
   customerName: string
   address: string
   landmark: string
@@ -166,6 +170,10 @@ type Work = {
   // Why the vendor's choice of credit was refused.
   notice?: string
 }
+
+// "Same address as last time", "same place as before", "as before".
+const SAME_AS_BEFORE =
+  /\bsame\b.*\b(address|place|location|spot)\b|\bas (last time|before)\b/i
 
 const PAYMENT_LABEL: Record<PaymentState, string> = {
   awaiting: 'Awaiting payment',
@@ -336,8 +344,13 @@ export function Panel(props: {
 
   const customerId = chat ? customerKey(chat.phone) : null
   const hasReceipt = chat?.messages.some((m) => m.image) ?? false
+  // An order stays open in its chat until it is delivered or collected.
   const openOrder = (orders: Order[], id: string | null) =>
-    orders.find((o) => o.customerId === id && o.delivery === 'pending') ?? null
+    orders.find(
+      (o) =>
+        o.customerId === id &&
+        (o.delivery === 'pending' || o.delivery === 'out'),
+    ) ?? null
   const order = data ? openOrder(data.orders, customerId) : null
 
   // Each read of a chat is noted for the waiting queue, on this device.
@@ -365,6 +378,11 @@ export function Panel(props: {
   }
   const today = new Date(host.now()).toISOString().slice(0, 10)
   const todays = data?.orders.filter((o) => lagos.day(o) === today) ?? []
+  const [orderQuery, setOrderQuery] = useState('')
+  const searching = orderQuery.trim() !== ''
+  const listed = searching
+    ? findOrders(data?.orders ?? [], data?.customers ?? [], orderQuery)
+    : todays
   const clock = (ms: number) =>
     new Date(lagosFromEpoch(ms) + clockShift()).toISOString().slice(11, 16)
 
@@ -613,13 +631,21 @@ export function Panel(props: {
         ? items.reduce((n, i) => n + i.qty * (i.priceKobo ?? 0), 0)
         : null
       const amountKobo = f.amountKobo ?? (listTotal || null)
+      // A returning customer who gives no address, or says "same address as
+      // last time", gets the one saved from their last order, marked for
+      // the vendor to check.
+      const saved = data?.customers.find((x) => x.id === customerId)
+      const reuse =
+        !!saved?.address &&
+        (!f.address.trim() || SAME_AS_BEFORE.test(f.address))
       const form: OrderForm = {
         ...(claimedAt !== undefined && { claimedAt }),
+        ...(reuse && { addressFromLast: true }),
         delivery: toDeliveryForm(planDelivery(f, shop.rules, chatText)),
         customerName: f.customerName || chat.contactName,
-        address: f.address,
-        landmark: f.landmark,
-        area: f.area,
+        address: reuse ? saved.address : f.address,
+        landmark: f.landmark || (reuse ? saved.landmark : ''),
+        area: f.area || (reuse ? saved.area : ''),
         amount: amountKobo === null ? '' : String(amountKobo / 100),
         items: items.map((i) => ({
           name: i.name,
@@ -1619,6 +1645,10 @@ export function Panel(props: {
                       </button>
                     </p>
                   )}
+                  <DeliverySteps
+                    order={order}
+                    onSet={(state) => void ledger.setDelivery(order.id, state)}
+                  />
                   {balance !== null && balance > 0 && (
                     <p className="hint">
                       Ask for the balance of {formatNaira(balance)}. When the
@@ -1835,6 +1865,12 @@ export function Panel(props: {
                       />
                     </label>
                   ))}
+                  {c.value.form.addressFromLast && (
+                    <p className="hint">
+                      The address is from this customer&apos;s last order. Check
+                      it is still right.
+                    </p>
+                  )}
                   {offersDelivery && (
                     <DeliveryFields
                       form={c.value.form.delivery}
@@ -1914,17 +1950,45 @@ export function Panel(props: {
         />
 
         <section className="card" aria-labelledby="today-h">
-          <h3 id="today-h">Today&apos;s orders</h3>
+          <h3 id="today-h">{searching ? 'Find an order' : "Today's orders"}</h3>
+          <label className="visually-hidden" htmlFor="order-search">
+            Find an order by number, name, phone or item
+          </label>
+          <input
+            id="order-search"
+            type="search"
+            value={orderQuery}
+            placeholder="Find by number, name, phone or item"
+            onChange={(e) => setOrderQuery(e.target.value)}
+          />
           {!data && !ledger.loadError && <p>Loading…</p>}
-          {todays.length === 0 && data && (
-            <p className="empty">No orders saved today yet.</p>
+          {data && listed.length === 0 && (
+            <p className="empty">
+              {searching
+                ? 'No order matches that, on any day.'
+                : 'No orders saved today yet.'}
+            </p>
           )}
-          {todays.length > 0 && (
+          {listed.length > 0 && (
             <ul className="orders">
-              {todays.map((o) => (
+              {listed.map((o) => (
                 <li key={o.id}>
                   <span>
-                    {o.code}. {customerName(o.customerId)}
+                    {o.code}.{' '}
+                    {host.openChat && o.customerId ? (
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() => host.openChat?.(o.customerId!)}
+                      >
+                        {customerName(o.customerId)}
+                      </button>
+                    ) : (
+                      customerName(o.customerId)
+                    )}
+                    {searching && lagos.day(o) !== today && (
+                      <span className="hint"> · {lagos.day(o)}</span>
+                    )}
                   </span>
                   <span>
                     {o.amountKobo === null ? '' : formatNaira(o.amountKobo)}
@@ -1939,6 +2003,12 @@ export function Panel(props: {
         </section>
 
         <DropCard ledger={ledger} clock={clock} />
+
+        <DeliveriesCard
+          ledger={ledger}
+          customerName={customerName}
+          onOpen={host.openChat}
+        />
 
         <BooksCard ledger={ledger} today={today} lagos={lagos} />
 

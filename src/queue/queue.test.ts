@@ -180,3 +180,19 @@ describe('triage', () => {
     expect(parseTriage('1:Z,2:O', 2)).toBeNull()
   })
 })
+
+describe('noteFrom with voice notes', () => {
+  it('counts a voice note as something the customer said', () => {
+    const note = noteFrom(
+      'k',
+      'Sample',
+      [
+        { from: 'vendor', time: '10:00', text: 'Hello' },
+        { from: 'customer', time: '10:05', voice: { seconds: 9 } },
+      ],
+      0,
+    )
+    expect(note?.lastFrom).toBe('customer')
+    expect(latestAsk(note!)).toBe('[sent a voice note]')
+  })
+})

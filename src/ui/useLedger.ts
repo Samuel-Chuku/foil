@@ -458,6 +458,21 @@ export function useLedger() {
     [reload],
   )
 
+  // Where an order has got to: sent out, delivered, collected, or back to
+  // not sent if the vendor marked it by mistake.
+  const setDelivery = useCallback(
+    async (orderId: string, delivery: Order['delivery']) => {
+      const d = await load()
+      const o = d.orders.find((x) => x.id === orderId)
+      if (!o || o.delivery === delivery) return
+      const next = { ...o, delivery, updatedAt: Date.now() }
+      await putAll({ orders: [next] })
+      await reload()
+      syncBooks({ orders: [next] })
+    },
+    [reload, syncBooks],
+  )
+
   // The vendor ends a hold early; the next in line holds from now.
   const releaseHold = useCallback(
     async (orderId: string) => {
@@ -476,7 +491,7 @@ export function useLedger() {
     async (
       key: string,
       name: string,
-      messages: { from: 'customer' | 'vendor'; time: string; text?: string }[],
+      messages: Parameters<typeof noteFrom>[2],
     ) => {
       const before = (await getAll('chats')).find((c) => c.id === key)
       const next = noteFrom(key, name, messages, Date.now(), before)
@@ -528,6 +543,7 @@ export function useLedger() {
     updateDrop,
     endDrop,
     releaseHold,
+    setDelivery,
     noteChat,
     labelChats,
     reset,
