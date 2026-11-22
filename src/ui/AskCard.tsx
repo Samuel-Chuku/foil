@@ -72,6 +72,19 @@ export function AskCard(props: {
         })
       : ''
 
+  // Whether the records themselves changed, rather than the text: the demo's
+  // sample clock drifts, which can move an order across an hour without any
+  // record changing.
+  const records = data
+    ? [
+        data.orders.length,
+        Math.max(0, ...data.orders.map((o) => o.updatedAt)),
+        data.credits.length,
+        data.settlements.length,
+        Math.max(0, ...data.products.map((p) => p.updatedAt)),
+      ].join(':')
+    : ''
+
   const chat = useRef<ChatSession | null>(null)
   const [sent, setSent] = useState<string | null>(null)
   const [turns, setTurns] = useState<Turn[]>([])
@@ -111,7 +124,7 @@ export function AskCard(props: {
       first || replaced.length ? await props.ask(request) : approve(request)
     if (!approved) return
     chat.current ??= booksChat()
-    if (first) setSent(facts)
+    if (first) setSent(records)
     setQuestion('')
     setBusy(true)
     const at = turns.length
@@ -164,7 +177,7 @@ export function AskCard(props: {
           ))}
         </ol>
       )}
-      {sent !== null && sent !== facts && (
+      {sent !== null && sent !== records && (
         <p className="hint">
           Your records have changed since your first question, and this chat
           still uses what you sent then.{' '}
