@@ -60,6 +60,7 @@ export function MoneyPulseCard(props: { ledger: LedgerApi; now: number }) {
     props.now,
     span,
   )
+  const newest = pulse.latest[0]
   const lastWeekDay = weekday(props.now - 7 * 86_400_000)
   const nothing = data.credits.length === 0
 
@@ -135,39 +136,51 @@ export function MoneyPulseCard(props: { ledger: LedgerApi; now: number }) {
           </div>
           <Chart spec={spec} />
 
-          <h4>Latest alerts</h4>
-          <ul className="pulse-feed">
-            {pulse.latest.map(({ credit: c, orderCode, refund }) => (
-              <li
-                key={c.id}
-                data-dir={c.direction}
-                className={!seen || seen.has(c.id) ? undefined : 'fresh'}
-              >
-                <span className="pulse-time">{time(c.at!.ms)}</span>
-                <span className="pulse-tag">
-                  {c.reversal
-                    ? 'Reversal'
-                    : c.direction === 'credit'
-                      ? 'In'
-                      : 'Out'}
+          <details className="money-flow pulse-latest">
+            <summary>
+              Latest alerts
+              {newest && (
+                <span className="hint">
+                  {' '}
+                  · {newest.credit.direction === 'credit' ? '+' : '−'}
+                  {formatMoney(newest.credit.amountKobo)} at{' '}
+                  {time(newest.credit.at!.ms)}
                 </span>
-                <span className="pulse-amount">
-                  {c.direction === 'credit' ? '+' : '−'}
-                  {formatMoney(c.amountKobo)}
-                </span>
-                <span className="pulse-what">
-                  {bankName(c.bank)}
-                  {orderCode
-                    ? ` · order #${orderCode}`
-                    : refund
-                      ? ' · refund'
-                      : c.direction === 'credit' && !c.reversal
-                        ? ' · not tied to an order'
-                        : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
+              )}
+            </summary>
+            <ul className="pulse-feed">
+              {pulse.latest.map(({ credit: c, orderCode, refund }) => (
+                <li
+                  key={c.id}
+                  data-dir={c.direction}
+                  className={!seen || seen.has(c.id) ? undefined : 'fresh'}
+                >
+                  <span className="pulse-time">{time(c.at!.ms)}</span>
+                  <span className="pulse-tag">
+                    {c.reversal
+                      ? 'Reversal'
+                      : c.direction === 'credit'
+                        ? 'In'
+                        : 'Out'}
+                  </span>
+                  <span className="pulse-amount">
+                    {c.direction === 'credit' ? '+' : '−'}
+                    {formatMoney(c.amountKobo)}
+                  </span>
+                  <span className="pulse-what">
+                    {bankName(c.bank)}
+                    {orderCode
+                      ? ` · order #${orderCode}`
+                      : refund
+                        ? ' · refund'
+                        : c.direction === 'credit' && !c.reversal
+                          ? ' · not tied to an order'
+                          : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
           <MoneyStatement ledger={props.ledger} />
           <p className="hint">
             Counted only from your banks&rsquo; own alerts and your bank-app
