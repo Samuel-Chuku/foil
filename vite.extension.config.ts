@@ -1,9 +1,14 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
 // Builds the Chrome extension into dist-extension/. Load it unpacked from there.
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  // With the App Check bridge configured, the extension gets real tokens
+  // and must not carry the development debug token.
+  define: loadEnv(mode, process.cwd()).VITE_APPCHECK_BRIDGE_URL
+    ? { 'import.meta.env.VITE_APPCHECK_DEBUG_TOKEN': '""' }
+    : {},
   publicDir: 'src/extension/public',
   build: {
     outDir: 'dist-extension',
@@ -25,4 +30,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

@@ -10,6 +10,12 @@ export default defineConfig(({ command }) => ({
     command === 'build'
       ? { 'import.meta.env.VITE_APPCHECK_DEBUG_TOKEN': '""' }
       : {},
+  // The demo, plus the App Check bridge page the extension frames.
+  build: {
+    rollupOptions: {
+      input: { main: 'index.html', appcheck: 'appcheck.html' },
+    },
+  },
   test: {
     // Emulator tests run only inside `firebase emulators:exec`, which sets
     // FIRESTORE_EMULATOR_HOST (npm run test:rules); plain tests run otherwise.
