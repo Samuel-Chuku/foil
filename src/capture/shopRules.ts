@@ -1,4 +1,4 @@
-import { formatNaira, parseNairaKobo } from '../verify/money'
+import { formatMoney, parseMoney } from '../verify/money'
 import { clean } from '../verify/receiptFields'
 import { stateOf, STATES, type State } from './places'
 
@@ -158,7 +158,10 @@ function methodsFrom(text: string): DeliveryMethod[] {
 // The model sometimes copies a name with its price ("Yaba N1,500").
 function withoutPrice(text: string): string {
   return text
-    .replace(/\s*[-:–(]?\s*(?:₦|ngn|#|n)\s?\d[\d,]*(?:\.\d+)?\)?\s*$/i, '')
+    .replace(
+      /\s*[-:–(]?\s*(?:₦|ngn|#|n|₹|rs\.?|inr|r\$)\s?\d[\d,.]*\)?\s*$/i,
+      '',
+    )
     .trim()
 }
 
@@ -175,7 +178,7 @@ export function mergeRead(rules: ShopRules, read: RawRules): ShopRules {
     mark('methods')
   }
   const areas = read.areaFees.flatMap((a) => {
-    const feeKobo = parseNairaKobo(clean(a.fee))
+    const feeKobo = parseMoney(clean(a.fee))
     const area = withoutPrice(clean(a.area))
     return area && feeKobo !== null ? [{ area, feeKobo }] : []
   })
@@ -184,13 +187,13 @@ export function mergeRead(rules: ShopRules, read: RawRules): ShopRules {
     mark('areaFees')
     if (!next.methods.includes('own-rider')) next.methods.push('own-rider')
   }
-  const other = parseNairaKobo(clean(read.otherAreasFee))
+  const other = parseMoney(clean(read.otherAreasFee))
   if (rules.otherAreasFeeKobo === null && other !== null) {
     next.otherAreasFeeKobo = other
     mark('otherAreasFeeKobo')
   }
   const parks = read.parks.flatMap((p) => {
-    const feeKobo = parseNairaKobo(clean(p.fee))
+    const feeKobo = parseMoney(clean(p.fee))
     const state = withoutPrice(clean(p.state))
     return state && feeKobo !== null
       ? [{ state, park: withoutPrice(clean(p.park)), feeKobo }]
@@ -308,11 +311,11 @@ export function deliveryOptions(rules: ShopRules): string[] {
   for (const m of rules.methods) {
     if (m === 'own-rider') {
       const fees = rules.areaFees
-        .map((f) => `${f.area} ${formatNaira(f.feeKobo)}`)
+        .map((f) => `${f.area} ${formatMoney(f.feeKobo)}`)
         .join(', ')
       const other =
         rules.otherAreasFeeKobo !== null
-          ? `other areas ${formatNaira(rules.otherAreasFeeKobo)}`
+          ? `other areas ${formatMoney(rules.otherAreasFeeKobo)}`
           : ''
       lines.push(
         `Delivery by the shop's rider${fees || other ? `: ${[fees, other].filter(Boolean).join('; ')}` : ''}.`,
@@ -335,7 +338,7 @@ export function deliveryOptions(rules: ShopRules): string[] {
             ? `: ${rules.parks
                 .map(
                   (p) =>
-                    `${p.state}${p.park ? ` (${p.park})` : ''} ${formatNaira(p.feeKobo)}`,
+                    `${p.state}${p.park ? ` (${p.park})` : ''} ${formatMoney(p.feeKobo)}`,
                 )
                 .join(', ')}`
             : ''

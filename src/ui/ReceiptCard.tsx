@@ -5,7 +5,7 @@ import {
   receiptTitle,
   type CustomerReceipt,
 } from '../capture/customerReceipt'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import { receiptBlob } from './receiptImage'
 import { useReceiptPicture } from './useReceiptPicture'
 
@@ -77,9 +77,9 @@ export function ReceiptCard(props: {
     <section className="card receipt" aria-labelledby="receipt-h">
       <h3 id="receipt-h">Receipt for the customer</h3>
       <p className="hint">
-        {receiptTitle(receipt)}: {formatNaira(receipt.paidKobo)}
+        {receiptTitle(receipt)}: {formatMoney(receipt.paidKobo)}
         {receipt.owedKobo > 0 &&
-          `, ${formatNaira(receipt.owedKobo)} still to pay`}
+          `, ${formatMoney(receipt.owedKobo)} still to pay`}
         . Made on this computer from the order and your bank alert.
       </p>
       {!receipt.shop && (
@@ -90,7 +90,7 @@ export function ReceiptCard(props: {
       {picture ? (
         <img
           src={picture.src}
-          alt={`${receiptTitle(receipt)} for order ${props.receipt.orderCode}, ${formatNaira(receipt.paidKobo)} paid`}
+          alt={`${receiptTitle(receipt)} for order ${props.receipt.orderCode}, ${formatMoney(receipt.paidKobo)} paid`}
           className="receipt-preview"
         />
       ) : (

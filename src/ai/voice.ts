@@ -1,7 +1,9 @@
 import { Schema } from 'firebase/ai'
 import type { Approved, CloudRequest } from '../cloud/approval'
 import { cloudModel, sendApproved } from '../cloud/send'
+import { market } from '../config/market'
 import {
+  LAGOS_STREETS,
   pickVoice,
   VOICE_FIELDS,
   voicePrompt,
@@ -56,5 +58,11 @@ export async function readVoiceNote(
   request: Approved,
 ): Promise<Reading<VoiceNote>> {
   const { text, source, ms } = await sendApproved(model(), request)
-  return { fields: pickVoice(JSON.parse(text) as unknown), source, ms }
+  // The street check knows Lagos streets only; elsewhere it stays quiet.
+  const streets = market().id === 'ng' ? LAGOS_STREETS : []
+  return {
+    fields: pickVoice(JSON.parse(text) as unknown, streets),
+    source,
+    ms,
+  }
 }

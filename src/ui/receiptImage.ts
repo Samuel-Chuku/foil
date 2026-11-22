@@ -11,7 +11,7 @@ import {
   type Brand,
   type BrandFont,
 } from '../capture/brand'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 
 // Draws the customer's receipt as a PNG card on this computer, for the vendor
 // to paste into the chat or save, in the shop's own look when it has one.
@@ -200,7 +200,7 @@ export function drawCustomerReceipt(
     y += 30
     g.fillStyle = INK
     g.fillText(fit(g, l.label, W - PAD * 2 - 110), PAD, y)
-    right(l.kobo === null ? '' : formatNaira(l.kobo), y)
+    right(l.kobo === null ? '' : formatMoney(l.kobo), y)
   }
   y += 18
   rule(y, false)
@@ -217,18 +217,18 @@ export function drawCustomerReceipt(
   }
   g.font = font(700, 16)
   g.fillText('Total', PAD, y)
-  right(formatNaira(r.totalKobo), y)
+  right(formatMoney(r.totalKobo), y)
   y += 32
   g.font = font(500, 15)
   g.fillStyle = GOOD
   g.fillText('Paid', PAD, y)
-  right(formatNaira(r.paidKobo), y)
+  right(formatMoney(r.paidKobo), y)
   if (r.owedKobo > 0) {
     y += 30
     g.fillStyle = OWED
     g.font = font(700, 15)
     g.fillText('Still to pay', PAD, y)
-    right(formatNaira(r.owedKobo), y)
+    right(formatMoney(r.owedKobo), y)
   }
   g.fillStyle = MUTED
   g.font = font(400, 13)

@@ -44,6 +44,7 @@ const bank = (
 // Codes, sender addresses and offsets were checked against real receipts and
 // alerts, except where marked unconfirmed.
 export const DEFAULT_VERIFY: VerifyConfig = {
+  rail: 'nip',
   banks: [
     bank(
       'gtbank',

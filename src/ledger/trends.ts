@@ -1,5 +1,5 @@
 import type { Credit, VerifyConfig } from '../verify/types'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import { creditDay, dayBooks } from './dayBooks'
 import type { Order, Settlement } from './types'
 
@@ -180,17 +180,17 @@ export function trendsText(
     .slice(0, 3)
   return [
     `Trends for ${first} to ${last} (${t.days.length} days, Lagos):`,
-    `Orders: ${t.current.orders} (${change(t.current.orders, t.previous.orders)} on the ${t.days.length} days before). Worth ${formatNaira(t.current.orderedKobo)} (${change(t.current.orderedKobo, t.previous.orderedKobo)}). Fully paid ${formatNaira(t.current.paidKobo)} (${change(t.current.paidKobo, t.previous.paidKobo)}).`,
+    `Orders: ${t.current.orders} (${change(t.current.orders, t.previous.orders)} on the ${t.days.length} days before). Worth ${formatMoney(t.current.orderedKobo)} (${change(t.current.orderedKobo, t.previous.orderedKobo)}). Fully paid ${formatMoney(t.current.paidKobo)} (${change(t.current.paidKobo, t.previous.paidKobo)}).`,
     `By day (orders, worth, paid, still open): ${t.days
       .map(
         (d) =>
-          `${d.day}: ${d.orders}, ${formatNaira(d.orderedKobo)}, ${formatNaira(d.paidKobo)}, ${formatNaira(d.openKobo)}`,
+          `${d.day}: ${d.orders}, ${formatMoney(d.orderedKobo)}, ${formatMoney(d.paidKobo)}, ${formatMoney(d.openKobo)}`,
       )
       .join('; ')}.`,
     `Busiest hours for orders: ${busiest.length ? busiest.map((h) => `${h.hour}:00 (${h.count})`).join(', ') : 'none yet'}.`,
     `Time from order to confirmed payment: ${t.payTimes.map((p) => `${p.label.toLowerCase()} ${p.count}`).join(', ')}; median ${t.medianPayMin === null ? 'not known' : `${t.medianPayMin} min`}.`,
-    `Money in by bank: ${t.banks.length ? t.banks.map((b) => `${bankName(b.bank)} ${formatNaira(b.inKobo)}`).join(', ') : 'none'}. Total ${formatNaira(t.moneyInKobo)}.`,
+    `Money in by bank: ${t.banks.length ? t.banks.map((b) => `${bankName(b.bank)} ${formatMoney(b.inKobo)}`).join(', ') : 'none'}. Total ${formatMoney(t.moneyInKobo)}.`,
     `Top items on paid orders: ${t.items.length ? t.items.map((i) => `${i.qty} x ${i.name}`).join(', ') : 'none yet'}.`,
-    `Refunds sent ${formatNaira(t.refundsSentKobo)}, still owed ${formatNaira(t.refundsOwedKobo)}.`,
+    `Refunds sent ${formatMoney(t.refundsSentKobo)}, still owed ${formatMoney(t.refundsOwedKobo)}.`,
   ].join('\n')
 }

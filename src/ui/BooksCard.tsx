@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { bookDays, dayBooks, type Tally } from '../ledger/dayBooks'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import type { Lagos } from './TrendsCard'
 import type { LedgerApi } from './useLedger'
 
 const tally = (t: Tally) =>
-  t.count ? `${t.count} · ${formatNaira(t.kobo)}` : 'None'
+  t.count ? `${t.count} · ${formatMoney(t.kobo)}` : 'None'
 
 function dayTitle(day: string): string {
   return new Date(`${day}T00:00:00Z`).toLocaleDateString('en-NG', {
@@ -38,7 +38,7 @@ export function BooksCard(props: {
             ? 'Loading…'
             : empty
               ? 'No orders or bank money yet.'
-              : `${books.orders} order${books.orders === 1 ? '' : 's'} · ${formatNaira(books.paid.kobo)} paid · ${books.waiting.count + books.toCheck.count + books.short.count} open`}
+              : `${books.orders} order${books.orders === 1 ? '' : 's'} · ${formatMoney(books.paid.kobo)} paid · ${books.waiting.count + books.toCheck.count + books.short.count} open`}
         </span>
       </summary>
       {days.length > 1 && (
@@ -62,7 +62,7 @@ export function BooksCard(props: {
         <dl className="fields">
           <dt>Orders</dt>
           <dd>
-            {books.orders}, worth {formatNaira(books.orderedKobo)}
+            {books.orders}, worth {formatMoney(books.orderedKobo)}
             {books.unpriced > 0 && ` (${books.unpriced} without a price)`}
           </dd>
           <dt>Fully paid</dt>
@@ -70,7 +70,7 @@ export function BooksCard(props: {
           <dt>Paid in part</dt>
           <dd>
             {books.short.count
-              ? `${books.short.count} · ${formatNaira(books.short.kobo)} still owed`
+              ? `${books.short.count} · ${formatMoney(books.short.kobo)} still owed`
               : 'None'}
           </dd>
           <dt>Waiting for payment</dt>
@@ -79,15 +79,15 @@ export function BooksCard(props: {
           <dd>{tally(books.toCheck)}</dd>
           <dt>Bank money</dt>
           <dd>
-            In {formatNaira(books.moneyInKobo)} · Out{' '}
-            {formatNaira(books.moneyOutKobo)}
+            In {formatMoney(books.moneyInKobo)} · Out{' '}
+            {formatMoney(books.moneyOutKobo)}
           </dd>
           <dt>Pays no order</dt>
           <dd>{tally(books.notTied)}</dd>
           <dt>Refunds</dt>
           <dd>
             {books.refundsOwed.count + books.refundsSent.count
-              ? `${formatNaira(books.refundsOwed.kobo)} owed · ${formatNaira(books.refundsSent.kobo)} sent`
+              ? `${formatMoney(books.refundsOwed.kobo)} owed · ${formatMoney(books.refundsSent.kobo)} sent`
               : 'None'}
           </dd>
           <dt>Deliveries</dt>
@@ -104,7 +104,7 @@ export function BooksCard(props: {
                     <li key={o.code}>
                       Order {o.code}
                       {o.dueKobo !== null &&
-                        `, ${formatNaira(o.dueKobo)}`}: {o.status}
+                        `, ${formatMoney(o.dueKobo)}`}: {o.status}
                     </li>
                   ))}
                 </ul>

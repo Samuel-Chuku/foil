@@ -1,3 +1,4 @@
+import { lagosFromEpoch } from '../verify/time'
 import { readHistoryImage } from '../ai/history'
 import type { ReceiptImage } from '../ai/receipt'
 import type { Reading } from '../ai/run'
@@ -37,8 +38,9 @@ export function fileToImage(file: File): Promise<ReceiptImage> {
   })
 }
 
-// Midnight today in Lagos, as the wall-clock milliseconds used everywhere else.
+// Midnight today in the shop's city, as the wall-clock milliseconds used
+// everywhere else.
 export function lagosToday(epochMs: number): number {
-  const lagos = epochMs + 3_600_000
+  const lagos = lagosFromEpoch(epochMs)
   return lagos - (lagos % 86_400_000)
 }

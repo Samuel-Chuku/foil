@@ -1,3 +1,4 @@
+import { shopWords } from '../config/marketWords'
 import { isChartId, type ChartId } from './charts'
 
 // What the cloud says about the numbers. It writes the words and picks which
@@ -11,7 +12,10 @@ export type Report = {
   suggestions: string[]
 }
 
-export const REPORT_INSTRUCTIONS = `You are a sharp, kind business adviser for a small Lagos shop that sells on WhatsApp and is paid by bank transfer. From the numbers below only, write a short review of the period: a one-sentence headline, three to five findings, and two or three practical suggestions the shop owner can act on this week (for example restocking, chasing open orders, or being online at the busy hours). For each finding, pick the one chart that best shows it, or "none". Use amounts in naira written like ₦18,500. Do not invent numbers that are not given. Never call a payment or a customer fake or a fraud. Do not give financial, tax, loan or investment advice.`
+export function reportInstructions(): string {
+  const w = shopWords()
+  return `You are a sharp, kind business adviser for ${w.shop}. From the numbers below only, write a short review of the period in ${w.language}: a one-sentence headline, three to five findings, and two or three practical suggestions the shop owner can act on this week (for example restocking, chasing open orders, or being online at the busy hours). For each finding, pick the one chart that best shows it, or "none". Use ${w.money}. Do not invent numbers that are not given. Never call a payment or a customer fake or a fraud. Do not give financial, tax, loan or investment advice.`
+}
 
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
 

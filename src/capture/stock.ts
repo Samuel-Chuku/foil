@@ -1,5 +1,5 @@
 import type { Order, OrderItem, Product } from '../ledger/types'
-import { formatNaira, parseNairaKobo } from '../verify/money'
+import { formatMoney, parseMoney } from '../verify/money'
 
 // "Caps" and "cap", "Sneakers" and "sneaker" are the same word here. Both
 // sides go through this, so "jeans" becoming "jean" does no harm.
@@ -126,7 +126,7 @@ export function stockFacts(
   left: (p: Product) => number | null,
 ): string[] {
   const price = (p: Product) =>
-    p.priceKobo === null ? '' : ` (${formatNaira(p.priceKobo)})`
+    p.priceKobo === null ? '' : ` (${formatMoney(p.priceKobo)})`
   return asked.map(({ product, qty }) => {
     const it = called(product)
     const n = left(product)
@@ -181,8 +181,9 @@ const QTY =
 const SOLD_OUT = /\b(sold[\s-]?out|out of stock|finished)\b/i
 // A price is marked as money, has thousands commas, ends in k, or has at least
 // three digits; "size 14" is not one.
+// Rupees and reais count too: ₹1,299, Rs. 499, R$ 189,90.
 const PRICE =
-  /(?:₦|\bngn\s?|\bn(?=\d)|#)\s?\d[\d,]*(?:\.\d{1,2})?\s?k?\b|\b\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?\b|\b\d+(?:\.\d+)?k\b|\b\d{3,}\b/i
+  /(?:₦|\bngn\s?|\bn(?=\d)|#|₹|\brs\.?\s?|\binr\s?|r\$\s?)\s?\d[\d,.]*(?:[.,]\d{1,2})?\s?k?\b|\b\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?\b|\b\d+(?:\.\d+)?k\b|\b\d{3,}\b/i
 
 // Reads a price list the vendor pastes, one product per line, such as
 // "Ankara gown - ₦15,000 - 3 left" or "2. Silk scarf 5k (10)". Rules only.
@@ -202,7 +203,7 @@ export function parsePriceList(text: string): ListedProduct[] {
       line = line.replace(q[0], ' ')
     }
     const p = PRICE.exec(line)
-    const priceKobo = p ? parseNairaKobo(p[0]) : null
+    const priceKobo = p ? parseMoney(p[0]) : null
     if (p) line = line.replace(p[0], ' ')
     // Separators between the parts go; a hyphen inside a word ("T-shirt")
     // stays.

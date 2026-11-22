@@ -110,6 +110,7 @@ export function parseAppConfig(values: Record<string, string>): AppConfig {
   return {
     cloudModel: model && /^[\w.-]+$/.test(model) ? model : d.cloudModel,
     verify: {
+      rail: d.verify.rail,
       banks:
         Array.isArray(banks) && banks.length > 0 && banks.every(isBank)
           ? banks

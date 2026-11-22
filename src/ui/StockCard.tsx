@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { suggestLabel } from '../ai/productLabel'
 import { leftOf, mergeProducts, parsePriceList } from '../capture/stock'
 import type { Product, ProductPhoto } from '../ledger/types'
-import { parseNairaKobo } from '../verify/money'
+import { parseMoney } from '../verify/money'
 import { photoFromFile } from './photos'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
@@ -32,7 +32,7 @@ function fromRows(rows: Row[], before: Product[], now: number): Product[] {
     const name = r.name.trim()
     // A thrift piece may have only a photo.
     if (!name && !r.photo) return []
-    const priceKobo = parseNairaKobo(r.price)
+    const priceKobo = parseMoney(r.price)
     const parsed = Number.parseInt(r.qty, 10)
     const qty = r.qty.trim() === '' || Number.isNaN(parsed) ? null : parsed
     const old = before.find((p) => p.id === r.id)

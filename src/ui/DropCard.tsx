@@ -1,7 +1,8 @@
+import { market } from '../config/market'
 import { useEffect, useState } from 'react'
 import { DEFAULT_HOLD_MIN, itemState, type Claim } from '../capture/drop'
 import type { Drop, Product, ProductPhoto } from '../ledger/types'
-import { formatNaira, parseNairaKobo } from '../verify/money'
+import { formatMoney, parseMoney } from '../verify/money'
 import { photoFromFile } from './photos'
 import type { LedgerApi } from './useLedger'
 
@@ -60,7 +61,7 @@ export function DropCard(props: {
     const products: Product[] = items.map((x, n) => ({
       id: crypto.randomUUID(),
       name: '',
-      priceKobo: parseNairaKobo(x.price),
+      priceKobo: parseMoney(x.price),
       qty: 1,
       countedAt: at,
       updatedAt: at,
@@ -136,7 +137,7 @@ export function DropCard(props: {
                   <img src={x.photo.thumb} alt={`Item ${n + 1}`} />
                   <span>#{n + 1}</span>
                   <label>
-                    Price (₦)
+                    Price ({market().currency.symbol})
                     <input
                       inputMode="decimal"
                       value={x.price}
@@ -194,7 +195,7 @@ export function DropCard(props: {
             {p.photo && <img src={p.photo.thumb} alt={`Item ${p.dropNo}`} />}
             <span>
               #{p.dropNo}
-              {p.priceKobo !== null && ` · ${formatNaira(p.priceKobo)}`}
+              {p.priceKobo !== null && ` · ${formatMoney(p.priceKobo)}`}
             </span>
             <span className="drop-status">
               {s.state === 'available' &&
@@ -237,7 +238,7 @@ export function DropCard(props: {
                       {' '}
                       Refund owed to {who(c)}
                       {c.order.amountKobo !== null &&
-                        ` (${formatNaira(c.order.amountKobo)})`}
+                        ` (${formatMoney(c.order.amountKobo)})`}
                       : they paid after it went to someone else.
                     </span>
                   ))}

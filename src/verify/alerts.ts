@@ -1,5 +1,5 @@
 import { bankFromSender } from './banks'
-import { parseNairaKobo } from './money'
+import { parseMoney } from './money'
 import { decodeSessionId } from './sessionId'
 import { parseLagosStamp } from './time'
 import type { Credit, LagosMs, VerifyConfig } from './types'
@@ -54,7 +54,7 @@ function direction(text: string | null | undefined): 'credit' | 'debit' | null {
 }
 
 function money(text: string | null | undefined): number | null {
-  return text ? parseNairaKobo(text) : null
+  return text ? parseMoney(text) : null
 }
 
 function parsed(p: {
@@ -74,6 +74,68 @@ function parsed(p: {
     reference: p.reference ?? null,
     time: p.time ?? null,
   }
+}
+
+// For banks without a parser of their own, the common wording of their
+// rail's credit alerts: Indian bank alerts name the UPI reference, Brazilian
+// ones the Pix end-to-end ID. Anything else goes to the on-device model.
+const RAIL_PARSERS: Partial<
+  Record<VerifyConfig['rail'], (body: string) => Parsed | null>
+> = {
+  upi(body) {
+    const flat = body.replace(/\s+/g, ' ')
+    const ref =
+      /UPI\s*(?:Ref(?:erence)?\.?\s*(?:No\.?|Number)?|transaction ID)\s*:?\s*(\d{12})/i.exec(
+        flat,
+      )
+    const amount = /(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{1,2})?)/i.exec(flat)
+    const dir = /\bcredited\b/i.test(flat)
+      ? 'credit'
+      : /\bdebited\b/i.test(flat)
+        ? 'debit'
+        : null
+    const who =
+      /\((?![^)]*\d{6})([A-Za-z][A-Za-z .']{1,60})\)/.exec(flat)?.[1] ??
+      /\b(?:from|by|to)\s+(?:VPA\s+)?(\S+@\S+)/i.exec(flat)?.[1] ??
+      null
+    return parsed({
+      direction: dir,
+      amountKobo: amount ? money(amount[1]!) : null,
+      sender: who,
+      narration: flat,
+      reference: ref?.[1] ?? null,
+      time:
+        /\d{1,2}[/.-]\d{1,2}[/.-]20\d\d(?:[ ,]+(?:at\s+)?\d{1,2}:\d{2}(?::\d{2})?)?/.exec(
+          flat,
+        )?.[0] ?? null,
+    })
+  },
+  pix(body) {
+    const flat = body.replace(/\s+/g, ' ')
+    const amount = /R\$\s*([\d.]+,\d{2}|[\d.]+)/.exec(flat)
+    const dir = /\b(recebeu|recebido|recebida)\b/i.test(flat)
+      ? 'credit'
+      : /\b(enviou|enviado|enviada|pagou)\b/i.test(flat)
+        ? 'debit'
+        : null
+    const who =
+      /\b(?:de|para)\s+([A-ZÀ-Ú][A-ZÀ-Ú' ]{2,60}?)(?=\s+(?:em|no dia|às)\b|[.,])/.exec(
+        flat,
+      )?.[1] ?? null
+    const date =
+      /(\d{1,2}\/\d{1,2}\/20\d\d)(?:\s*(?:às|as)\s*(\d{1,2}:\d{2}))?/i.exec(
+        flat,
+      )
+    return parsed({
+      direction: dir,
+      amountKobo: amount ? money(amount[1]!) : null,
+      sender: who,
+      narration: flat,
+      reference:
+        /\bE[0-9A-Z]{8}\d{12}[A-Za-z0-9]{11}\b/.exec(flat)?.[0] ?? null,
+      time: date ? `${date[1]} ${date[2] ?? ''}`.trim() : null,
+    })
+  },
 }
 
 // One parser per bank layout. A parser returns null when the email is not a
@@ -233,7 +295,7 @@ export function parseAlert(
       reason: `${email.from} is not a known bank alert address.`,
     }
   }
-  const p = PARSERS[bank.id]?.(email.body)
+  const p = (PARSERS[bank.id] ?? RAIL_PARSERS[config.rail])?.(email.body)
   if (!p) {
     return looksLikeTransfer(email.body)
       ? { status: 'unknown-format', bank: bank.id }

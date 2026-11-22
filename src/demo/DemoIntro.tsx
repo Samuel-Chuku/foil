@@ -1,13 +1,18 @@
 // The first thing a visitor to the hosted demo sees: what the desk is for,
 // how it keeps customers' details private, and a short path through the
 // sample day. Plain structure; the design system styles it later.
-export function DemoIntro(props: { onStart: () => void; onSkip: () => void }) {
+export function DemoIntro(props: {
+  first: string
+  onStart: () => void
+  onSkip: () => void
+}) {
   return (
     <section className="demo-intro" aria-labelledby="intro-h">
       <h2 id="intro-h">Did the money actually land?</h2>
       <p>
-        Small businesses that sell on WhatsApp are paid by bank transfer, and
-        customers send a screenshot as proof. This desk sits beside WhatsApp Web
+        Small businesses that sell on WhatsApp are paid by instant transfer, and
+        customers send a screenshot as proof, whether by bank transfer in Lagos,
+        UPI in Mumbai or Pix in São Paulo. This desk sits beside WhatsApp Web
         and checks each receipt against the shop&apos;s own bank alerts, then
         captures the order and drafts the reply, so the vendor only has to read,
         check and send.
@@ -34,8 +39,8 @@ export function DemoIntro(props: { onStart: () => void; onSkip: () => void }) {
       <h3>Try the sample day</h3>
       <ol>
         <li>
-          In Adaeze&apos;s chat, click <strong>Verify payment</strong> under her
-          receipt.
+          In {props.first}&apos;s chat, click <strong>Verify payment</strong>{' '}
+          under her receipt.
         </li>
         <li>
           Click <strong>Capture order from chat</strong>, then{' '}
@@ -53,6 +58,7 @@ export function DemoIntro(props: { onStart: () => void; onSkip: () => void }) {
         </li>
       </ol>
       <p className="hint">
+        Choose another city at the top to see the same desk with UPI or Pix.
         Everything here is invented, and it stays in this browser. Without
         Chrome&apos;s built-in model, the panel asks before using the cloud
         instead.
@@ -60,7 +66,7 @@ export function DemoIntro(props: { onStart: () => void; onSkip: () => void }) {
 
       <div className="actions">
         <button type="button" onClick={props.onStart}>
-          Start with Adaeze&apos;s chat
+          Start with {props.first}&apos;s chat
         </button>
         <button type="button" className="quiet" onClick={props.onSkip}>
           Look around on my own

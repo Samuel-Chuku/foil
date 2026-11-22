@@ -1,3 +1,4 @@
+import { market } from '../config/market'
 import type { RawOrder } from './orderFields'
 
 // A voice note is heard in the cloud (the on-device model takes no audio).
@@ -134,6 +135,7 @@ export function checkStreet(
   address: string,
   streets: string[],
 ): { address: string; street: StreetCheck | null } {
+  if (streets.length === 0) return { address, street: null }
   const heard = streetOf(address)
   // Only what reads as a street is checked: a bare area or landmark is not.
   const looksLikeStreet =
@@ -171,13 +173,19 @@ export function voicePrompt(vocabulary: {
   const glossary = Object.entries(vocabulary.glossary)
     .map(([k, v]) => `${k} = ${v}`)
     .join('; ')
-  return `This is a WhatsApp voice note from a customer of a small Lagos shop. They may speak English, Nigerian Pidgin, Yoruba, Igbo or Hausa, or a mix. Listen and fill in the order, in English. Do not write out what was said word for word.
+  const m = market()
+  const speech = {
+    ng: 'English, Nigerian Pidgin, Yoruba, Igbo or Hausa',
+    in: 'English, Hindi or Marathi',
+    br: 'Brazilian Portuguese',
+  }[m.id]
+  return `This is a WhatsApp voice note from a customer of a small ${m.city} shop. They may speak ${speech}, or a mix. Listen and fill in the order, in English. Do not write out what was said word for word.
 items: each item they want, with its quantity as said (a number or a word), and unsure "yes" if you could not make out the item or how many
 customerName: the name they give for themselves, if they say it
 address: the street address with any house number, such as "14 Adeniran Ogunsanya Street"; if you are not sure of a word, write your best hearing and list "address" under unsure
 landmark, area: a landmark near the address, and the area or neighbourhood
 deliveryChoice: how they want to receive it, in their words, such as pick up, delivery or a park
-state: the Nigerian state or city if they are outside Lagos, including short forms such as PH or Abj
+state: the state or city if they are outside ${m.city}${m.id === 'ng' ? ', including short forms such as PH or Abj' : ''}
 park: the motor park they named
 payOnDelivery: yes if they will pay the rider on delivery, otherwise empty
 question: anything they asked the shop, in English, or empty
@@ -186,9 +194,7 @@ language: the main language they spoke
 unsure: which of items, quantity, address, area, state or landmark you could not make out clearly
 Leave a field empty when they did not mention it.
 
-Pidgin words: ${glossary}
-Lagos areas: ${vocabulary.areas.join(', ')}
-Lagos streets: ${vocabulary.streets.join(', ')}
+${glossary ? `Pidgin words: ${glossary}\n` : ''}${m.city} areas: ${vocabulary.areas.join(', ')}${vocabulary.streets.length ? `\n${m.city} streets: ${vocabulary.streets.join(', ')}` : ''}
 ${vocabulary.products.length ? `The shop sells: ${vocabulary.products.join(', ')}` : ''}`.trim()
 }
 

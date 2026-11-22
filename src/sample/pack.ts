@@ -10,7 +10,23 @@ import type { RawReceipt } from '../verify/receiptFields'
 
 // What is printed on a sample receipt. The demo draws it as an image so the
 // model reads pixels, exactly as it would a customer's screenshot.
-export type SampleReceipt = RawReceipt & { recipientBank: string }
+export type SampleReceipt = RawReceipt & {
+  recipientBank: string
+  // The receipt's own words, for markets whose apps label things
+  // differently (UPI apps, Brazilian Pix receipts). English bank labels
+  // when absent.
+  labels?: Partial<ReceiptLabels>
+}
+
+export type ReceiptLabels = {
+  title: string
+  sender: string
+  recipient: string
+  recipientBank: string
+  sessionId: string
+  reference: string
+  date: string
+}
 
 export type SampleMessage = {
   id: string

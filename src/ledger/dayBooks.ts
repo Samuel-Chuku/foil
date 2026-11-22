@@ -1,5 +1,5 @@
 import type { Credit, VerifyConfig } from '../verify/types'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import { balanceKobo, dueKobo, paidKobo } from './ledger'
 import { extraMoney } from './settle'
 import type { Order, Settlement } from './types'
@@ -120,7 +120,7 @@ export function dayBooks(
       const owed = balanceKobo(o, credits) ?? 0
       if (owed > 0) add(b.short, owed)
       else add(b.paid, paidKobo(o, credits))
-      const paid = owed > 0 ? `paid in part, ${formatNaira(owed)} owed` : 'paid'
+      const paid = owed > 0 ? `paid in part, ${formatMoney(owed)} owed` : 'paid'
       if (o.delivery === 'pending') {
         b.delivery.toSend += 1
         open(`${paid}, to send`)
@@ -179,20 +179,20 @@ export function dayBooks(
 const many = (count: number, what: string) =>
   `${count} ${what}${count === 1 ? '' : 's'}`
 const n = (t: Tally, what: string) =>
-  `${many(t.count, what)}, ${formatNaira(t.kobo)}`
+  `${many(t.count, what)}, ${formatMoney(t.kobo)}`
 
 // The books as the plain lines the vendor approves and the cloud reads.
 export function booksText(b: DayBooks): string {
   const lines = [
     `Books for ${b.day} (Lagos):`,
-    `Orders: ${b.orders}${b.dropOrders ? ` (${b.dropOrders} from a status drop)` : ''}, worth ${formatNaira(b.orderedKobo)}${b.unpriced ? `; ${b.unpriced} still without a price` : ''}.`,
+    `Orders: ${b.orders}${b.dropOrders ? ` (${b.dropOrders} from a status drop)` : ''}, worth ${formatMoney(b.orderedKobo)}${b.unpriced ? `; ${b.unpriced} still without a price` : ''}.`,
     `Fully paid: ${n(b.paid, 'order')}.`,
-    `Paid in part: ${many(b.short.count, 'order')}, ${formatNaira(b.short.kobo)} still owed.`,
+    `Paid in part: ${many(b.short.count, 'order')}, ${formatMoney(b.short.kobo)} still owed.`,
     `Waiting for payment: ${n(b.waiting, 'order')}.`,
     `Receipts to check: ${n(b.toCheck, 'order')}.`,
-    `Money in from the banks: ${formatNaira(b.moneyInKobo)}. Money out: ${formatNaira(b.moneyOutKobo)}.`,
+    `Money in from the banks: ${formatMoney(b.moneyInKobo)}. Money out: ${formatMoney(b.moneyOutKobo)}.`,
     `Money that pays no order, not yet decided: ${n(b.notTied, 'payment')}.`,
-    `Refunds owed: ${n(b.refundsOwed, 'refund')}. Refunds sent: ${n(b.refundsSent, 'refund')}. Extra money kept: ${formatNaira(b.kept.kobo)}.`,
+    `Refunds owed: ${n(b.refundsOwed, 'refund')}. Refunds sent: ${n(b.refundsSent, 'refund')}. Extra money kept: ${formatMoney(b.kept.kobo)}.`,
     `Paid orders to send: ${b.delivery.toSend}. Out with a rider: ${b.delivery.out}. Delivered or collected: ${b.delivery.done}.`,
   ]
   if (b.items.length) {
@@ -200,7 +200,7 @@ export function booksText(b: DayBooks): string {
       `Sold on paid orders: ${b.items
         .map(
           (i) =>
-            `${i.qty} x ${i.name}${i.kobo ? ` (${formatNaira(i.kobo)})` : ''}`,
+            `${i.qty} x ${i.name}${i.kobo ? ` (${formatMoney(i.kobo)})` : ''}`,
         )
         .join('; ')}.`,
     )
@@ -210,7 +210,7 @@ export function booksText(b: DayBooks): string {
       `Open orders, by number: ${b.open
         .map(
           (o) =>
-            `order ${o.code}${o.dueKobo === null ? '' : `, ${formatNaira(o.dueKobo)}`}, ${o.status}`,
+            `order ${o.code}${o.dueKobo === null ? '' : `, ${formatMoney(o.dueKobo)}`}, ${o.status}`,
         )
         .join('; ')}.`,
     )

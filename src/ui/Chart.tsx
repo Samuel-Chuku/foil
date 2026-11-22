@@ -1,3 +1,4 @@
+import { market } from '../config/market'
 import { chartValue, sumOf, type ChartSpec } from '../ledger/charts'
 
 const W = 320
@@ -10,9 +11,10 @@ const TOP = 6
 function compact(unit: ChartSpec['unit'], v: number): string {
   if (unit === 'count') return String(v)
   const naira = v / 100
-  if (naira >= 1_000_000) return `₦${+(naira / 1_000_000).toFixed(1)}m`
-  if (naira >= 1_000) return `₦${+(naira / 1_000).toFixed(1)}k`
-  return `₦${naira}`
+  const sym = market().currency.symbol
+  if (naira >= 1_000_000) return `${sym}${+(naira / 1_000_000).toFixed(1)}m`
+  if (naira >= 1_000) return `${sym}${+(naira / 1_000).toFixed(1)}k`
+  return `${sym}${naira}`
 }
 
 // A rounded, readable top for the axis: 1, 2 or 5 times a power of ten.

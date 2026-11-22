@@ -1,3 +1,5 @@
+import type { RailId } from '../config/market'
+
 // Times are Lagos wall-clock readings stored as Date.UTC milliseconds. Lagos has
 // no daylight saving, so a reading converts to true time by a fixed hour, and
 // receipts, alerts and session IDs can be compared without timezone parsing.
@@ -10,7 +12,8 @@ export type Stamp = { ms: LagosMs; precision: Precision }
 export type BankInfo = {
   id: string
   name: string
-  // Six-digit NIP institution code that starts every session ID this bank sends.
+  // The bank's code on its payment rail: the six-digit NIP institution code
+  // that starts every session ID it sends, or its Pix ISPB. Empty for UPI.
   nipCode: string
   // Lowercase fragments that identify the bank in receipt or alert text.
   aliases: string[]
@@ -24,6 +27,8 @@ export type BankInfo = {
 }
 
 export type VerifyConfig = {
+  // The payment rail whose references the receipts carry.
+  rail: RailId
   banks: BankInfo[]
   // Share of the receipt name's words that must appear in the alert, 0 to 1.
   nameThreshold: number

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { parseNairaKobo } from './money'
+import { parseMoney } from './money'
 import { nameScore } from './names'
 import { decodeSessionId, sameSessionId } from './sessionId'
 import { parseLagosStamp } from './time'
 
-describe('parseNairaKobo', () => {
+describe('parseMoney', () => {
   it.each([
     ['NGN 30,000.00', 3_000_000],
     ['₦5,000.00', 500_000],
@@ -15,11 +15,11 @@ describe('parseNairaKobo', () => {
     ['N7,000', 700_000],
     ['22k', 2_200_000],
     ['5000 naira', 500_000],
-  ])('%s', (text, kobo) => expect(parseNairaKobo(text)).toBe(kobo))
+  ])('%s', (text, kobo) => expect(parseMoney(text)).toBe(kobo))
 
   it('rejects text with no amount', () => {
-    expect(parseNairaKobo('pending')).toBeNull()
-    expect(parseNairaKobo('')).toBeNull()
+    expect(parseMoney('pending')).toBeNull()
+    expect(parseMoney('')).toBeNull()
   })
 })
 
@@ -51,7 +51,7 @@ describe('decodeSessionId', () => {
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.value.nipCode).toBe('000013')
-    expect(new Date(r.value.stampedMs).toISOString()).toBe(
+    expect(new Date(r.value.stampedMs!).toISOString()).toBe(
       '2026-11-18T17:11:01.000Z',
     )
   })

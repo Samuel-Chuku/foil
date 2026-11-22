@@ -1,7 +1,8 @@
+import { shopWords } from '../config/marketWords'
 import { itemState } from '../capture/drop'
 import { deliveryOptions, type ShopRules } from '../capture/shopRules'
 import { leftOf } from '../capture/stock'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import type { Credit } from '../verify/types'
 import { balanceKobo, dueKobo } from './ledger'
 import type { ChatNote, Drop, Order, Product, Settlement } from './types'
@@ -52,9 +53,9 @@ export function openOrderLines(orders: Order[], credits: Credit[]): string[] {
       return [
         `Order ${o.code}`,
         items || 'items not captured',
-        due === null ? 'no price yet' : formatNaira(due),
+        due === null ? 'no price yet' : formatMoney(due),
         owed > 0
-          ? `paid in part, ${formatNaira(owed)} still owed`
+          ? `paid in part, ${formatMoney(owed)} still owed`
           : PAYMENT[o.payment.state],
         where(o),
         DELIVERY[o.delivery],
@@ -67,7 +68,7 @@ export function stockLines(products: Product[], orders: Order[]): string[] {
     .filter((p) => !p.dropId && p.name.trim())
     .map((p) => {
       const left = leftOf(p, orders, products)
-      return `${p.name.trim()}: ${p.priceKobo === null ? 'no price' : formatNaira(p.priceKobo)}, ${left === null ? 'not counted' : left <= 0 ? 'sold out' : `${left} left`}`
+      return `${p.name.trim()}: ${p.priceKobo === null ? 'no price' : formatMoney(p.priceKobo)}, ${left === null ? 'not counted' : left <= 0 ? 'sold out' : `${left} left`}`
     })
 }
 
@@ -84,7 +85,7 @@ export function dropLines(
     .sort((a, b) => (a.dropNo ?? 0) - (b.dropNo ?? 0))
     .map((p) => {
       const s = itemState(p, orders, live.holdMin, now)
-      return `#${p.dropNo ?? '?'} ${p.priceKobo === null ? '' : formatNaira(p.priceKobo)} ${s.state}`
+      return `#${p.dropNo ?? '?'} ${p.priceKobo === null ? '' : formatMoney(p.priceKobo)} ${s.state}`
     })
   return [
     `Running drop "${live.name}" (holds last ${live.holdMin} min): ${items.join('; ')}.`,
@@ -109,7 +110,7 @@ export function moneyLine(settlements: Settlement[]): string {
     settlements
       .filter((s) => s.state === state)
       .reduce((t, s) => t + s.amountKobo, 0)
-  return `Refunds owed ${formatNaira(sum('refund owed'))}, refunds sent ${formatNaira(sum('refunded'))}, extra money kept ${formatNaira(sum('kept'))}.`
+  return `Refunds owed ${formatMoney(sum('refund owed'))}, refunds sent ${formatMoney(sum('refunded'))}, extra money kept ${formatMoney(sum('kept'))}.`
 }
 
 export function rulesLines(rules: ShopRules): string[] {
@@ -155,4 +156,7 @@ export function businessText(parts: {
   ].join('\n')
 }
 
-export const DESK_INSTRUCTIONS = `You are the assistant for a small Lagos shop that sells on WhatsApp and is paid by bank transfer. Answer the owner's questions about their business from the facts below only: today's books, this week's trends against last week, open orders by number with their items, payment and delivery, stock, any running drop, customers waiting by type, money owed back, and the shop's own rules. Write short, plain, practical English, with amounts in naira written like ₦18,500, and refer to orders by number. If one of the shop's charts would help the answer, name it in "chart", otherwise "none". You do not know customers' names, phone numbers or addresses; if a question needs them, say those details stay on the shop's computer and the panel shows them. Never call a payment or a customer fake or a fraud. Do not give financial, tax, loan or investment advice.`
+export function deskInstructions(): string {
+  const w = shopWords()
+  return `You are the assistant for ${w.shop}. Answer the owner's questions about their business from the facts below only: today's books, this week's trends against last week, open orders by number with their items, payment and delivery, stock, any running drop, customers waiting by type, money owed back, and the shop's own rules. Write short, plain, practical ${w.language}, with ${w.money}, and refer to orders by number. If one of the shop's charts would help the answer, name it in "chart", otherwise "none". You do not know customers' names, phone numbers or addresses; if a question needs them, say those details stay on the shop's computer and the panel shows them. Never call a payment or a customer fake or a fraud. Do not give financial, tax, loan or investment advice.`
+}

@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { drawHistory } from '../sample/historyImage'
 import {
-  SAMPLE_CHATS,
-  SAMPLE_DAY,
   SAMPLE_DAY_MS,
-  SAMPLE_EMAILS,
   SAMPLE_HISTORY,
-  SAMPLE_PRODUCTS,
-  SAMPLE_SHOP_RULES,
   SAMPLE_DROP,
   SAMPLE_THRIFT,
 } from '../sample/pack'
@@ -22,8 +17,13 @@ import { Panel } from '../ui/Panel'
 import { useDevice } from '../ui/useDevice'
 import { useLedger } from '../ui/useLedger'
 import { useShopRules } from '../ui/useShopRules'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import { sampleHistory } from '../sample/history'
+import { PACKS, type SamplePack } from '../sample/markets'
+import { market, MARKETS, type MarketId } from '../config/market'
+import { verifyFor } from '../config/marketBanks'
+import { appConfig } from '../config/active'
+import { rememberMarket, RAIL_NAME } from '../ui/marketChoice'
 import { DemoIntro } from './DemoIntro'
 import type { AlertResult } from '../verify/alerts'
 
@@ -33,9 +33,10 @@ import type { AlertResult } from '../verify/alerts'
 const INTRO_KEY = 'demo-intro'
 
 // The sample stock, with photos drawn and fingerprinted in this browser.
-async function sampleStock(): Promise<Product[]> {
+async function sampleStock(pack: SamplePack): Promise<Product[]> {
+  // Lagos alone has a status drop of thrift pieces to try.
   const thrift = await Promise.all(
-    SAMPLE_THRIFT.map(async (t) => ({
+    (pack.extras ? SAMPLE_THRIFT : []).map(async (t) => ({
       id: t.id,
       name: '',
       priceKobo: t.naira * 100,
@@ -47,15 +48,14 @@ async function sampleStock(): Promise<Product[]> {
     })),
   )
   // Counted now, so the sample history's sales are not taken off the stock.
-  const counted = SAMPLE_PRODUCTS.map((p) => ({ ...p, countedAt: Date.now() }))
+  const counted = pack.products.map((p) => ({ ...p, countedAt: Date.now() }))
   return [...counted, ...thrift]
 }
 
 // Like WhatsApp, the chat with the latest message comes first.
-function buildChats(): OpenChat[] {
-  const last = (c: (typeof SAMPLE_CHATS)[number]) =>
-    c.messages.at(-1)?.time ?? ''
-  return [...SAMPLE_CHATS]
+function buildChats(pack: SamplePack): OpenChat[] {
+  const last = (c: (typeof pack.chats)[number]) => c.messages.at(-1)?.time ?? ''
+  return [...pack.chats]
     .sort((a, b) => last(b).localeCompare(last(a)))
     .map((c) => ({
       phone: c.phone,
@@ -76,7 +76,7 @@ function buildChats(): OpenChat[] {
 function alertLine(r: AlertResult): string {
   if (r.status === 'parsed') {
     const c = r.credit
-    return `${c.direction === 'credit' ? 'Credit' : 'Debit'} of ${formatNaira(c.amountKobo)} from ${c.sender || 'unknown sender'}`
+    return `${c.direction === 'credit' ? 'Credit' : 'Debit'} of ${formatMoney(c.amountKobo)} from ${c.sender || 'unknown sender'}`
   }
   if (r.status === 'untrusted') return `Ignored: ${r.reason}`
   if (r.status === 'not-a-transfer') return 'Not a transfer alert.'
@@ -84,7 +84,10 @@ function alertLine(r: AlertResult): string {
 }
 
 export default function DemoApp() {
-  const chats = useMemo(() => buildChats(), [])
+  // The city is chosen before the page starts (see main.tsx); switching
+  // reloads with that city's sample day.
+  const pack = PACKS[market().id]
+  const chats = useMemo(() => buildChats(pack), [pack])
   const history = useMemo(
     () => drawHistory('GTBank', SAMPLE_HISTORY.heading, SAMPLE_HISTORY.rows),
     [],
@@ -95,8 +98,8 @@ export default function DemoApp() {
   // The sample shop comes with its rules filled in, so drafts can quote them.
   const { stored, save: saveRules } = shop
   useEffect(() => {
-    if (stored === false) void saveRules(SAMPLE_SHOP_RULES)
-  }, [stored, saveRules])
+    if (stored === false) void saveRules(pack.rules)
+  }, [stored, saveRules, pack])
   // And with its stock and a running drop, once per visit if it has none.
   const { data: ledgerData, saveProducts, startDrop, addRecords } = ledger
   const seedStock = useCallback(async () => {
@@ -108,15 +111,24 @@ export default function DemoApp() {
         SAMPLE_DAY_MS,
         14,
         (lagosMs) => lagosMs - sampleNow + Date.now(),
+        pack.extras
+          ? undefined
+          : {
+              products: pack.products,
+              areaFees: pack.rules.areaFees,
+              banks: verifyFor(appConfig().verify).banks.map((b) => b.id),
+            },
       ),
     )
-    const stock = await sampleStock()
+    const stock = await sampleStock(pack)
     await saveProducts(stock.filter((p) => !p.dropId))
-    await startDrop(
-      SAMPLE_DROP,
-      stock.filter((p) => p.dropId),
-    )
-  }, [saveProducts, startDrop, addRecords])
+    if (pack.extras) {
+      await startDrop(
+        SAMPLE_DROP,
+        stock.filter((p) => p.dropId),
+      )
+    }
+  }, [saveProducts, startDrop, addRecords, pack])
   const stocked = useRef(false)
   useEffect(() => {
     if (!ledgerData || stocked.current) return
@@ -154,7 +166,7 @@ export default function DemoApp() {
   const [alerts, setAlerts] = useState<Record<string, AlertResult>>({})
   // Whether the demo has let time pass, so later alerts have arrived.
   const [later, setLater] = useState(false)
-  const emails = SAMPLE_EMAILS.filter((e) => later || !e.later)
+  const emails = pack.emails.filter((e) => later || !e.later)
   const [openEmail, setOpenEmail] = useState<string | null>(null)
   // Bumped on reset so the inbox is read again from scratch.
   const [round, setRound] = useState(0)
@@ -178,7 +190,7 @@ export default function DemoApp() {
   const { importAlerts } = ledger
   useEffect(() => {
     let live = true
-    const arrived = SAMPLE_EMAILS.filter((e) => later || !e.later)
+    const arrived = pack.emails.filter((e) => later || !e.later)
     void importAlerts(arrived).then((results) => {
       if (live) {
         setAlerts(
@@ -189,7 +201,7 @@ export default function DemoApp() {
     return () => {
       live = false
     }
-  }, [importAlerts, later, round])
+  }, [importAlerts, later, round, pack])
 
   async function readBankApp() {
     setBankApp({ status: 'running' })
@@ -209,9 +221,18 @@ export default function DemoApp() {
     }
   }
 
+  // Another city's sample day: everything on this device is cleared, then
+  // the page reloads in that market.
+  async function switchMarket(id: MarketId) {
+    if (id === market().id) return
+    rememberMarket(id)
+    await ledger.reset()
+    location.reload()
+  }
+
   async function reset() {
     await ledger.reset()
-    await saveRules(SAMPLE_SHOP_RULES)
+    await saveRules(pack.rules)
     await seedStock()
     setAlerts({})
     setLater(false)
@@ -227,9 +248,22 @@ export default function DemoApp() {
       <h1 className="visually-hidden">Payment desk demo</h1>
       <header className="demo-bar">
         <p>
-          <strong>Demo</strong> with sample data for {SAMPLE_DAY}. Everything
-          here is invented.
+          <strong>Demo</strong> with sample data for {pack.shop} in{' '}
+          {market().city}, {pack.day}. Everything here is invented.
         </p>
+        <label className="market-pick">
+          City{' '}
+          <select
+            value={market().id}
+            onChange={(e) => void switchMarket(e.target.value as MarketId)}
+          >
+            {(Object.keys(MARKETS) as MarketId[]).map((id) => (
+              <option key={id} value={id}>
+                {MARKETS[id].city}: {RAIL_NAME[MARKETS[id].rail]}
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="button" className="quiet" onClick={() => setIntro(true)}>
           What is this?
         </button>
@@ -240,11 +274,12 @@ export default function DemoApp() {
 
       {intro && (
         <DemoIntro
+          first={pack.first}
           onStart={() => {
             closeIntro()
             setView('chats')
             setOpenPhone(
-              SAMPLE_CHATS.find((c) => c.contactName === 'Adaeze')?.phone ??
+              pack.chats.find((c) => c.contactName === pack.first)?.phone ??
                 null,
             )
           }}
@@ -268,13 +303,15 @@ export default function DemoApp() {
           >
             Inbox
           </button>
-          <button
-            type="button"
-            aria-pressed={view === 'bank'}
-            onClick={() => setView('bank')}
-          >
-            Bank app
-          </button>
+          {pack.extras && (
+            <button
+              type="button"
+              aria-pressed={view === 'bank'}
+              onClick={() => setView('bank')}
+            >
+              Bank app
+            </button>
+          )}
         </nav>
 
         {view === 'chats' && (
@@ -405,8 +442,8 @@ export default function DemoApp() {
           <section className="inbox" aria-label="Sample inbox">
             <div className="inbox-head">
               <p>
-                Bank alert emails for the shop&apos;s GTBank account. The desk
-                watches this inbox and reads each alert as it arrives.
+                Bank alert emails for the shop&apos;s {pack.bank} account. The
+                desk watches this inbox and reads each alert as it arrives.
               </p>
               {!later && (
                 <button type="button" onClick={() => setLater(true)}>
@@ -483,7 +520,7 @@ export default function DemoApp() {
                   : `new: ${bankApp.value.added
                       .map(
                         (c) =>
-                          `${c.direction === 'credit' ? '+' : '-'}${formatNaira(c.amountKobo)}`,
+                          `${c.direction === 'credit' ? '+' : '-'}${formatMoney(c.amountKobo)}`,
                       )
                       .join(', ')}.`}
               </p>

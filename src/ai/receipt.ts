@@ -1,3 +1,4 @@
+import { market, type MarketId } from '../config/market'
 import { Schema } from 'firebase/ai'
 import { parsePdfReceiptText } from '../verify/pdfReceipt'
 import { RAW_RECEIPT_FIELDS, type RawReceipt } from '../verify/receiptFields'
@@ -22,15 +23,35 @@ const cloudSchema = Schema.object({
   ),
 })
 
-const PROMPT = `This is a Nigerian bank transfer receipt. Copy these fields exactly as printed, or an empty string if absent:
+// What each market's receipts call their parts. The model copies text; code
+// decides what it means.
+const RECEIPT_WORDS: Record<MarketId, { kind: string; ref: string }> = {
+  ng: {
+    kind: 'a Nigerian bank transfer receipt',
+    ref: 'the value labelled Session ID',
+  },
+  in: {
+    kind: 'an Indian UPI payment receipt from an app such as Google Pay, PhonePe or Paytm, or a bank app',
+    ref: 'the 12-digit UPI transaction ID, UPI Ref No or UTR',
+  },
+  br: {
+    kind: 'a Brazilian Pix receipt ("comprovante"), which may be in Portuguese',
+    ref: 'the Pix transaction ID ("ID da transação" or "ID E2E"), which starts with E',
+  },
+}
+
+export function receiptPrompt(id: MarketId = market().id): string {
+  const w = RECEIPT_WORDS[id]
+  return `This is ${w.kind}. Copy these fields exactly as printed, or an empty string if absent:
 issuer: the bank or app named in the receipt's logo or header
-amountText: the amount transferred, with its symbol and commas
-statusText: the status words, such as Successful, Pending or Failed
-sender: the payer's name (may be labelled Sender, From, Debit Account or Account Name)
+amountText: the amount transferred, with its symbol and separators
+statusText: the status words, such as Successful, Pending or Failed, in the receipt's own language
+sender: the payer's name (may be labelled Sender, From, Debit Account, Account Name, Paid by or Pagador)
 recipient: the beneficiary's name
-sessionId: the value labelled Session ID, digits and letters only
+sessionId: ${w.ref}, digits and letters only
 reference: any other transaction reference or number, digits and letters only
 dateTime: the transaction date and time as printed`
+}
 
 // Receipts hold customer and bank details, so the default path never leaves
 // the device. The cloud path exists only for a vendor who has consented.
@@ -64,7 +85,7 @@ export async function readReceiptImage(
     )
   }
   const { json, source, ms } = await generateJson(model(cloudConsent), [
-    PROMPT,
+    receiptPrompt(),
     {
       type: 'inlineData',
       inlineData: { mimeType: image.mimeType, data: image.base64 },
@@ -79,7 +100,7 @@ export async function readReceiptText(
   cloudConsent: boolean,
 ): Promise<Reading<RawReceipt>> {
   const { json, source, ms } = await generateJson(model(cloudConsent), [
-    `${PROMPT}\n\nReceipt text:\n${text.slice(0, 6000)}`,
+    `${receiptPrompt()}\n\nReceipt text:\n${text.slice(0, 6000)}`,
   ])
   return { fields: pickStrings(json, RAW_RECEIPT_FIELDS), source, ms }
 }

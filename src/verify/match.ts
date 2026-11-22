@@ -1,10 +1,11 @@
 import { bankFromNipCode } from './banks'
 import { sessionPrefix } from './history'
-import { formatNaira } from './money'
+import { formatMoney } from './money'
 import { nameScore } from './names'
 import {
   decodeSessionId,
-  digitRuns,
+  nearRuns,
+  REF_LABEL,
   prefixOf,
   sameSessionId,
   type SessionIdResult,
@@ -61,10 +62,9 @@ function timeFits(
 function recoverSessionId(
   receipt: Receipt,
   ledger: Ledger,
+  rail: VerifyConfig['rail'],
 ): SessionIdResult | null {
-  const runs = digitRuns(receipt.reference).filter(
-    (r) => r.length >= 29 && r.length <= 31,
-  )
+  const runs = nearRuns(receipt.reference, rail)
   if (runs.length === 0) return null
   const close = new Set<string>()
   for (const c of ledger.credits) {
@@ -73,7 +73,7 @@ function recoverSessionId(
   }
   if (close.size !== 1) return null
   const [id] = close
-  const value = decodeSessionId(id!)
+  const value = decodeSessionId(id!, rail)
   return value.ok ? value : null
 }
 
@@ -102,35 +102,45 @@ export function verifyReceipt(
     }
   }
 
-  const decoded = decodeSessionId(receipt.reference)
+  const label = REF_LABEL[config.rail]
+  const decoded = decodeSessionId(receipt.reference, config.rail)
   // One misread digit can move the date inside an ID by decades. Such an ID is
   // unreadable, not evidence: it must lead to "check", never to a mismatch.
   const readable: SessionIdResult =
     decoded.ok &&
+    decoded.value.stampedMs !== null &&
     receipt.at &&
     Math.abs(decoded.value.stampedMs - receipt.at.ms) > 366 * 86_400_000
       ? { ok: false, reason: 'date' }
       : decoded
   const notes: string[] = []
-  const recovered = readable.ok ? null : recoverSessionId(receipt, ledger)
+  const recovered = readable.ok
+    ? null
+    : recoverSessionId(receipt, ledger, config.rail)
   const session: SessionIdResult = recovered ?? readable
   if (recovered) {
     notes.push(
-      'One digit of the session ID was misread; the rest agrees with the bank alert.',
+      `One character of the ${label} was misread; the rest agrees with the bank alert.`,
     )
   }
 
   if (session.ok) {
     const sid = session.value
-    const codeBank = bankFromNipCode(config.banks, sid.nipCode)
+    const codeBank = sid.nipCode
+      ? bankFromNipCode(config.banks, sid.nipCode)
+      : null
     if (codeBank && receipt.senderBank && codeBank.id !== receipt.senderBank) {
       const shown = config.banks.find((b) => b.id === receipt.senderBank)?.name
       return {
         kind: 'mismatch',
-        reason: `The session ID was issued by ${codeBank.name}, but the receipt is from ${shown ?? receipt.senderBank}.`,
+        reason: `The ${label} was issued by ${codeBank.name}, but the receipt is from ${shown ?? receipt.senderBank}.`,
       }
     }
-    if (receipt.at && receipt.at.precision !== 'day') {
+    if (
+      sid.stampedMs !== null &&
+      receipt.at &&
+      receipt.at.precision !== 'day'
+    ) {
       const gap = (receipt.at.ms - sid.stampedMs) / MIN
       const offsets =
         codeBank?.sessionOffsetMin != null
@@ -142,8 +152,7 @@ export function verifyReceipt(
       if (!fits) {
         return {
           kind: 'mismatch',
-          reason:
-            "The time inside the session ID doesn't agree with the time on the receipt.",
+          reason: `The time inside the ${label} doesn't agree with the time on the receipt.`,
         }
       }
     }
@@ -151,7 +160,7 @@ export function verifyReceipt(
       if (sameSessionId(used, sid.digits)) {
         return {
           kind: 'mismatch',
-          reason: `This receipt's session ID was already used for order ${order}.`,
+          reason: `This receipt's ${label} was already used for order ${order}.`,
         }
       }
     }
@@ -229,7 +238,7 @@ export function verifyReceipt(
     if (reversed) {
       return {
         kind: 'not yet credited',
-        reason: `A credit of ${formatNaira(receipt.amountKobo)} arrived for this receipt, but the bank later reversed it, so it is not paid.`,
+        reason: `A credit of ${formatMoney(receipt.amountKobo)} arrived for this receipt, but the bank later reversed it, so it is not paid.`,
       }
     }
     // A different name is not proof of a problem: the model may have misread
@@ -241,7 +250,7 @@ export function verifyReceipt(
     if (unnamed.length > 0) {
       return {
         kind: 'check',
-        reason: `${unnamed.length === 1 ? 'A credit' : `${unnamed.length} credits`} of ${formatNaira(receipt.amountKobo)} in your bank app fit the time, but the screenshot shows no payer name. Confirm which pays for this order, if any.`,
+        reason: `${unnamed.length === 1 ? 'A credit' : `${unnamed.length} credits`} of ${formatMoney(receipt.amountKobo)} in your bank app fit the time, but the screenshot shows no payer name. Confirm which pays for this order, if any.`,
         candidates: unnamed.map((s) => s.credit.id),
       }
     }
@@ -249,7 +258,7 @@ export function verifyReceipt(
       (s) => s.timeOk && !s.nameOk && !ledger.claimedCredits.has(s.credit.id),
     )
     if (otherName.length > 0) {
-      const amount = formatNaira(receipt.amountKobo)
+      const amount = formatMoney(receipt.amountKobo)
       const onReceipt = receipt.sender || 'the name on the receipt'
       return {
         kind: 'check',
@@ -262,7 +271,7 @@ export function verifyReceipt(
     }
     return {
       kind: 'not yet credited',
-      reason: `No credit of ${formatNaira(receipt.amountKobo)} that fits this receipt has arrived yet.`,
+      reason: `No credit of ${formatMoney(receipt.amountKobo)} that fits this receipt has arrived yet.`,
     }
   }
 
@@ -271,7 +280,7 @@ export function verifyReceipt(
   if (pick.length > 1) {
     return {
       kind: 'check',
-      reason: `${pick.length} credits of ${formatNaira(receipt.amountKobo)} fit this receipt. Pick the right one.`,
+      reason: `${pick.length} credits of ${formatMoney(receipt.amountKobo)} fit this receipt. Pick the right one.`,
       candidates: pick.map((s) => s.credit.id),
     }
   }
@@ -279,8 +288,11 @@ export function verifyReceipt(
   // Same-bank transfers never pass through NIP, and some banks never print the
   // ID, so only interbank receipts from banks that do must carry a readable one.
   const shownBank = config.banks.find((b) => b.id === receipt.senderBank)
+  // UPI and Pix receipts always carry their reference, so any payment on
+  // those rails is held to the rule; NIP only for interbank transfers.
   const interbank =
-    receipt.senderBank !== null && receipt.senderBank !== chosen.credit.bank
+    config.rail !== 'nip' ||
+    (receipt.senderBank !== null && receipt.senderBank !== chosen.credit.bank)
   if (
     !session.ok &&
     session.reason !== 'other-route' &&
@@ -292,8 +304,10 @@ export function verifyReceipt(
       kind: 'check',
       reason:
         session.reason === 'missing'
-          ? 'An interbank receipt should carry a session ID, and none was found. Please check it.'
-          : "Couldn't read the session ID on the receipt. Please check it.",
+          ? config.rail === 'nip'
+            ? 'An interbank receipt should carry a session ID, and none was found. Please check it.'
+            : `This receipt should carry a ${label}, and none was found. Please check it.`
+          : `Couldn't read the ${label} on the receipt. Please check it.`,
       candidates: [chosen.credit.id],
     }
   }
@@ -303,11 +317,11 @@ export function verifyReceipt(
     notes.push(
       fromApp
         ? 'The start of the session ID matches a row in your bank app.'
-        : 'The session ID on the receipt matches the bank alert.',
+        : `The ${label} on the receipt matches the bank alert.`,
     )
   if (chosen.byId && !chosen.nameOk && !fromApp) {
     notes.push(
-      'The sender name reads differently on the alert, but the session ID agrees.',
+      `The sender name reads differently on the alert, but the ${label} agrees.`,
     )
   }
   if (fromApp) notes.push('Confirmed against your bank app screenshot.')

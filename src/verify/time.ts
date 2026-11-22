@@ -1,3 +1,4 @@
+import { market } from '../config/market'
 import type { Stamp } from './types'
 
 const MONTHS = [
@@ -69,7 +70,9 @@ export function parseLagosStamp(text: string): Stamp | null {
   }
 }
 
-// Gmail and other clocks give true time; Lagos is a fixed hour ahead of UTC.
+// Gmail and other clocks give true time; the shop's local wall clock is a
+// fixed offset from UTC in every market here (none has daylight saving).
+// The name keeps the first market's.
 export function lagosFromEpoch(epochMs: number): number {
-  return epochMs + 3_600_000
+  return epochMs + market().utcOffsetMin * 60_000
 }

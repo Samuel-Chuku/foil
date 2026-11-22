@@ -1,3 +1,5 @@
+import type { Approved, CloudRequest } from '../cloud/approval'
+import { cloudModel, sendApproved } from '../cloud/send'
 import { oddWording, tidyDraft } from '../capture/draft'
 import { privateModels, TEXT_ONLY } from './device'
 import { generateText, type Reading } from './run'
@@ -24,4 +26,30 @@ export async function writeDraft(
     source: again.source,
     ms: first.ms + again.ms,
   }
+}
+
+// Replies in a language Chrome's built-in model does not support (its
+// documented languages are English, Japanese, Spanish, German and French)
+// are written in the cloud, only after the vendor approves exactly what is
+// sent, with names and numbers swapped out.
+const cloud = cloudModel()
+
+export function draftRequest(
+  prompt: string,
+  language: string,
+  replaced: string[],
+): CloudRequest {
+  return {
+    feature: 'Draft a reply',
+    reason: `Replies in ${language} are written by the cloud model, because the model on this computer does not support ${language} yet.`,
+    texts: [prompt],
+    replaced,
+  }
+}
+
+export async function writeCloudDraft(
+  approved: Approved,
+): Promise<Reading<string>> {
+  const { text, source, ms } = await sendApproved(cloud(), approved)
+  return { fields: tidyDraft(text), source, ms }
 }

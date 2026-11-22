@@ -1,3 +1,4 @@
+import { market } from '../config/market'
 import { Schema } from 'firebase/ai'
 import { RAW_REFUND_FIELDS, type RawRefundTo } from '../capture/refundDetails'
 import { privateModels, TEXT_ONLY } from './device'
@@ -18,7 +19,8 @@ const cloudSchema = Schema.object({
   ),
 })
 
-const PROMPT = `Below is a WhatsApp chat between a Lagos shop ("You") and a customer who is owed a refund. Copy the account the customer asked for the refund to be sent to, exactly as written, or an empty string if they have not given one:
+const prompt =
+  () => `Below is a WhatsApp chat between a ${market().city} shop ("You") and a customer who is owed a refund. Copy the account the customer asked for the refund to be sent to, exactly as written, or an empty string if they have not given one:
 accountNumber: the account number, digits only
 bank: the bank or app name
 accountName: the name on the account
@@ -42,7 +44,7 @@ export async function readRefundTo(
   cloudConsent: boolean,
 ): Promise<Reading<RawRefundTo>> {
   const { json, source, ms } = await generateJson(model(cloudConsent), [
-    PROMPT + chat,
+    prompt() + chat,
   ])
   return { fields: pickStrings(json, RAW_REFUND_FIELDS), source, ms }
 }

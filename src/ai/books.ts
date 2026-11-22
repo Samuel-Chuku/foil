@@ -3,7 +3,7 @@ import type { Approved, CloudRequest } from '../cloud/approval'
 import { cloudModel, sendInChat } from '../cloud/send'
 import { CHART_IDS, chartMenu } from '../ledger/charts'
 import { pickAnswer, type Answer } from '../ledger/report'
-import { DESK_INSTRUCTIONS } from '../ledger/snapshot'
+import { deskInstructions } from '../ledger/snapshot'
 import type { Reading } from './run'
 
 // Multi-turn chat is cloud only on the web, so the books chat never relies
@@ -32,7 +32,7 @@ export function deskRequest(
     feature: 'Ask the desk',
     reason:
       "Chat answers come from the cloud model; the computer cannot hold a conversation yet. The shop's own facts are sent: orders by number, items, stock, money and rules, never customers' names, phones or addresses.",
-    texts: [DESK_INSTRUCTIONS, chartMenu(), facts, `Question: ${question}`],
+    texts: [deskInstructions(), chartMenu(), facts, `Question: ${question}`],
     replaced,
   }
 }

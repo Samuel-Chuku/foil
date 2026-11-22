@@ -1,6 +1,6 @@
 import { dueKobo, paidKobo } from '../ledger/ledger'
 import type { Order } from '../ledger/types'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import type { Credit } from '../verify/types'
 
 // A receipt the vendor sends the customer once their money has landed. Built
@@ -82,7 +82,7 @@ export function receiptFor(
     owedKobo: Math.max(0, total - paid),
     riderNote:
       plan?.paidTo === 'rider' && fee !== null && fee > 0
-        ? `Delivery fee of ${formatNaira(fee)} is paid to the rider.`
+        ? `Delivery fee of ${formatMoney(fee)} is paid to the rider.`
         : null,
     refEnding: ref ? ref.replace(/\D/g, '').slice(-6) || null : null,
   }
@@ -124,12 +124,12 @@ export function receiptText(r: CustomerReceipt): string {
     ...(r.paidAt !== null ? [receiptTime(r.paidAt)] : []),
     '',
     ...r.lines.map(
-      (l) => `${l.label}${l.kobo === null ? '' : `: ${formatNaira(l.kobo)}`}`,
+      (l) => `${l.label}${l.kobo === null ? '' : `: ${formatMoney(l.kobo)}`}`,
     ),
-    `*Total: ${formatNaira(r.totalKobo)}*`,
+    `*Total: ${formatMoney(r.totalKobo)}*`,
     r.owedKobo > 0
-      ? `Paid: ${formatNaira(r.paidKobo)} · *Still to pay: ${formatNaira(r.owedKobo)}*`
-      : `*Paid: ${formatNaira(r.paidKobo)}*`,
+      ? `Paid: ${formatMoney(r.paidKobo)} · *Still to pay: ${formatMoney(r.owedKobo)}*`
+      : `*Paid: ${formatMoney(r.paidKobo)}*`,
     ...(r.riderNote ? [r.riderNote] : []),
     ...(r.refEnding ? [`Transfer ref ending ${r.refEnding}`] : []),
     '',

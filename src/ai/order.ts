@@ -1,3 +1,4 @@
+import { market } from '../config/market'
 import { Schema } from 'firebase/ai'
 import { pickOrder, type RawOrder } from '../capture/orderFields'
 import { privateModels, TEXT_ONLY } from './device'
@@ -65,17 +66,16 @@ const model = privateModels({
   },
 })
 
-const PROMPT = `Below is a WhatsApp chat between a Lagos shop ("You") and a customer. Copy the order the customer agreed to, exactly as written in the chat, or an empty string if absent. Never calculate or invent anything.
+const prompt =
+  () => `Below is a WhatsApp chat between a ${market().city} shop ("You") and a customer. Copy the order the customer agreed to, exactly as written in the chat, or an empty string if absent. Never calculate or invent anything.
 items: each item ordered, with its quantity and its unit price as stated in the chat
 total: the total amount stated in the chat
 customerName: the customer's name, if they gave it
 address: the delivery address; empty if they will pick up
 landmark: a landmark near the address
-area: the Lagos area or neighbourhood, such as Yaba or Ikeja
+area: the area or neighbourhood of ${market().city}
 deliveryChoice: how the customer wants to receive it, in their words, such as pickup, sending their own rider, or a park
-state: the Nigerian state or city for delivery, as written, including short forms such as PH or Abj
-park: the motor park they chose in that state
-payOnDelivery: yes if they will pay the delivery fee to the rider on delivery, otherwise empty
+${market().id === 'ng' ? 'state: the Nigerian state or city for delivery, as written, including short forms such as PH or Abj\npark: the motor park they chose in that state\n' : 'state: another city or state for delivery, if outside ' + market().city + '\npark: empty\n'}payOnDelivery: yes if they will pay the delivery fee to the rider on delivery, otherwise empty
 
 Chat:
 `
@@ -85,7 +85,7 @@ export async function readOrder(
   cloudConsent: boolean,
 ): Promise<Reading<RawOrder>> {
   const { json, source, ms } = await generateJson(model(cloudConsent), [
-    PROMPT + chat,
+    prompt() + chat,
   ])
   return { fields: pickOrder(json), source, ms }
 }

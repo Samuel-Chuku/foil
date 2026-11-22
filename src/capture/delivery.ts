@@ -1,5 +1,5 @@
 import type { DeliveryPlan } from '../ledger/types'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import type { OrderFields } from './orderFields'
 import { chatNames, placeIn, sameState, stateOf, type State } from './places'
 import { homeOf, type ShopRules } from './shopRules'
@@ -154,7 +154,7 @@ export function deliveryDueKobo(plan: DeliveryPlan | null): number {
 export function describePlan(plan: DeliveryPlan | null): string {
   if (!plan || !plan.method) return 'Not discussed yet'
   const fee =
-    plan.feeKobo === null ? 'fee to confirm' : formatNaira(plan.feeKobo)
+    plan.feeKobo === null ? 'fee to confirm' : formatMoney(plan.feeKobo)
   const paid =
     plan.paidTo === 'shop'
       ? ', paid to you'
@@ -186,7 +186,7 @@ export function deliveryFacts(
   const breakdown = (fee: number) =>
     itemsKobo === null
       ? ''
-      : ` Give the breakdown: items ${formatNaira(itemsKobo)} + delivery ${formatNaira(fee)} = ${formatNaira(itemsKobo + fee)}.`
+      : ` Give the breakdown: items ${formatMoney(itemsKobo)} + delivery ${formatMoney(fee)} = ${formatMoney(itemsKobo + fee)}.`
   const onDelivery =
     plan.paidTo === 'rider'
       ? ' The delivery fee is paid to the rider on delivery, not to the shop.'
@@ -206,7 +206,7 @@ export function deliveryFacts(
       )
       if (!plan.park && parks.length > 1) {
         return [
-          `Delivery to ${plan.state} goes to a park. Ask which park they want: ${parks.map((p) => `${p.park} (${formatNaira(p.feeKobo)})`).join(', ')}.`,
+          `Delivery to ${plan.state} goes to a park. Ask which park they want: ${parks.map((p) => `${p.park} (${formatMoney(p.feeKobo)})`).join(', ')}.`,
         ]
       }
       if (plan.feeKobo === null) {
@@ -217,9 +217,9 @@ export function deliveryFacts(
       const to = `${plan.park ? `the ${plan.park} park in ` : ''}${plan.state}`
       return plan.paidTo === 'shop'
         ? [
-            `Delivery to ${to} costs ${formatNaira(plan.feeKobo)}.${breakdown(plan.feeKobo)}`,
+            `Delivery to ${to} costs ${formatMoney(plan.feeKobo)}.${breakdown(plan.feeKobo)}`,
           ]
-        : [`Delivery to ${to} costs ${formatNaira(plan.feeKobo)}.${onDelivery}`]
+        : [`Delivery to ${to} costs ${formatMoney(plan.feeKobo)}.${onDelivery}`]
     }
     case 'own-rider':
     case 'courier': {
@@ -235,10 +235,10 @@ export function deliveryFacts(
       }
       return plan.paidTo === 'shop'
         ? [
-            `Delivery${to} ${by} costs ${formatNaira(plan.feeKobo)}.${breakdown(plan.feeKobo)}`,
+            `Delivery${to} ${by} costs ${formatMoney(plan.feeKobo)}.${breakdown(plan.feeKobo)}`,
           ]
         : [
-            `Delivery${to} ${by} costs ${formatNaira(plan.feeKobo)}.${onDelivery}`,
+            `Delivery${to} ${by} costs ${formatMoney(plan.feeKobo)}.${onDelivery}`,
           ]
     }
   }

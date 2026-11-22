@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ExtraRow } from '../ledger/settle'
 import type { Settlement } from '../ledger/types'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import type { Credit } from '../verify/types'
 
 // Times are Lagos wall-clock readings stored as UTC, so the UTC clock face is
@@ -27,8 +27,8 @@ function describe(row: ExtraRow): string {
   const from = row.credit.sender || 'an unknown sender'
   const at = row.credit.at ? ` at ${clock(row.credit)}` : ''
   const what = row.orderCode
-    ? `${formatNaira(row.amountKobo)} paid over the total of order ${row.orderCode}, from ${from}${at}`
-    : `${formatNaira(row.amountKobo)} from ${from}${at}`
+    ? `${formatMoney(row.amountKobo)} paid over the total of order ${row.orderCode}, from ${from}${at}`
+    : `${formatMoney(row.amountKobo)} from ${from}${at}`
   if (row.settlement) return `${what} · ${status(row.settlement)}`
   if (row.orderCode) return what
   return row.settleable

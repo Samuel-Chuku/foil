@@ -7,7 +7,7 @@ import { CHART_IDS, chartSpec, type ChartId } from '../ledger/charts'
 import type { Report } from '../ledger/report'
 import { trends, trendsText } from '../ledger/trends'
 import type { Order } from '../ledger/types'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import { Chart } from './Chart'
 import type { LedgerApi } from './useLedger'
 
@@ -73,7 +73,7 @@ export function TrendsCard(props: {
             ? 'Loading…'
             : quiet
               ? `No orders in the last ${span} days yet.`
-              : `Last ${span} days: ${t.current.orders} orders · ${formatNaira(t.current.paidKobo)} paid`}
+              : `Last ${span} days: ${t.current.orders} orders · ${formatMoney(t.current.paidKobo)} paid`}
         </span>
       </summary>
       <div className="span-pick" role="group" aria-label="Period">

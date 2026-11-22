@@ -1,5 +1,6 @@
+import { market, type Market } from '../config/market'
 import type { OrderItem, PaymentState, Settlement } from '../ledger/types'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 
 export type DraftFacts = {
   payment: PaymentState | null
@@ -32,12 +33,12 @@ export type DraftFacts = {
 // plain statement the reply must convey, so the model never judges payments.
 function paymentLine(facts: DraftFacts): string {
   const amount =
-    facts.amountKobo === null ? '' : ` of ${formatNaira(facts.amountKobo)}`
+    facts.amountKobo === null ? '' : ` of ${formatMoney(facts.amountKobo)}`
   if (facts.payment === 'matched' && facts.shortKobo && facts.deliveryOwed) {
-    return `The payment for the items has arrived. Thank the customer and ask them to send the delivery fee of ${formatNaira(facts.shortKobo)}, which is still to pay.`
+    return `The payment for the items has arrived. Thank the customer and ask them to send the delivery fee of ${formatMoney(facts.shortKobo)}, which is still to pay.`
   }
   if (facts.payment === 'matched' && facts.shortKobo) {
-    return `A payment has arrived, but it is ${formatNaira(facts.shortKobo)} short of the total${amount}. Thank the customer and ask politely for the balance of ${formatNaira(facts.shortKobo)}.`
+    return `A payment has arrived, but it is ${formatMoney(facts.shortKobo)} short of the total${amount}. Thank the customer and ask politely for the balance of ${formatMoney(facts.shortKobo)}.`
   }
   switch (facts.payment) {
     case 'matched':
@@ -53,12 +54,12 @@ function paymentLine(facts: DraftFacts): string {
     default:
       return facts.amountKobo === null
         ? 'Answer their latest message. Do not mention payment.'
-        : `Answer their latest message and give the price of ${formatNaira(facts.amountKobo)}. Do not say that they have not paid.`
+        : `Answer their latest message and give the price of ${formatMoney(facts.amountKobo)}. Do not say that they have not paid.`
   }
 }
 
 function extraLine(e: NonNullable<DraftFacts['extra']>[number]): string {
-  const amount = formatNaira(e.amountKobo)
+  const amount = formatMoney(e.amountKobo)
   switch (e.state) {
     case 'refund owed':
       return e.hasAccount
@@ -91,14 +92,30 @@ export function writesPidgin(chat: string): boolean {
 const PIDGIN_STYLE =
   'They write in Nigerian Pidgin, so reply in natural Lagos Pidgin, short and friendly, the way a Lagos trader texts. Examples of the style only, not of the facts: "E dey o, na ₦8,000." "I don see your money, thank you well well!" "Abeg send the money make I hold am for you." "We go send am today." "Sorry o, e don sell." "Only payment go secure am." Do not mix in any other language.'
 
-export function draftPrompt(facts: DraftFacts, chat: string): string {
-  const items = facts.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
-  const style = writesPidgin(chat)
+// How a shop in each market writes. Lagos follows the customer between
+// English and Pidgin; Mumbai writes English; São Paulo writes Portuguese.
+function replyStyle(chat: string, m: Market): string {
+  if (m.id === 'in') {
+    return 'Reply in friendly, plain English, the way a Mumbai shop writes to customers on WhatsApp. If the customer writes "ji" or a common Hindi word, you may answer as politely, but write in English.'
+  }
+  if (m.id === 'br') {
+    return 'Reply in natural Brazilian Portuguese, short and friendly, the way a São Paulo shop writes to customers on WhatsApp. Write amounts like R$ 150,00.'
+  }
+  return writesPidgin(chat)
     ? PIDGIN_STYLE
     : 'Reply in the same language the customer uses.'
-  return `You run a small Lagos shop and are replying to a customer on WhatsApp.
+}
+
+export function draftPrompt(
+  facts: DraftFacts,
+  chat: string,
+  m: Market = market(),
+): string {
+  const items = facts.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
+  const style = replyStyle(chat, m)
+  return `You run a small ${m.city} shop and are replying to a customer on WhatsApp.
 Facts to convey: ${[...(facts.complaint ? [COMPLAINT] : []), paymentLine(facts), ...(facts.stock ?? []), ...(facts.followUp ?? []), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.delivery?.length ? `\nDelivery: ${facts.delivery.join(' ')}` : ''}${facts.rules?.length ? `\nShop rules, for your reference only. If the customer asks about anything these cover, such as a delivery fee, answer from them; otherwise leave them out, and never mention "shop rules" by name:\n${facts.rules.join('\n')}` : ''}
-Write one short WhatsApp reply of one to three sentences that conveys the facts and answers any question in the customer's latest messages. ${style} Be warm and plain. Never use words a Lagos shop would not, such as "Ahoy", "Salamat" or "Eekoo", never join words with a slash such as "brother/sister", and never leave a placeholder in brackets. Do not add facts, prices, fees, hours or promises that are not given here, and do not say you will check or confirm anything these facts already answer. Output only the reply text.
+Write one short WhatsApp reply of one to three sentences that conveys the facts and answers any question in the customer's latest messages. ${style} Be warm and plain. Never use words a ${m.city} shop would not, such as "Ahoy", "Salamat" or "Eekoo", never join words with a slash such as "brother/sister", and never leave a placeholder in brackets. Do not add facts, prices, fees, hours or promises that are not given here, and do not say you will check or confirm anything these facts already answer. Output only the reply text.
 
 Chat:
 ${chat}`
@@ -113,7 +130,8 @@ export function tidyDraft(text: string): string {
 
 // Customers are never accused. A draft that slips into that language is
 // thrown away rather than shown.
-const ACCUSING = /\b(fake|fraud\w*|scam\w*|forged?|counterfeit)\b/i
+const ACCUSING =
+  /\b(fake|fraud\w*|scam\w*|forged?|counterfeit|falso|falsa|fraude|golpe|golpista)\b/i
 
 // Words and forms the model has produced that no Lagos vendor would send:
 // foreign greetings, invented slang, "brother/sister" hedges, [placeholders].

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { appConfig } from '../config/active'
+import { verifyFor } from '../config/marketBanks'
 import { dropMoney, syncBook, syncMoney, vendorId } from '../ledger/books'
 import { clearAll, getAll, putAll, remove } from '../ledger/db'
 import {
@@ -47,7 +48,7 @@ export type LedgerData = {
 }
 
 // Fixed for the session: Remote Config is applied before the first render.
-const verifyConfig = () => appConfig().verify
+const verifyConfig = () => verifyFor(appConfig().verify)
 
 // Read straight from IndexedDB, so a step that waited seconds on the model
 // decides against the records as they are now.

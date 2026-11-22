@@ -1,4 +1,4 @@
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import type { Trends } from './trends'
 
 // The charts the desk can draw. The cloud may pick one by its id to back a
@@ -44,7 +44,7 @@ export const isChartId = (v: unknown): v is ChartId =>
   typeof v === 'string' && (CHART_IDS as readonly string[]).includes(v)
 
 export const chartValue = (unit: ChartSpec['unit'], v: number) =>
-  unit === 'naira' ? formatNaira(v) : String(v)
+  unit === 'naira' ? formatMoney(v) : String(v)
 
 const shortDay = (day: string) =>
   new Date(`${day}T00:00:00Z`).toLocaleDateString('en-NG', {
@@ -80,7 +80,7 @@ export function chartSpec(
         unit: 'naira',
         series: ['Paid', 'Still open'],
         points,
-        summary: `Paid ${formatNaira(t.current.paidKobo)} over ${t.days.length} days${top && sumOf(top) ? `; the biggest day was ${top.label}` : ''}.`,
+        summary: `Paid ${formatMoney(t.current.paidKobo)} over ${t.days.length} days${top && sumOf(top) ? `; the biggest day was ${top.label}` : ''}.`,
       }
     }
     case 'orders-by-day': {
@@ -145,7 +145,7 @@ export function chartSpec(
           label: bankName(b.bank),
           values: [b.inKobo],
         })),
-        summary: `${formatNaira(t.moneyInKobo)} in across ${t.banks.length} bank${t.banks.length === 1 ? '' : 's'}.`,
+        summary: `${formatMoney(t.moneyInKobo)} in across ${t.banks.length} bank${t.banks.length === 1 ? '' : 's'}.`,
       }
     case 'top-items':
       return {

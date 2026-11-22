@@ -1,5 +1,5 @@
 import { bankFromNipCode, bankFromText } from './banks'
-import { parseNairaKobo } from './money'
+import { parseMoney } from './money'
 import { decodeSessionId } from './sessionId'
 import { parseLagosStamp } from './time'
 import type { Receipt, VerifyConfig } from './types'
@@ -38,11 +38,25 @@ export function clean(text: string): string {
     : t
 }
 
+// Status words in English and Portuguese. A scheduled Pix ("agendado") looks
+// like a finished payment but has not happened, a known trick, so it counts
+// as pending. Failure is checked first so "não concluído" is not a success.
 function status(text: string): Receipt['status'] {
   const t = text.toLowerCase()
-  if (/fail|declin|revers|unsuccess/.test(t)) return 'failed'
-  if (/pend|process|queue|initiat/.test(t)) return 'pending'
-  if (/success|complet|approved|paid/.test(t)) return 'successful'
+  if (
+    /fail|declin|revers|unsuccess|falh|recusad|cancelad|estornad|não conclu|nao conclu/.test(
+      t,
+    )
+  )
+    return 'failed'
+  if (/pend|process|queue|initiat|agendad|em análise|em analise/.test(t))
+    return 'pending'
+  if (
+    /success|complet|approved|paid|conclu|aprovad|realizad|efetuad|enviado/.test(
+      t,
+    )
+  )
+    return 'successful'
   return 'unknown'
 }
 
@@ -60,7 +74,7 @@ export function toReceipt(raw: RawReceipt, config: VerifyConfig): Receipt {
     at = { ms: at.ms, precision: 'day' }
   }
   return {
-    amountKobo: parseNairaKobo(clean(raw.amountText)),
+    amountKobo: parseMoney(clean(raw.amountText)),
     sender: clean(raw.sender),
     senderBank: bank?.id ?? null,
     reference,

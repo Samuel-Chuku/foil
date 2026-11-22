@@ -1,6 +1,6 @@
 import { deliveryGroups, nextSteps } from '../capture/deliveries'
 import type { Order } from '../ledger/types'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import type { LedgerApi } from './useLedger'
 
 // The buttons that move one order along: out, delivered or collected.
@@ -72,7 +72,7 @@ export function DeliveriesCard(props: {
                       )}{' '}
                       · {o.items.map((i) => `${i.qty} x ${i.name}`).join(', ')}
                       {o.delivery === 'out' && ' · out for delivery'}
-                      {owedKobo > 0 && ` · ${formatNaira(owedKobo)} still owed`}
+                      {owedKobo > 0 && ` · ${formatMoney(owedKobo)} still owed`}
                     </p>
                     <DeliverySteps
                       order={o}

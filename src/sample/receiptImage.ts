@@ -1,4 +1,14 @@
-import type { SampleReceipt } from './pack'
+import type { ReceiptLabels, SampleReceipt } from './pack'
+
+const ENGLISH: ReceiptLabels = {
+  title: 'Transfer receipt',
+  sender: 'Sender',
+  recipient: 'Beneficiary',
+  recipientBank: 'Beneficiary bank',
+  sessionId: 'Session ID',
+  reference: 'Transaction reference',
+  date: 'Date',
+}
 
 export type ReceiptPicture = { mimeType: string; base64: string; src: string }
 
@@ -6,15 +16,14 @@ export type ReceiptPicture = { mimeType: string; base64: string; src: string }
 // use, with no bank's logo or branding: the issuer is printed as text.
 export function drawReceipt(r: SampleReceipt): ReceiptPicture {
   const width = 400
+  const l = { ...ENGLISH, ...r.labels }
   const rows: [string, string][] = [
-    ['Sender', r.sender],
-    ['Beneficiary', r.recipient],
-    ['Beneficiary bank', r.recipientBank],
-    ...(r.sessionId ? [['Session ID', r.sessionId] as [string, string]] : []),
-    ...(r.reference
-      ? [['Transaction reference', r.reference] as [string, string]]
-      : []),
-    ['Date', r.dateTime],
+    [l.sender, r.sender],
+    [l.recipient, r.recipient],
+    [l.recipientBank, r.recipientBank],
+    ...(r.sessionId ? [[l.sessionId, r.sessionId] as [string, string]] : []),
+    ...(r.reference ? [[l.reference, r.reference] as [string, string]] : []),
+    [l.date, r.dateTime],
   ]
   const height = 250 + rows.length * 56
   const canvas = document.createElement('canvas')
@@ -33,7 +42,7 @@ export function drawReceipt(r: SampleReceipt): ReceiptPicture {
 
   g.fillStyle = '#555555'
   g.font = '15px sans-serif'
-  g.fillText('Transfer receipt', 24, 98)
+  g.fillText(l.title, 24, 98)
   g.fillStyle = '#111111'
   g.font = 'bold 34px sans-serif'
   g.fillText(r.amountText, 24, 142)
@@ -47,7 +56,10 @@ export function drawReceipt(r: SampleReceipt): ReceiptPicture {
     g.font = '14px sans-serif'
     g.fillText(label, 24, y)
     g.fillStyle = '#111111'
-    g.font = /^\d{12,}$/.test(value) ? '16px monospace' : '17px sans-serif'
+    g.font =
+      /^[\dA-Z][\dA-Za-z]{11,}$/.test(value) && /\d{6}/.test(value)
+        ? '16px monospace'
+        : '17px sans-serif'
     g.fillText(value, 24, y + 22)
     g.strokeStyle = '#e4e4e4'
     g.beginPath()

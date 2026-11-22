@@ -1,5 +1,5 @@
 import { clean } from './receiptFields'
-import { parseNairaKobo } from './money'
+import { parseMoney } from './money'
 import { decodeSessionId, digitRuns, prefixOf } from './sessionId'
 import { parseLagosStamp } from './time'
 import type { Credit, LagosMs, Stamp } from './types'
@@ -80,7 +80,7 @@ export function historyCredits(
       description: clean(raw.description),
       dateTime: clean(raw.dateTime),
     }
-    const amountKobo = parseNairaKobo(row.amountText)
+    const amountKobo = parseMoney(row.amountText)
     const dir = direction(row)
     if (amountKobo === null || amountKobo === 0 || !dir) return []
     const session = decodeSessionId(row.description)

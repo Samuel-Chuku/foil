@@ -1,5 +1,5 @@
 import { moneyFlow } from '../ledger/flow'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import type { LedgerApi } from './useLedger'
 
 // Lagos wall-clock times are stored as UTC fields.
@@ -16,7 +16,7 @@ function dayTitle(day: string | null): string {
 }
 
 const sums = (inKobo: number, outKobo: number) =>
-  `In ${formatNaira(inKobo)} · Out ${formatNaira(outKobo)}`
+  `In ${formatMoney(inKobo)} · Out ${formatMoney(outKobo)}`
 
 export function MoneyFlowCard(props: { ledger: LedgerApi }) {
   const { data, config } = props.ledger
@@ -61,7 +61,7 @@ export function MoneyFlowCard(props: { ledger: LedgerApi }) {
                     <span>{c.at ? time(c.at.ms) : '--:--'}</span>
                     <span>
                       {c.direction === 'credit' ? '+' : '−'}
-                      {formatNaira(c.amountKobo)}
+                      {formatMoney(c.amountKobo)}
                     </span>
                     <span>
                       {c.sender ||

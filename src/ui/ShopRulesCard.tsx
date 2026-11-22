@@ -1,3 +1,5 @@
+import { market, MARKETS, type MarketId } from '../config/market'
+import { rememberMarket, RAIL_NAME } from './marketChoice'
 import { useState } from 'react'
 import { pdfText } from '../ai/pdfText'
 import { RECEIPT_IMAGE_TYPES } from '../ai/receipt'
@@ -13,7 +15,7 @@ import {
   type ShopRules,
 } from '../capture/shopRules'
 import { STATES, type State } from '../capture/places'
-import { parseNairaKobo } from '../verify/money'
+import { parseMoney } from '../verify/money'
 import { fileToImage } from './bankApp'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { ShopRulesApi } from './useShopRules'
@@ -59,14 +61,14 @@ const fromForm = (f: Form): ShopRules => ({
   homeState: f.homeState,
   methods: f.methods,
   areaFees: f.areas.flatMap((x) => {
-    const feeKobo = parseNairaKobo(x.fee)
+    const feeKobo = parseMoney(x.fee)
     return x.area.trim() && feeKobo !== null
       ? [{ area: x.area.trim(), feeKobo }]
       : []
   }),
-  otherAreasFeeKobo: parseNairaKobo(f.otherFee),
+  otherAreasFeeKobo: parseMoney(f.otherFee),
   parks: f.parks.flatMap((x) => {
-    const feeKobo = parseNairaKobo(x.fee)
+    const feeKobo = parseMoney(x.fee)
     return x.state.trim() && feeKobo !== null
       ? [{ state: x.state.trim(), park: x.park.trim(), feeKobo }]
       : []
@@ -95,6 +97,9 @@ function Checked(props: { field: string; form: Form }) {
 export function ShopRulesCard(props: {
   shop: ShopRulesApi
   device: DeviceApi
+  // The extension lets a shop choose its market; the demo has its own
+  // city switcher.
+  pickMarket?: boolean
 }) {
   const { shop, device } = props
   // Edits and file readings stay in the form until saved.
@@ -220,6 +225,25 @@ export function ShopRulesCard(props: {
           in. Everything stays on this computer, and drafts never make up terms
           you have not set.
         </p>
+        {props.pickMarket && (
+          <label>
+            Where you sell
+            <select
+              value={market().id}
+              onChange={(e) => {
+                rememberMarket(e.target.value as MarketId)
+                location.reload()
+              }}
+            >
+              {(Object.keys(MARKETS) as MarketId[]).map((id) => (
+                <option key={id} value={id}>
+                  {MARKETS[id].country}: {MARKETS[id].currency.code},{' '}
+                  {RAIL_NAME[MARKETS[id].rail]}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           Shop name
           <input
@@ -301,7 +325,7 @@ export function ShopRulesCard(props: {
                     />
                   </label>
                   <label>
-                    Fee (₦)
+                    Fee ({market().currency.symbol})
                     <input
                       inputMode="decimal"
                       value={x.fee}
@@ -341,8 +365,8 @@ export function ShopRulesCard(props: {
                 Add an area
               </button>
               <label>
-                Fee for other areas (₦, empty if you quote each time){' '}
-                <Checked field="otherAreasFeeKobo" form={f} />
+                Fee for other areas ({market().currency.symbol}, empty if you
+                quote each time) <Checked field="otherAreasFeeKobo" form={f} />
                 <input
                   inputMode="decimal"
                   value={f.otherFee}
@@ -364,7 +388,7 @@ export function ShopRulesCard(props: {
                     [
                       ['state', 'State'],
                       ['park', 'Park'],
-                      ['fee', 'Fee (₦)'],
+                      ['fee', `Fee (${market().currency.symbol})`],
                     ] as const
                   ).map(([k, label]) => (
                     <label key={k}>

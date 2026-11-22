@@ -2,7 +2,7 @@ import { Schema } from 'firebase/ai'
 import type { Approved, CloudRequest } from '../cloud/approval'
 import { cloudModel, sendApproved } from '../cloud/send'
 import { CHART_IDS, chartMenu } from '../ledger/charts'
-import { pickReport, REPORT_INSTRUCTIONS, type Report } from '../ledger/report'
+import { pickReport, reportInstructions, type Report } from '../ledger/report'
 import type { Reading } from './run'
 
 const chart = Schema.enumString({ enum: [...CHART_IDS, 'none'] })
@@ -29,7 +29,7 @@ export function reportRequest(numbers: string, days: number): CloudRequest {
     feature: `Review the last ${days} days`,
     reason:
       'The review is written by the cloud model. Only totals are sent, never who paid or where they live.',
-    texts: [REPORT_INSTRUCTIONS, chartMenu(), numbers],
+    texts: [reportInstructions(), chartMenu(), numbers],
     replaced: [],
   }
 }

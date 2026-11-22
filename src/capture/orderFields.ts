@@ -1,5 +1,5 @@
 import type { OrderItem } from '../ledger/types'
-import { parseNairaKobo } from '../verify/money'
+import { parseMoney } from '../verify/money'
 import { clean } from '../verify/receiptFields'
 
 // What the model copies out of a chat: text exactly as written, never sums.
@@ -99,14 +99,14 @@ export function toOrderFields(raw: RawOrder): OrderFields {
     .map((i) => ({
       name: i.name,
       qty: quantity(i.quantity),
-      priceKobo: parseNairaKobo(i.price),
+      priceKobo: parseMoney(i.price),
     }))
   const summed = items.every((i) => i.priceKobo !== null)
     ? items.reduce((n, i) => n + i.qty * (i.priceKobo ?? 0), 0)
     : null
   return {
     items,
-    amountKobo: parseNairaKobo(raw.total) ?? (summed || null),
+    amountKobo: parseMoney(raw.total) ?? (summed || null),
     customerName: raw.customerName,
     // Models sometimes write the pickup itself into the address field.
     address: PICKUP.test(raw.address) ? '' : raw.address,

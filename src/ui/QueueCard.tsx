@@ -6,7 +6,7 @@ import {
   SECTION_TITLE,
   type Section,
 } from '../queue/queue'
-import { formatNaira } from '../verify/money'
+import { formatMoney } from '../verify/money'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
 
@@ -135,7 +135,7 @@ export function QueueCard(props: {
                     <span className="hint">
                       {e.why}
                       {e.order?.amountKobo != null &&
-                        ` Order ${e.order.code}, ${formatNaira(e.order.amountKobo)}.`}
+                        ` Order ${e.order.code}, ${formatMoney(e.order.amountKobo)}.`}
                     </span>
                   </li>
                 ))}

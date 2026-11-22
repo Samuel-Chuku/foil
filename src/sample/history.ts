@@ -1,4 +1,5 @@
-import type { DeliveryPlan, Order, Settlement } from '../ledger/types'
+import type { ShopRules } from '../capture/shopRules'
+import type { DeliveryPlan, Order, Product, Settlement } from '../ledger/types'
 import type { Credit } from '../verify/types'
 import { SAMPLE_PRODUCTS, SAMPLE_SHOP_RULES } from './pack'
 
@@ -46,12 +47,21 @@ function seeded(seed: number) {
   }
 }
 
+// Another market's shop for the history: its stock, rider areas and banks.
+export type HistoryShop = {
+  products: Product[]
+  areaFees: ShopRules['areaFees']
+  banks: string[]
+}
+
 export function sampleHistory(
-  // The sample day at midnight, Lagos wall-clock milliseconds.
+  // The sample day at midnight, local wall-clock milliseconds.
   dayMs: number,
   days: number,
-  // Turns a Lagos wall-clock time into the clock orders are stamped with.
+  // Turns a local wall-clock time into the clock orders are stamped with.
   toEpoch: (lagosMs: number) => number,
+  // Lagos when absent.
+  shop?: HistoryShop,
 ): { orders: Order[]; credits: Credit[]; settlements: Settlement[] } {
   const rand = seeded(20261121)
   const pick = <T>(list: T[]) => list[Math.floor(rand() * list.length)]!
@@ -63,7 +73,8 @@ export function sampleHistory(
   const pickPlan = (): DeliveryPlan => {
     const r = rand()
     if (r < 0.2) return { ...NO_PLAN, method: 'pickup' }
-    if (r < 0.28) {
+    // Park deliveries to other states are a Nigerian way of shipping.
+    if (r < 0.28 && !shop) {
       return {
         ...NO_PLAN,
         method: 'nationwide',
@@ -73,7 +84,7 @@ export function sampleHistory(
         paidTo: 'shop',
       }
     }
-    const area = pick(SAMPLE_SHOP_RULES.areaFees)
+    const area = pick(shop?.areaFees ?? SAMPLE_SHOP_RULES.areaFees)
     return {
       ...NO_PLAN,
       method: 'own-rider',
@@ -96,8 +107,11 @@ export function sampleHistory(
         start + pick(HOURS) * 3_600_000 + Math.floor(rand() * 60) * 60_000
       const lines = 1 + (rand() < 0.3 ? 1 : 0)
       const items = [...Array(lines).keys()].map(() => {
-        const wanted = `sample-${pick(POPULAR)}`
-        const p = SAMPLE_PRODUCTS.find((x) => x.id === wanted)!
+        // Drawn once, outside the search, so each item costs one random draw.
+        const wanted = shop ? null : `sample-${pick(POPULAR)}`
+        const p = shop
+          ? pick(shop.products)
+          : SAMPLE_PRODUCTS.find((x) => x.id === wanted)!
         return {
           name: p.name,
           qty: p.id === 'sample-headwrap' ? 1 + Math.floor(rand() * 3) : 1,
@@ -165,7 +179,7 @@ export function sampleHistory(
         const creditId = `${id}-credit`
         credits.push({
           id: creditId,
-          bank: pick(BANKS),
+          bank: pick(shop?.banks ?? BANKS),
           direction: 'credit',
           reversal: false,
           amountKobo: dueKobo,

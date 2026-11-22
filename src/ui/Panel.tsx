@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { writeDraft } from '../ai/draft'
+import { draftRequest, writeCloudDraft, writeDraft } from '../ai/draft'
 import { readOrder } from '../ai/order'
 import { readRefundTo } from '../ai/refund'
 import { toRefundTo } from '../capture/refundDetails'
@@ -22,6 +22,7 @@ import {
 } from '../capture/voice'
 import { placeNames } from '../capture/places'
 import { errorMessage } from '../cloud/errors'
+import { redact } from '../cloud/approval'
 import { cloudErrorText } from '../cloud/send'
 import { useApproval } from './useApproval'
 import { VoiceCard, type VoiceStep } from './VoiceCard'
@@ -59,7 +60,7 @@ import type {
   OrderItem,
 } from '../ledger/types'
 import { verifyReceipt, type Verdict } from '../verify/match'
-import { formatNaira, parseNairaKobo } from '../verify/money'
+import { formatMoney, parseMoney } from '../verify/money'
 import type { RawReceipt } from '../verify/receiptFields'
 import { toReceipt } from '../verify/receiptFields'
 import type { Credit, Receipt } from '../verify/types'
@@ -95,6 +96,8 @@ import {
 import { lagosFromEpoch } from '../verify/time'
 import { MoneyFlowCard } from './MoneyFlowCard'
 import { BooksCard } from './BooksCard'
+import { market } from '../config/market'
+import { REF_LABEL } from '../verify/sessionId'
 import { findOrders } from '../ledger/search'
 import { DeliveriesCard, DeliverySteps } from './DeliveriesCard'
 import { AskCard } from './AskCard'
@@ -192,11 +195,11 @@ function paymentText(order: Order, credits: Credit[]): string {
     order.amountKobo !== null &&
     paidKobo(order, credits) >= order.amountKobo
   ) {
-    return `Items paid, delivery ${formatNaira(balance)} to pay`
+    return `Items paid, delivery ${formatMoney(balance)} to pay`
   }
-  if (balance !== null && balance > 0) return `Short by ${formatNaira(balance)}`
+  if (balance !== null && balance > 0) return `Short by ${formatMoney(balance)}`
   if (balance !== null && balance < 0) {
-    return `Paid, ${formatNaira(-balance)} over`
+    return `Paid, ${formatMoney(-balance)} over`
   }
   return PAYMENT_LABEL[order.payment.state]
 }
@@ -313,6 +316,9 @@ export function Panel(props: {
   shop: ShopRulesApi
   // Where alerts come from in this host: the extension's Gmail accounts.
   inbox?: ReactNode
+  // Whether the shop picks its market here (the extension) or the host has
+  // its own switcher (the demo).
+  pickMarket?: boolean
 }) {
   const { chat, ledger, device, host, shop } = props
   const online = useOnline()
@@ -363,7 +369,7 @@ export function Panel(props: {
   }, [messages, customerId, contactName, noteChat])
   const current = chat ? (work[chat.phone] ?? {}) : {}
   // Lagos is a fixed hour ahead of UTC.
-  const LAGOS_OFFSET_MS = 3_600_000
+  const LAGOS_OFFSET_MS = market().utcOffsetMin * 60_000
   // Holds run on the real clock; the demo shows its own sample-day clock, so
   // times are shifted by the difference for display and for message times.
   const clockShift = () => host.now() - lagosFromEpoch(Date.now())
@@ -730,6 +736,7 @@ export function Panel(props: {
     patch(phone, {
       voice: { status: 'running', note: 'Waiting for your approval…' },
     })
+    const lagos = market().id === 'ng'
     const approved = await approval.ask(
       voiceRequest(
         {
@@ -739,9 +746,13 @@ export function Panel(props: {
           }),
         },
         {
-          glossary: appConfig().pidginGlossary,
-          areas: placeNames('Lagos'),
-          streets: LAGOS_STREETS,
+          // Lagos brings its Pidgin glossary, areas and well-known streets;
+          // other markets use the shop's own delivery areas.
+          glossary: lagos ? appConfig().pidginGlossary : {},
+          areas: lagos
+            ? placeNames('Lagos')
+            : shop.rules.areaFees.map((f) => f.area),
+          streets: lagos ? LAGOS_STREETS : [],
           products: (data?.products ?? []).flatMap((p) =>
             p.name && !p.dropId ? [p.name] : [],
           ),
@@ -861,7 +872,7 @@ export function Panel(props: {
       .map((i) => ({
         name: i.name.trim() || 'Item from photo',
         qty: Math.max(1, Number.parseInt(i.qty, 10) || 1),
-        priceKobo: parseNairaKobo(i.price),
+        priceKobo: parseMoney(i.price),
         ...(i.productId && { productId: i.productId }),
       }))
     const drop = items.some(
@@ -873,7 +884,7 @@ export function Panel(props: {
         mode: drop ? 'drop' : 'everyday',
         customerId: id,
         items,
-        amountKobo: parseNairaKobo(form.amount),
+        amountKobo: parseMoney(form.amount),
         deliveryPlan: fromDeliveryForm(form.delivery),
       },
       at,
@@ -1106,8 +1117,9 @@ export function Panel(props: {
     if (!chat || !data) return
     const phone = chat.phone
     patch(phone, { draft: { status: 'running', note: 'Getting ready…' } })
+    const onDevice = market().reply.onDevice
     try {
-      await device.ready()
+      if (onDevice) await device.ready()
       patch(phone, { draft: { status: 'running', note: 'Writing a reply…' } })
       const v = current.verify?.status === 'done' ? current.verify.value : null
       const chatText = transcript(
@@ -1179,11 +1191,11 @@ export function Panel(props: {
             .slice(0, 3)
             .map(
               (p) =>
-                `#${p.dropNo}${p.priceKobo === null ? '' : ` (${formatNaira(p.priceKobo)})`}`,
+                `#${p.dropNo}${p.priceKobo === null ? '' : ` (${formatMoney(p.priceKobo)})`}`,
             )
           const role = order ? roleOf(st, order.id) : null
           const price =
-            product.priceKobo === null ? null : formatNaira(product.priceKobo)
+            product.priceKobo === null ? null : formatMoney(product.priceKobo)
           const it = `About ${called(product)}:`
           if (role?.role === 'bought' && !role.late) return []
           if (
@@ -1268,7 +1280,25 @@ export function Panel(props: {
         },
         chatText,
       )
-      const reading = await writeDraft(prompt, device.consent)
+      let reading: Reading<string>
+      if (onDevice) {
+        reading = await writeDraft(prompt, device.consent)
+      } else {
+        // The chat holds names and numbers, so they are swapped out and the
+        // vendor sees exactly what goes before anything leaves.
+        const names = [chat.contactName, customerName(customerId)]
+          .filter((n) => n && n !== 'Customer')
+          .map((name) => ({ name, label: '(customer)' }))
+        const { text, replaced } = redact(prompt, names)
+        const approved = await approval.ask(
+          draftRequest(text, market().reply.language, replaced),
+        )
+        if (!approved) {
+          patch(phone, { draft: undefined })
+          return
+        }
+        reading = await writeCloudDraft(approved)
+      }
       const problem = draftProblem(reading.fields)
       if (problem) throw new Error(`${problem} Try again.`)
       await host.insertDraft(phone, reading.fields)
@@ -1399,7 +1429,7 @@ export function Panel(props: {
               return (
                 <li key={id}>
                   Order {o.code} for {customerName(o.customerId)}
-                  {o.amountKobo !== null && `, ${formatNaira(o.amountKobo)}`}:
+                  {o.amountKobo !== null && `, ${formatMoney(o.amountKobo)}`}:
                   the money arrived. Open the chat to send a confirmation.{' '}
                   <button
                     type="button"
@@ -1479,13 +1509,17 @@ export function Panel(props: {
                     <dd>
                       {v.value.receipt.amountKobo === null
                         ? 'Not read'
-                        : formatNaira(v.value.receipt.amountKobo)}
+                        : formatMoney(v.value.receipt.amountKobo)}
                     </dd>
                     <dt>Sender</dt>
                     <dd>{v.value.receipt.sender || 'Not read'}</dd>
                     <dt>Bank</dt>
                     <dd>{bankName(v.value.receipt.senderBank)}</dd>
-                    <dt>Session ID</dt>
+                    <dt>
+                      {REF_LABEL[market().rail].replace(/^\w/, (c) =>
+                        c.toUpperCase(),
+                      )}
+                    </dt>
                     <dd className="mono">
                       {v.value.reading.fields.sessionId || 'Not printed'}
                     </dd>
@@ -1536,7 +1570,7 @@ export function Panel(props: {
                           return (
                             <li key={id}>
                               {cr
-                                ? `${formatNaira(cr.amountKobo)} from ${cr.sender || 'an unknown sender'}`
+                                ? `${formatMoney(cr.amountKobo)} from ${cr.sender || 'an unknown sender'}`
                                 : id}{' '}
                               <button
                                 type="button"
@@ -1579,7 +1613,7 @@ export function Panel(props: {
                     <strong>Order {order.code}</strong>{' '}
                     {order.amountKobo === null
                       ? ''
-                      : formatNaira(order.amountKobo)}{' '}
+                      : formatMoney(order.amountKobo)}{' '}
                     · {paymentText(order, data?.credits ?? [])}
                     {order.payment.decidedBy === 'vendor' &&
                       ' (confirmed by you)'}
@@ -1651,7 +1685,7 @@ export function Panel(props: {
                   />
                   {balance !== null && balance > 0 && (
                     <p className="hint">
-                      Ask for the balance of {formatNaira(balance)}. When the
+                      Ask for the balance of {formatMoney(balance)}. When the
                       customer sends a receipt for it, verify it here and it is
                       added to this order.
                     </p>
@@ -1659,8 +1693,8 @@ export function Panel(props: {
                   {amountGap && v?.status === 'done' && (
                     <p className="hint">
                       The receipt shows{' '}
-                      {formatNaira(v.value.receipt.amountKobo ?? 0)} but the
-                      order total is {formatNaira(order.amountKobo ?? 0)}.
+                      {formatMoney(v.value.receipt.amountKobo ?? 0)} but the
+                      order total is {formatMoney(order.amountKobo ?? 0)}.
                     </p>
                   )}
                 </div>
@@ -1770,7 +1804,7 @@ export function Panel(props: {
                                   {p.name ||
                                     (p.dropNo ? `#${p.dropNo}` : 'Photo')}
                                   {p.priceKobo !== null &&
-                                    ` · ${formatNaira(p.priceKobo)}`}
+                                    ` · ${formatMoney(p.priceKobo)}`}
                                 </span>
                               </button>
                             )
@@ -1991,7 +2025,7 @@ export function Panel(props: {
                     )}
                   </span>
                   <span>
-                    {o.amountKobo === null ? '' : formatNaira(o.amountKobo)}
+                    {o.amountKobo === null ? '' : formatMoney(o.amountKobo)}
                   </span>
                   <span data-kind={o.payment.state}>
                     {paymentText(o, data?.credits ?? [])}
@@ -2114,7 +2148,11 @@ export function Panel(props: {
       </TabPanel>
 
       <TabPanel id="shop" current={tab}>
-        <ShopRulesCard shop={shop} device={device} />
+        <ShopRulesCard
+          shop={shop}
+          device={device}
+          pickMarket={props.pickMarket}
+        />
 
         <ReceiptLookCard brand={brand} shopName={shop.rules.shopName} />
 

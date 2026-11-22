@@ -1,6 +1,6 @@
 import type { DeliveryMethod } from '../capture/shopRules'
 import type { DeliveryPlan } from '../ledger/types'
-import { parseNairaKobo } from '../verify/money'
+import { parseMoney } from '../verify/money'
 
 export type DeliveryForm = {
   method: DeliveryMethod | ''
@@ -30,7 +30,7 @@ export function fromDeliveryForm(f: DeliveryForm): DeliveryPlan | null {
     area: f.area.trim(),
     state: f.state.trim(),
     park: f.park.trim(),
-    feeKobo: collects ? parseNairaKobo(f.fee) : null,
+    feeKobo: collects ? parseMoney(f.fee) : null,
     paidTo: collects && f.paidTo ? f.paidTo : null,
   }
 }

@@ -173,6 +173,7 @@ export default function ExtensionApp() {
         </details>
       )}
       <Panel
+        pickMarket
         chat={shown}
         request={request}
         ledger={ledger}
