@@ -29,10 +29,13 @@ export type ChartPoint = {
 }
 
 export type ChartSpec = {
-  id: ChartId
+  // The money pulse's chart is drawn for the vendor only, never picked by
+  // the cloud, so it is not in the cloud's menu.
+  id: ChartId | 'money-in-out'
   title: string
-  // Columns run along time; bars list categories down the page.
-  kind: 'columns' | 'bars'
+  // Columns run along time; bars list categories down the page; lines
+  // compare series that are not parts of one whole.
+  kind: 'columns' | 'bars' | 'lines'
   unit: 'naira' | 'count'
   series: string[]
   points: ChartPoint[]

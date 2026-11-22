@@ -920,3 +920,140 @@ button.link {
   width: 100%;
   box-sizing: border-box;
 }
+
+/* Money today: tiles, chart and the live feed of bank alerts. */
+.pulse-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+.pulse-head h3 {
+  margin: 0;
+}
+.pulse-live {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--good);
+  animation: pulse-beat 2s ease-in-out infinite;
+}
+@keyframes pulse-beat {
+  50% {
+    opacity: 0.35;
+  }
+}
+.pulse-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.pulse-tile {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid #8884;
+  border-left: 4px solid var(--good);
+  border-radius: 6px;
+  padding: 0.6rem 0.7rem;
+}
+.pulse-tile[data-dir='out'] {
+  border-left-color: var(--warn);
+}
+.pulse-tile strong {
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+}
+.pulse-label {
+  font-size: 0.85rem;
+}
+.pulse-spans {
+  display: flex;
+  gap: 0.35rem;
+}
+.pulse-spans button[aria-pressed='true'] {
+  font-weight: bold;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.pulse h4 {
+  margin: 0.75rem 0 0.25rem;
+}
+.pulse-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pulse-feed li {
+  display: grid;
+  grid-template-columns: 3rem 4.5rem 6.5rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.3rem 0.25rem;
+  border-bottom: 1px solid #8882;
+  font-size: 0.9rem;
+}
+.pulse-tag {
+  justify-self: start;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 0.35rem;
+  font-size: 0.8rem;
+}
+.pulse-feed li[data-dir='credit'] .pulse-tag {
+  color: var(--good);
+}
+.pulse-feed li[data-dir='debit'] .pulse-tag {
+  color: var(--warn);
+}
+.pulse-amount {
+  font-variant-numeric: tabular-nums;
+}
+.pulse-what {
+  overflow-wrap: anywhere;
+}
+.pulse-feed li.fresh {
+  animation: pulse-fresh 2.5s ease-out;
+}
+@keyframes pulse-fresh {
+  from {
+    background: #8884;
+  }
+}
+@media (max-width: 26rem) {
+  .pulse-feed li {
+    grid-template-columns: 3rem 4.5rem minmax(0, 1fr);
+  }
+  .pulse-what {
+    grid-column: 2 / -1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot,
+  .pulse-feed li.fresh {
+    animation: none;
+  }
+}
+.chart-svg .line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.chart-svg .line.series-1 {
+  stroke: var(--series-1);
+}
+.chart-svg .line.series-2 {
+  stroke: var(--series-2);
+}
+.chart-svg .dot {
+  stroke: var(--page-bg);
+  stroke-width: 2;
+}

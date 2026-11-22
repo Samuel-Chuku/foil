@@ -43,11 +43,12 @@ function totals(rows: FlowRow[]) {
   return { inKobo, outKobo }
 }
 
-export function moneyFlow(
+// Each credit and debit with what it was for, newest first; undated last.
+export function flowRows(
   credits: Credit[],
   orders: Order[],
   settlements: Settlement[],
-): DayFlow[] {
+): FlowRow[] {
   const paidBy = new Map<string, string>()
   for (const o of orders) {
     if (o.payment.state !== 'matched') continue
@@ -55,18 +56,23 @@ export function moneyFlow(
     for (const t of o.payment.topUpIds) paidBy.set(t, o.code)
   }
   const refunds = new Set(settlements.flatMap((s) => s.refundId ?? []))
-  const newestFirst = [...credits].sort(
-    (a, b) => (b.at?.ms ?? -Infinity) - (a.at?.ms ?? -Infinity),
-  )
-
-  const days = new Map<string | null, FlowRow[]>()
-  for (const c of newestFirst) {
-    const key = dayOf(c)
-    const row: FlowRow = {
+  return [...credits]
+    .sort((a, b) => (b.at?.ms ?? -Infinity) - (a.at?.ms ?? -Infinity))
+    .map((c) => ({
       credit: c,
       orderCode: paidBy.get(c.id) ?? null,
       refund: refunds.has(c.id),
-    }
+    }))
+}
+
+export function moneyFlow(
+  credits: Credit[],
+  orders: Order[],
+  settlements: Settlement[],
+): DayFlow[] {
+  const days = new Map<string | null, FlowRow[]>()
+  for (const row of flowRows(credits, orders, settlements)) {
+    const key = dayOf(row.credit)
     days.set(key, [...(days.get(key) ?? []), row])
   }
 

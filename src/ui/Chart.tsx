@@ -113,6 +113,82 @@ function Columns(props: { spec: ChartSpec }) {
   )
 }
 
+// One 2px line per series with a marker on each day; markers are ringed in
+// the surface colour so crossing lines stay readable.
+function Lines(props: { spec: ChartSpec }) {
+  const { spec } = props
+  const max = niceMax(Math.max(0, ...spec.points.flatMap((p) => p.values)))
+  const plotH = H - BOTTOM - TOP
+  const n = spec.points.length
+  const step = (W - LEFT - 12) / Math.max(1, n - 1)
+  const every = Math.ceil(n / 7)
+  const x = (i: number) => LEFT + 6 + (n === 1 ? (W - LEFT - 12) / 2 : i * step)
+  const y = (v: number) => TOP + plotH - (v / max) * plotH
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" aria-hidden="true">
+      {[0, 0.5, 1].map((f) => (
+        <g key={f}>
+          <line
+            x1={LEFT}
+            x2={W}
+            y1={y(max * f)}
+            y2={y(max * f)}
+            className="grid"
+          />
+          <text
+            x={LEFT - 6}
+            y={y(max * f) + 3}
+            className="axis"
+            textAnchor="end"
+          >
+            {compact(spec.unit, max * f)}
+          </text>
+        </g>
+      ))}
+      {spec.series.map((_, s) => (
+        <polyline
+          key={s}
+          points={spec.points
+            .map((p, i) => `${x(i)},${y(p.values[s] ?? 0)}`)
+            .join(' ')}
+          className={`line series-${s + 1}`}
+        />
+      ))}
+      {spec.points.map((p, i) => (
+        <g key={i} className="mark">
+          <title>
+            {`${p.label}: ${p.values
+              .map((v, s) => `${spec.series[s]} ${chartValue(spec.unit, v)}`)
+              .join(', ')}`}
+          </title>
+          <rect
+            x={x(i) - step / 2}
+            y={TOP}
+            width={Math.max(step, 12)}
+            height={plotH}
+            className="hit"
+          />
+          {n <= 14 &&
+            p.values.map((v, s) => (
+              <circle
+                key={s}
+                cx={x(i)}
+                cy={y(v)}
+                r={3.5}
+                className={`dot series-${s + 1}`}
+              />
+            ))}
+          {i % every === 0 && (
+            <text x={x(i)} y={H - 4} className="axis" textAnchor="middle">
+              {p.label}
+            </text>
+          )}
+        </g>
+      ))}
+    </svg>
+  )
+}
+
 function Bars(props: { spec: ChartSpec }) {
   const { spec } = props
   const max = Math.max(1, ...spec.points.map(sumOf))
@@ -163,6 +239,8 @@ export function Chart(props: { spec: ChartSpec }) {
           )}
           {spec.kind === 'columns' ? (
             <Columns spec={spec} />
+          ) : spec.kind === 'lines' ? (
+            <Lines spec={spec} />
           ) : (
             <Bars spec={spec} />
           )}

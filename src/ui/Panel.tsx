@@ -95,6 +95,7 @@ import {
 } from '../capture/drop'
 import { lagosFromEpoch } from '../verify/time'
 import { MoneyFlowCard } from './MoneyFlowCard'
+import { MoneyPulseCard } from './MoneyPulseCard'
 import { BooksCard } from './BooksCard'
 import { market } from '../config/market'
 import { REF_LABEL } from '../verify/sessionId'
@@ -2057,6 +2058,8 @@ export function Panel(props: {
       </TabPanel>
 
       <TabPanel id="money" current={tab}>
+        <MoneyPulseCard ledger={ledger} now={host.now()} />
+
         {props.inbox}
 
         <section className="card" aria-labelledby="app-h">
