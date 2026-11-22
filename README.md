@@ -4,7 +4,7 @@
 
 _Built for #BuildHybridAI 2026, with Firebase AI Logic hybrid inference._
 
-From Lagos to Mumbai to São Paulo, millions of small businesses sell in chat apps and get paid by instant transfer, with a screenshot as the customer's proof. Forged screenshots are a known scam in every one of those markets ([§3](#3-the-problem)). This build starts in Lagos, where it is built and measured end to end for Nigerian bank transfers, and its engine is designed to carry to other instant-payment markets ([§14](#14-scope-what-the-desk-does-and-does-not-claim)). The desk sits beside WhatsApp Web as a Chrome side panel. On the seller's click, Chrome's built-in model reads the receipt on the seller's computer; plain rules match it against the seller's own bank alert emails; and the desk captures the order, drafts the reply into the message box (never sending it) and makes a receipt for the customer.
+From Lagos to Mumbai to São Paulo, millions of small businesses sell in chat apps and get paid by instant transfer, with a screenshot as the customer's proof. Forged screenshots are a known scam in every one of those markets ([§3](#3-the-problem)). This build starts in Lagos, where it is built and measured end to end for Nigerian bank transfers, and runs the same desk for Mumbai on UPI and São Paulo on Pix, switchable in the demo ([§14](#14-scope-what-the-desk-does-and-does-not-claim)). The desk sits beside WhatsApp Web as a Chrome side panel. On the seller's click, Chrome's built-in model reads the receipt on the seller's computer; plain rules match it against the seller's own bank alert emails; and the desk captures the order, drafts the reply into the message box (never sending it) and makes a receipt for the customer.
 
 Customers' names, phone numbers, addresses and chats never leave the computer by default. The cloud is used only for jobs the device cannot do (hearing voice notes, holding a conversation about the business, reviewing a week of trading), and each time the seller first sees exactly what will be sent and approves it.
 
@@ -14,18 +14,18 @@ Customers' names, phone numbers, addresses and chats never leave the computer by
 
 ## Status at a glance
 
-|                         |                                                                                                                                                                                                       |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Hosted demo**         | Link to follow at release. Sample data, no sign-up, any desktop Chrome ([§2](#2-try-it-in-five-minutes))                                                                                              |
-| **Demo video**          | Link to follow at release                                                                                                                                                                             |
-| **Markets**             | Built and measured for Nigeria (NIP bank transfers); the problem and the approach apply wherever chat sellers are paid by instant transfer, such as UPI, Pix, M-Pesa and GCash ([§3](#3-the-problem)) |
-| **Chrome extension**    | Manifest V3 side panel for WhatsApp Web and Gmail, built from this repository ([§19](#19-run-it-yourself))                                                                                            |
-| **Hybrid surface used** | `ONLY_ON_DEVICE` for six private features, `PREFER_ON_DEVICE` after consent, `ONLY_IN_CLOUD` for audio, multi-turn chat and multi-day review ([§7](#7-hybrid-inference-feature-by-feature))           |
-| **Headline result**     | Receipts read on device in a median **3.4 s**; **every** wrong reading became "check this", never a false match ([§11](#11-measured-not-asserted))                                                    |
-| **Privacy**             | Approval dialog on every cloud call; books in Firestore hold amounts and states only, behind closed-schema rules ([§10](#10-privacy-and-data-flow))                                                   |
-| **Tests**               | 343 unit tests and 7 Firestore-rules emulator tests ([§13](#13-testing))                                                                                                                              |
-| **Firebase products**   | AI Logic, App Check, Remote Config, Cloud Firestore, Authentication, Hosting ([§12](#12-firebase-products-used))                                                                                      |
-| **Licence**             | [Apache-2.0](LICENSE)                                                                                                                                                                                 |
+|                         |                                                                                                                                                                                                                                           |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hosted demo**         | Link to follow at release. Sample data, no sign-up, any desktop Chrome ([§2](#2-try-it-in-five-minutes))                                                                                                                                  |
+| **Demo video**          | Link to follow at release                                                                                                                                                                                                                 |
+| **Markets**             | Lagos (Nigerian bank transfers, built and measured), Mumbai (UPI) and São Paulo (Pix), each with its own currency, payment-reference rules, banks, reply language and sample day ([§14](#14-scope-what-the-desk-does-and-does-not-claim)) |
+| **Chrome extension**    | Manifest V3 side panel for WhatsApp Web and Gmail, built from this repository ([§19](#19-run-it-yourself))                                                                                                                                |
+| **Hybrid surface used** | `ONLY_ON_DEVICE` for six private features, `PREFER_ON_DEVICE` after consent, `ONLY_IN_CLOUD` for audio, multi-turn chat and multi-day review ([§7](#7-hybrid-inference-feature-by-feature))                                               |
+| **Headline result**     | Receipts read on device in a median **3.4 s**; **every** wrong reading became "check this", never a false match ([§11](#11-measured-not-asserted))                                                                                        |
+| **Privacy**             | Approval dialog on every cloud call; books in Firestore hold amounts and states only, behind closed-schema rules ([§10](#10-privacy-and-data-flow))                                                                                       |
+| **Tests**               | 376 unit tests and 7 Firestore-rules emulator tests ([§13](#13-testing))                                                                                                                                                                  |
+| **Firebase products**   | AI Logic, App Check, Remote Config, Cloud Firestore, Authentication, Hosting ([§12](#12-firebase-products-used))                                                                                                                          |
+| **Licence**             | [Apache-2.0](LICENSE)                                                                                                                                                                                                                     |
 
 ![The demo: a sample WhatsApp chat on the left and the desk's side panel on the right, showing a receipt verified on device in 4.6 seconds](docs/images/verify-on-device.jpg)
 
@@ -80,13 +80,15 @@ No install, no account and no keys. Everything in the demo is invented and stays
 | 6    | Open the **Today** tab, then **Your business over time**, and **Write a review**     | Six charts drawn on the device; a cloud review whose findings each carry one of those charts                                                |
 | 7    | Back in Adaeze's chat, use **Receipt for the customer**                              | A receipt picture to copy or download, and a text version for the message box; the shop's look is set under **Shop** > **Receipt look**     |
 
+**Another market?** Choose **Mumbai: UPI** or **São Paulo: Pix** at the top of the demo. Priya's UPI receipt is matched by its 12-digit UPI reference; in São Paulo, Fernanda's receipt says Itaú while its Pix ID carries Nubank's bank code, so it does not match, and replies are drafted in Portuguese through the cloud after approval.
+
 **No built-in model?** Open the demo in a browser without Chrome's model (Brave works): the panel asks before using the cloud, and the badge reads **Cloud**. That is the consent path every feature follows.
 
 **For developers**, the pure logic and the security rules can be checked in about a minute:
 
 ```bash
 npm install
-npm test             # expect: 343 passed, covering matching, parsing, books, receipts, errors
+npm test             # expect: 376 passed, covering matching, parsing, books, receipts, errors
 npm run test:rules   # expect: 7 passed against the Firestore emulator (needs Java)
 npm run typecheck && npm run lint   # expect: no output
 ```
@@ -170,19 +172,20 @@ The receipt picture can carry the shop's own look: its logo (with colours sugges
 
 Every AI call goes through the **Firebase AI Logic** web SDK. Each feature has its **own model instance with its own inference mode**, chosen for what that feature needs.
 
-| Feature                                  | Inference mode                                     | Why it runs there                                               |
-| ---------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------- |
-| Read a receipt screenshot                | `ONLY_ON_DEVICE`                                   | Image input; customer and bank details never leave the computer |
-| Read a bank-app history screenshot       | `ONLY_ON_DEVICE`                                   | The seller's own account data                                   |
-| Parse an unfamiliar bank alert email     | `ONLY_ON_DEVICE` (known banks use rules, no model) | The seller's own account data                                   |
-| Capture order and delivery details       | `ONLY_ON_DEVICE`                                   | Customer names, phones and addresses                            |
-| Draft a reply in English or Pidgin       | `ONLY_ON_DEVICE`                                   | Built from the customer's chat                                  |
-| Sort the waiting queue                   | `ONLY_ON_DEVICE`                                   | High volume, private, no cost per message                       |
-| Any of the above, after explicit consent | `PREFER_ON_DEVICE`                                 | Computers without the model can still use the desk              |
-| Read a voice note                        | `ONLY_IN_CLOUD`, after approval                    | The on-device model does not take audio                         |
-| Ask the desk                             | `ONLY_IN_CLOUD`, after approval, shop facts only   | Multi-turn chat does not run on device on the web               |
-| Review the last 7 to 30 days             | `ONLY_IN_CLOUD`, after approval, totals only       | Reasoning across many days with structured output               |
-| Match a payment                          | Rules, no model                                    | A payment decision must be explainable and repeatable           |
+| Feature                                  | Inference mode                                     | Why it runs there                                                                    |
+| ---------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Read a receipt screenshot                | `ONLY_ON_DEVICE`                                   | Image input; customer and bank details never leave the computer                      |
+| Read a bank-app history screenshot       | `ONLY_ON_DEVICE`                                   | The seller's own account data                                                        |
+| Parse an unfamiliar bank alert email     | `ONLY_ON_DEVICE` (known banks use rules, no model) | The seller's own account data                                                        |
+| Capture order and delivery details       | `ONLY_ON_DEVICE`                                   | Customer names, phones and addresses                                                 |
+| Draft a reply in English or Pidgin       | `ONLY_ON_DEVICE`                                   | Built from the customer's chat                                                       |
+| Draft a reply in Brazilian Portuguese    | `ONLY_IN_CLOUD`, after approval, names swapped out | Chrome's built-in model documents English, Japanese, Spanish, German and French only |
+| Sort the waiting queue                   | `ONLY_ON_DEVICE`                                   | High volume, private, no cost per message                                            |
+| Any of the above, after explicit consent | `PREFER_ON_DEVICE`                                 | Computers without the model can still use the desk                                   |
+| Read a voice note                        | `ONLY_IN_CLOUD`, after approval                    | The on-device model does not take audio                                              |
+| Ask the desk                             | `ONLY_IN_CLOUD`, after approval, shop facts only   | Multi-turn chat does not run on device on the web                                    |
+| Review the last 7 to 30 days             | `ONLY_IN_CLOUD`, after approval, totals only       | Reasoning across many days with structured output                                    |
+| Match a payment                          | Rules, no model                                    | A payment decision must be explainable and repeatable                                |
 
 Each private feature gets two instances: one that can never leave the device, and one used only after the seller consents to the cloud on a computer without the model ([`src/ai/device.ts`](src/ai/device.ts)):
 
@@ -357,7 +360,7 @@ Measured on 21 November 2026 on a laptop with an RTX 3060 Mobile, Chrome 157 and
 ## 13. Testing
 
 ```bash
-npm test             # 343 unit tests for all pure logic
+npm test             # 376 unit tests for all pure logic
 npm run test:rules   # 7 Firestore rules tests against the local emulators (needs Java)
 npm run typecheck
 npm run lint
@@ -392,23 +395,22 @@ The rules tests use a `demo-` project ID that can never reach a real project. On
 
 ### Why Lagos first, and how it travels
 
-Lagos was chosen as the first market because the problem is acute and documented there, and because doing one market properly (real bank alert formats, real receipt layouts, Pidgin, delivery by area and park) proves more than a shallow version of many. The engine was built so that what is market-specific sits apart from what is not:
+Lagos was chosen as the first market because the problem is acute and documented there, and because doing one market properly (real bank alert formats, real receipt layouts, Pidgin, delivery by area and park) proves more than a shallow version of many. The engine keeps what is market-specific apart from what is not, and Mumbai and São Paulo run on it today:
 
-| Part                                                                                                       | Market-neutral                     | Market-specific today                                                                           |
-| ---------------------------------------------------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
-| "Did the money land?" matching: one credit per order, time windows, names, reuse, reversals, part payments | Yes                                |                                                                                                 |
-| Orders, deliveries, stock, books, receipts, Ask the desk, approval dialog, privacy rules                   | Yes                                |                                                                                                 |
-| Bank list, alert sender addresses and patterns                                                             | Loaded from Remote Config          | Nigerian banks                                                                                  |
-| Transfer reference rules                                                                                   |                                    | NIP session IDs (structure, bank code, embedded time, reuse); each new rail needs its own rules |
-| Currency formatting                                                                                        |                                    | Naira                                                                                           |
-| Reply language and vocabulary                                                                              | Glossary loaded from Remote Config | English and Nigerian Pidgin                                                                     |
-| Sample data                                                                                                |                                    | A Lagos shop                                                                                    |
+| Part                           | Lagos                                                               | Mumbai                                                                              | São Paulo                                                            |
+| ------------------------------ | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Payment rail and its reference | NIP session ID: structure, bank code, embedded time, reuse          | UPI reference: 12 digits, reuse (NPCI confirms the length; no date is read from it) | Pix end-to-end ID: sending bank's ISPB, embedded UTC time, reuse     |
+| Currency                       | Naira                                                               | Rupees, with Indian digit grouping (₹1,85,000)                                      | Reais, with a decimal comma (R$ 1.234,56)                            |
+| Bank alerts                    | Bank-specific parsers, sender addresses checked against real alerts | Common UPI credit wording; unknown formats go to the on-device model                | Common Pix credit wording; unknown formats go to the on-device model |
+| Reply language                 | English or Nigerian Pidgin, on device                               | English, on device                                                                  | Brazilian Portuguese, in the cloud after approval                    |
+| Receipt status words           | English                                                             | English                                                                             | Portuguese, with a scheduled Pix ("agendado") treated as pending     |
+| Sample day in the demo         | A Lagos fashion shop                                                | A Mumbai clothing shop                                                              | A São Paulo boutique                                                 |
 
-Adding a market means adding its banks and alert formats, its transfer-reference rules (such as UPI's transaction reference or Pix's end-to-end ID), its currency and its reply language, without changing the matching engine, the privacy model or the hybrid routing.
+What does not change between markets: the "did the money land?" matching, orders, deliveries, stock, books, receipts, Ask the desk, the approval dialog, the privacy rules and the hybrid routing. Pix ISPB codes come from Banco Central's participant list; the Pix ID layout follows Banco Central's identifier scheme and Pix providers' documentation of its UTC timestamp.
 
 ## 15. Limitations
 
-- **One market built so far.** Bank formats, reference rules, currency, sample data and reply styles are Nigerian today; other markets need their own ([§14](#14-scope-what-the-desk-does-and-does-not-claim)).
+- **Lagos is measured; Mumbai and São Paulo are spot-checked.** The accuracy numbers above are for Lagos. The Mumbai and São Paulo sample days were run through the on-device model by hand and reached their intended verdicts, but have not had a repeated, labelled measurement yet. Alert sender addresses for Indian and Brazilian banks are fictional placeholders until each bank's real address is confirmed.
 - **Desktop only.** Chrome on phones always uses the cloud, and many sellers sell from a phone. On-device Android is the natural next platform.
 - **Hardware.** The on-device model needs a supported GPU and a one-time download. Computers without it fall back to the cloud only with the seller's consent.
 - **Synthetic accuracy set.** The measured numbers are on invented, clean inputs. Real receipts can be cropped, compressed or photographed, and real alert formats vary.
@@ -441,7 +443,7 @@ Adding a market means adding its banks and alert formats, its transfer-reference
 - **Bank data without email:** a fintech webhook or open-banking feed behind a small server would replace reading alert emails, keeping the same matching rules.
 - **Delivery runs:** grouping the day's approved delivery areas and landmarks into rider runs with Grounding with Google Maps.
 - **Android:** the same engine with on-device inference on phones, where most sellers already sell.
-- **More markets:** India (UPI), Brazil (Pix), Kenya (M-Pesa) and the Philippines (GCash), each with its own banks or wallets, reference rules, currency and reply language.
+- **More markets:** Kenya (M-Pesa) and the Philippines (GCash) next, each with its own wallets, reference rules, currency and reply language; and real, confirmed alert formats for the Indian and Brazilian banks.
 - **More languages:** drafts in Yoruba, Igbo, Hausa, Hindi, Portuguese and Swahili, on device where quality allows and through the cloud with approval otherwise.
 
 ## 19. Run it yourself
