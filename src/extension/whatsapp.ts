@@ -324,6 +324,30 @@ function announceChat() {
 
 // What the open chat offers the floating desk: the customer's pictures and
 // voice notes on screen, by id and time. Nothing is read from them here.
+// The voice note the vendor last pressed play on, by the same message id
+// the page's own script keeps its sound under (whatsappMain.ts).
+let lastPlayed: string | null = null
+document.addEventListener(
+  'click',
+  (e) => {
+    const button = (e.target as Element | null)?.closest?.(
+      'button, [role="button"]',
+    )
+    if (!button || !/play/i.test(button.getAttribute('aria-label') ?? '')) {
+      return
+    }
+    const id = button
+      .closest('[role="row"]')
+      ?.querySelector('[data-id]')
+      ?.getAttribute('data-id')
+    if (!id) return
+    lastPlayed = id
+    // After WhatsApp has swapped the play button for a pause button.
+    setTimeout(() => float.refresh(), 150)
+  },
+  true,
+)
+
 function floatChat(): FloatChat | null {
   if (!document.querySelector('#main header')) return null
   const { name } = chatHeader()
@@ -342,7 +366,9 @@ function floatChat(): FloatChat | null {
   return {
     name,
     receipts: found('[data-testid="image-thumb"]'),
-    voiceNotes: found(VOICE_BUTTON),
+    voiceNotes: found(VOICE_BUTTON).map((v) =>
+      v.id === lastPlayed ? { ...v, played: true } : v,
+    ),
   }
 }
 
@@ -384,6 +410,7 @@ const observer = new MutationObserver(() => {
   requestAnimationFrame(() => {
     queued = false
     announceChat()
+    float.refresh()
   })
 })
 observer.observe(document.body, { childList: true, subtree: true })
@@ -475,8 +502,7 @@ chrome.runtime.onMessage.addListener((message, _sender, reply) => {
 async function askWriter(ask: WriteAsk): Promise<WriteAnswer> {
   try {
     const answer = (await chrome.runtime.sendMessage(ask)) as
-      | WriteAnswer
-      | undefined
+      WriteAnswer | undefined
     return answer ?? { kind: 'error', message: problem(new Error('no answer')) }
   } catch (e) {
     return { kind: 'error', message: problem(e) }
@@ -615,7 +641,9 @@ async function rewrite(pick: Extract<ComposePick, { kind: 'rewrite' }>) {
         run: async () => {
           const now = composeBox()
           if (!now || flat(now.innerText) !== flat(after)) {
-            return toast('The message box changed since, so it was left as it is.')
+            return toast(
+              'The message box changed since, so it was left as it is.',
+            )
           }
           if (await setBoxText(now, before)) compose.close()
           else toast('WhatsApp did not take the text back.')

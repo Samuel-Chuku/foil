@@ -4,6 +4,7 @@ import {
   answerLanguage,
   answerLanguages,
   pickVoice,
+  voicesFor,
   speakable,
   speechLangs,
 } from './speech'
@@ -49,10 +50,21 @@ describe('pickVoice', () => {
     { name: 'Local UK', lang: 'en-GB', localService: true },
     { name: 'Nigeria', lang: 'en-NG', localService: false },
   ]
-  it('keeps the vendor’s pick, else the exact language, else the same language', () => {
+  it('keeps the vendor’s pick, else one on this computer, else online', () => {
     expect(pickVoice(voices, 'en-NG', 'Remote UK')?.name).toBe('Remote UK')
-    expect(pickVoice(voices, 'en-NG', '')?.name).toBe('Nigeria')
-    expect(pickVoice(voices, 'en-US', '')?.name).toBe('Local UK')
+    expect(pickVoice(voices, 'en-NG', '')?.name).toBe('Local UK')
+    expect(
+      pickVoice(voices.slice(0, 1).concat(voices[2]!), 'en-NG', '')?.name,
+    ).toBe('Nigeria')
+  })
+  it('keeps this computer’s voices that give no language, for English only', () => {
+    const linux = [
+      { name: 'English (Great Britain)', lang: '', localService: true },
+      { name: 'Google US English', lang: 'en-US', localService: false },
+    ]
+    expect(pickVoice(linux, 'en-NG', '')?.name).toBe('English (Great Britain)')
+    expect(voicesFor(linux, 'en-NG').local).toHaveLength(1)
+    expect(voicesFor(linux, 'yo-NG').local).toHaveLength(0)
   })
   it('prefers a natural voice on this computer to a basic one', () => {
     const linux = [

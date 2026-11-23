@@ -1444,7 +1444,7 @@ export function Panel(props: {
       )
       let reading: Reading<string>
       if (onDevice) {
-        reading = await writeDraft(prompt, device.consent)
+        reading = await writeDraft(prompt, device.consent, chatText)
       } else {
         // The chat holds names and numbers, so they are swapped out and the
         // vendor sees exactly what goes before anything leaves.

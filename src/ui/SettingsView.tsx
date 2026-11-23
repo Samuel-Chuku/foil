@@ -23,6 +23,7 @@ import {
   answerLanguage,
   answerLanguages,
   soundsBasic,
+  voicesFor,
 } from '../config/speech'
 import { useSpeech, type SpeakResult } from './useSpeech'
 
@@ -84,16 +85,9 @@ export function SettingsView(props: {
   const { device, google } = props
   const speech = useSpeech()
   const lang = answerLanguage(market(), p.answerLanguage)
-  const voices = speech.voices.filter(
-    (v) =>
-      v.lang.toLowerCase().split(/[-_]/)[0] === lang.voiceLang.split('-')[0],
-  )
-  const onlineVoice = voices.some(
-    (v) => v.name === p.voiceName && !v.localService,
-  )
-  const onlyBasic =
-    voices.some((v) => !v.localService) &&
-    voices.filter((v) => v.localService).every(soundsBasic)
+  const voices = voicesFor(speech.voices, lang.voiceLang)
+  const onlineVoice = voices.online.some((v) => v.name === p.voiceName)
+  const onlyBasic = voices.online.length > 0 && voices.local.every(soundsBasic)
   const [tried, setTried] = useState<SpeakResult | null>(null)
 
   return (
@@ -234,38 +228,38 @@ export function SettingsView(props: {
             onChange={(e) => set({ voiceName: e.target.value })}
           >
             <option value="">Choose one for {lang.label}</option>
-            <optgroup label="On this computer">
-              {voices
-                .filter((v) => v.localService)
-                .map((v) => (
+            {voices.local.length > 0 && (
+              <optgroup label="On this computer">
+                {voices.local.map((v) => (
                   <option key={v.name} value={v.name}>
                     {v.name}
                   </option>
                 ))}
-            </optgroup>
-            <optgroup label="Google online voices (the words go to Google)">
-              {voices
-                .filter((v) => !v.localService)
-                .map((v) => (
+              </optgroup>
+            )}
+            {voices.online.length > 0 && (
+              <optgroup label="Google online voices (the words go to Google)">
+                {voices.online.map((v) => (
                   <option key={v.name} value={v.name}>
                     {v.name}
                   </option>
                 ))}
-            </optgroup>
+              </optgroup>
+            )}
           </select>
         </label>
         {onlineVoice ? (
           <p className="hint">
             <Icon name="cloud" size={14} /> With an online voice, the words of
-            each answer read aloud go to Google to be spoken. Choose a voice
-            on this computer to keep them here.
+            each answer read aloud go to Google to be spoken. Choose a voice on
+            this computer to keep them here.
           </p>
         ) : (
           onlyBasic && (
             <p className="hint">
-              The voices on this computer are basic, robotic ones. For a
-              natural voice, choose one of Google&apos;s online voices; the
-              words of each answer then go to Google to be spoken.
+              The voices on this computer are basic, robotic ones. For a natural
+              voice, choose one of Google&apos;s online voices; the words of
+              each answer then go to Google to be spoken.
             </p>
           )
         )}

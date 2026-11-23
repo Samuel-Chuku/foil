@@ -17,7 +17,9 @@ export type FloatAction =
 export type FloatChat = {
   name: string
   receipts: { id: string; time: string }[]
-  voiceNotes: { id: string; time: string }[]
+  // `played`: the note the vendor last pressed play on, whose sound the
+  // desk can read.
+  voiceNotes: { id: string; time: string; played?: boolean }[]
 }
 
 // Icons as SVG markup, matching the panel's set (24px grid, 1.75 stroke).
@@ -238,6 +240,7 @@ export function mountFloatDesk(opts: {
 
   function build() {
     const c = opts.chat()
+    shown = JSON.stringify(c)
     menu.replaceChildren()
     const head = document.createElement('div')
     head.className = 'head'
@@ -272,15 +275,21 @@ export function mountFloatDesk(opts: {
           ['device'],
         ),
       )
-      for (const v of c.voiceNotes.slice(-1)) {
+      // The note just played, which the desk can hear; else the newest,
+      // with a reminder to play it first.
+      const played = c.voiceNotes.find((v) => v.played)
+      const note = played ?? c.voiceNotes.at(-1)
+      if (note) {
         list.append(
           item(
             'mic',
             'Read the voice note',
-            `From ${v.time || 'this chat'}`,
+            played
+              ? `The one you played, from ${note.time || 'this chat'}`
+              : `Play it first. Newest is from ${note.time || 'this chat'}`,
             {
               kind: 'voice',
-              messageId: v.id,
+              messageId: note.id,
             },
             ['cloud'],
           ),
@@ -335,6 +344,17 @@ export function mountFloatDesk(opts: {
     menu.append(more)
   }
 
+  // The menu stays open while the vendor uses WhatsApp, so it is redrawn
+  // when what it offers changes, such as a voice note being played, without
+  // taking the focus away.
+  let shown = ''
+  function refresh() {
+    if (menu.hidden) return
+    const now = JSON.stringify(opts.chat())
+    if (now === shown) return
+    build()
+  }
+
   function open() {
     build()
     menu.hidden = false
@@ -387,9 +407,9 @@ export function mountFloatDesk(opts: {
       launch.focus()
     }
   })
-  document.addEventListener('pointerdown', (e) => {
-    if (!menu.hidden && !e.composedPath().includes(host)) close()
-  })
+  // Clicks elsewhere on WhatsApp leave the menu open, so the vendor can
+  // play a voice note or scroll with it showing; the close button, Escape
+  // or the round button close it.
 
-  return { toast, remove: () => host.remove() }
+  return { toast, refresh, remove: () => host.remove() }
 }

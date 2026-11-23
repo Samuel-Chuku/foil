@@ -61,6 +61,13 @@ export type VoiceState =
   | { status: 'error'; message: string; mic?: boolean }
 
 const MAX_RECORD_MS = 30_000
+// People pause mid-question to think, so a question ends only after this
+// much quiet, not at the first gap.
+export const PAUSE_MS = 2_500
+// With nothing said at all, listening stops after this long.
+const NOTHING_SAID_MS = 8_000
+// Microphone level (0 to 1) taken as speech when recording for the cloud.
+const SPEECH_LEVEL = 0.04
 
 // The side panel cannot show Chrome's permission prompt, so in the extension
 // a tab asks once; on a web page the address bar does.
@@ -125,6 +132,46 @@ const toBase64 = (blob: Blob) =>
     r.onerror = () => reject(r.error ?? new Error('Could not read the audio.'))
     r.readAsDataURL(blob)
   })
+
+// Ends a recording once the speaker has said something and then been quiet
+// for PAUSE_MS, by the microphone's level. Returns a function that stops
+// watching.
+function stopAfterQuiet(stream: MediaStream, done: () => void): () => void {
+  let context: AudioContext
+  try {
+    context = new AudioContext()
+  } catch {
+    return () => undefined
+  }
+  const analyser = context.createAnalyser()
+  analyser.fftSize = 1024
+  context.createMediaStreamSource(stream).connect(analyser)
+  const samples = new Float32Array(analyser.fftSize)
+  const started = performance.now()
+  let spoke = false
+  let lastSound = started
+  const timer = window.setInterval(() => {
+    analyser.getFloatTimeDomainData(samples)
+    let sum = 0
+    for (const v of samples) sum += v * v
+    const level = Math.sqrt(sum / samples.length)
+    const now = performance.now()
+    if (level > SPEECH_LEVEL) {
+      spoke = true
+      lastSound = now
+    }
+    if (
+      (spoke && now - lastSound > PAUSE_MS) ||
+      (!spoke && now - started > NOTHING_SAID_MS)
+    ) {
+      done()
+    }
+  }, 100)
+  return () => {
+    clearInterval(timer)
+    void context.close().catch(() => undefined)
+  }
+}
 
 export function useVoiceAsk(props: {
   // Product names and order numbers, so they are heard right.
@@ -191,7 +238,8 @@ export function useVoiceAsk(props: {
         r.lang = lang
         r.processLocally = true
         r.interimResults = true
-        r.continuous = false
+        // Kept listening through pauses; the quiet timer below ends it.
+        r.continuous = true
         const Phrase = phraseClass()
         if (withPhrases && Phrase && r.phrases) {
           for (const p of props.vocabulary.slice(0, 50)) {
@@ -202,11 +250,15 @@ export function useVoiceAsk(props: {
         // Some builds take no vocabulary; the question is then heard again
         // without it.
         let retry = false
+        let quiet = window.setTimeout(() => r.stop(), NOTHING_SAID_MS)
         r.onresult = (e) => {
           heard = Array.from(e.results)
             .map((x) => x[0]?.transcript ?? '')
             .join(' ')
+            .replace(/\s+/g, ' ')
             .trim()
+          clearTimeout(quiet)
+          quiet = window.setTimeout(() => r.stop(), PAUSE_MS)
           setState({ status: 'listening', heard, mode: 'device' })
         }
         r.onerror = (e) => {
@@ -227,6 +279,7 @@ export function useVoiceAsk(props: {
           })
         }
         r.onend = () => {
+          clearTimeout(quiet)
           rec.current = null
           if (retry) return listen(false)
           setState((s) => (s.status === 'error' ? s : { status: 'idle' }))
@@ -265,8 +318,12 @@ export function useVoiceAsk(props: {
       MAX_RECORD_MS,
     )
     r.ondataavailable = (e) => chunks.push(e.data)
+    const stopQuiet = stopAfterQuiet(stream, () => {
+      if (r.state === 'recording') r.stop()
+    })
     r.onstop = async () => {
       clearTimeout(timer)
+      stopQuiet()
       stream.getTracks().forEach((t) => t.stop())
       recorder.current = null
       const blob = new Blob(chunks, { type: r.mimeType || 'audio/webm' })

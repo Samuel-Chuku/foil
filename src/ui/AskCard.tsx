@@ -169,6 +169,13 @@ export function AskCard(props: {
   const [done, setDone] = useState<Set<string>>(() => new Set())
   const [sent, setSent] = useState<string | null>(null)
   const [turns, setTurns] = useState<Turn[]>([])
+  // The chat keeps a fixed height and scrolls, so the newest answer is
+  // brought into view whenever a turn is added or answered.
+  const chatList = useRef<HTMLOListElement | null>(null)
+  useEffect(() => {
+    const list = chatList.current
+    if (list) list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' })
+  }, [turns])
   const [question, setQuestion] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -387,7 +394,13 @@ export function AskCard(props: {
         </p>
       )}
       {turns.length > 0 && (
-        <ol className="books-chat ask-chat" aria-live="polite">
+        <ol
+          ref={chatList}
+          className="books-chat ask-chat"
+          aria-live="polite"
+          tabIndex={0}
+          aria-label="Your chat with the desk"
+        >
           {turns.map((t, i) => (
             <li key={i}>
               <div className="bubble me">
@@ -601,8 +614,8 @@ export function AskCard(props: {
       {voice.state.status === 'listening' && (
         <p className="hint voice-live" aria-live="polite">
           {voice.state.mode === 'device'
-            ? `Listening on this computer… ${voice.state.heard}`
-            : 'Recording. Press Stop when you have asked; you will see the recording before anything is sent.'}
+            ? `Listening on this computer. Take your time; it sends after a short pause. ${voice.state.heard}`
+            : 'Recording. Take your time; it stops after a short pause, or press Stop. You will see the recording before anything is sent.'}
         </p>
       )}
       {voice.state.status === 'writing' && (

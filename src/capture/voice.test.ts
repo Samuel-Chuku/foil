@@ -49,7 +49,7 @@ describe('voice note', () => {
     })
     expect(note.order.customerName).toBe('Chioma')
     expect(voiceLine(note)).toBe(
-      '[voice note: Wants white sneakers in size 39, picking up around 6 pm. They asked: Is that okay?]',
+      '[voice note, summed up by the desk: Wants white sneakers in size 39, picking up around 6 pm. They asked: Is that okay?]',
     )
   })
 

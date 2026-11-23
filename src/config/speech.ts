@@ -79,10 +79,38 @@ export type VoiceInfo = { name: string; lang: string; localService: boolean }
 export const soundsBasic = (v: VoiceInfo): boolean =>
   /espeak|mbrola|festival|pico\b/i.test(v.name)
 
-// The voice to read an answer in: the vendor's pick if it still exists, else
-// one for that exact language (on this computer first), else one for the
-// same language anywhere. Null when no voice speaks it, so the desk says so
-// rather than reading Yoruba in an English voice.
+// A voice's language as two letters, or '' when the voice does not say.
+// Chrome on Linux often lists the computer's own voices with no language,
+// or a three-letter one.
+const baseOf = (lang: string): string => {
+  const b = lang.toLowerCase().split(/[-_]/)[0] ?? ''
+  return b === 'eng' ? 'en' : /^[a-z]{2}$/.test(b) ? b : ''
+}
+
+// The voices that can read a language, as the Voice setting lists them. A
+// voice on this computer that gives no language is kept for English and
+// English-based Pidgin, which such voices speak by default; it is never
+// offered for Yoruba, Igbo or Hausa.
+export function voicesFor(
+  voices: VoiceInfo[],
+  lang: string,
+): { local: VoiceInfo[]; online: VoiceInfo[] } {
+  const base = baseOf(lang)
+  const fits = (v: VoiceInfo) =>
+    baseOf(v.lang) === base ||
+    (base === 'en' && v.localService && baseOf(v.lang) === '')
+  const all = voices.filter(fits)
+  return {
+    local: all.filter((v) => v.localService),
+    online: all.filter((v) => !v.localService),
+  }
+}
+
+// The voice to read an answer in: the vendor's pick if it still exists,
+// else one on this computer (a natural one before a basic one, the exact
+// language before a near one), and only then an online voice, since that
+// sends the words to Google. Null when no voice speaks the language, so the
+// desk says so rather than reading Yoruba in an English voice.
 export function pickVoice(
   voices: VoiceInfo[],
   lang: string,
@@ -91,13 +119,16 @@ export function pickVoice(
   const chosen = voices.find((v) => v.name === preferred)
   if (chosen) return chosen
   const norm = (s: string) => s.replace('_', '-').toLowerCase()
-  const base = norm(lang).split('-')[0]
-  const exact = voices.filter((v) => norm(v.lang) === norm(lang))
-  const same = voices.filter((v) => norm(v.lang).split('-')[0] === base)
-  // On this computer first, a natural-sounding one before a basic one.
-  const local = (vs: VoiceInfo[]) =>
-    vs.find((v) => v.localService && !soundsBasic(v)) ??
-    vs.find((v) => v.localService) ??
-    vs[0]
-  return local(exact) ?? local(same) ?? null
+  const { local, online } = voicesFor(voices, lang)
+  const exactFirst = (vs: VoiceInfo[]) => [
+    ...vs.filter((v) => norm(v.lang) === norm(lang)),
+    ...vs.filter((v) => norm(v.lang) !== norm(lang)),
+  ]
+  const here = exactFirst(local)
+  return (
+    here.find((v) => !soundsBasic(v)) ??
+    here[0] ??
+    exactFirst(online)[0] ??
+    null
+  )
 }

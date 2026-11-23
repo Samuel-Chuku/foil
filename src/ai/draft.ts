@@ -1,6 +1,6 @@
 import type { Approved, CloudRequest } from '../cloud/approval'
 import { cloudModel, sendApproved } from '../cloud/send'
-import { oddWording, tidyDraft } from '../capture/draft'
+import { echoesCustomer, oddWording, tidyDraft } from '../capture/draft'
 import { privateModels, TEXT_ONLY } from './device'
 import { generateText, type Reading } from './run'
 
@@ -11,15 +11,25 @@ const model = privateModels({ createOptions: TEXT_ONLY })
 export async function writeDraft(
   prompt: string,
   cloudConsent: boolean,
+  // The chat as the prompt gives it, to catch a draft that repeats the
+  // customer.
+  chat = '',
 ): Promise<Reading<string>> {
   const first = await generateText(model(cloudConsent), [prompt])
   const draft = tidyDraft(first.text)
   const odd = oddWording(draft)
-  if (!odd) return { fields: draft, source: first.source, ms: first.ms }
+  const echo = echoesCustomer(draft, chat)
+  if (!odd && !echo) {
+    return { fields: draft, source: first.source, ms: first.ms }
+  }
   // One more try, told what to avoid; the second answer stands either way so
   // the vendor is never left without a draft to edit.
   const again = await generateText(model(cloudConsent), [
-    `${prompt}\n\nDo not write "${odd}".`,
+    `${prompt}\n\n${
+      echo
+        ? `Your last try repeated the customer's own words: "${draft}". Write the shop's answer to them instead.`
+        : `Do not write "${odd}".`
+    }`,
   ])
   return {
     fields: tidyDraft(again.text),

@@ -5,6 +5,7 @@ import {
   oddWording,
   tidyDraft,
   writesPidgin,
+  echoesCustomer,
 } from './draft'
 import { pickOrder, toOrderFields } from './orderFields'
 import { transcript } from './transcript'
@@ -329,5 +330,33 @@ describe('pickup in Portuguese', () => {
       payOnDelivery: '',
     })
     expect(f.pickup).toBe(true)
+  })
+})
+
+describe('echoesCustomer', () => {
+  const chat = [
+    'Customer (09:40): Please send the ankara gown and two head wraps',
+    'You (09:41): Can you do the noisy background too?',
+  ].join('\n')
+  it('catches a draft that writes their request back as the shop', () => {
+    expect(
+      echoesCustomer(
+        'Please send the ankara gown and two head wraps. I will send them over.',
+        chat,
+      ),
+    ).toBe(true)
+  })
+  it('passes a real answer that names the same items', () => {
+    expect(
+      echoesCustomer(
+        'Yes, the ankara gown and two head wraps are ready. That is ₦23,000 in all.',
+        chat,
+      ),
+    ).toBe(false)
+  })
+  it('ignores the shop’s own lines', () => {
+    expect(echoesCustomer('Can you do the noisy background too?', chat)).toBe(
+      false,
+    )
   })
 })

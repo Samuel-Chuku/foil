@@ -1564,8 +1564,12 @@ p.meta:has(.badge) {
   text-align: left;
 }
 .ask-desk .books-chat {
-  max-height: 60vh;
+  /* A window onto the chat, not the whole of it: older turns scroll. */
+  max-height: min(26rem, 46vh);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--dk-s1);
+  scroll-padding-bottom: var(--dk-s2);
 }
 .ask-desk form {
   display: grid;

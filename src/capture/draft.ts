@@ -123,7 +123,7 @@ export function draftPrompt(
 ): string {
   const items = facts.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
   const style = replyStyle(chat, m, manner.pidgin)
-  return `You run a small ${m.city} shop and are replying to a customer on WhatsApp.
+  return `You run a small ${m.city} shop and are replying to a customer on WhatsApp. In the chat below, lines starting "You" are what the shop already wrote and lines starting "Customer" are the customer's. Write the shop's next message to the customer, in the shop's own voice. Never repeat the customer's words as if they were yours.
 Facts to convey: ${[...(facts.complaint ? [COMPLAINT] : []), paymentLine(facts), ...(facts.stock ?? []), ...(facts.followUp ?? []), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.delivery?.length ? `\nDelivery: ${facts.delivery.join(' ')}` : ''}${facts.rules?.length ? `\nShop rules, for your reference only. If the customer asks about anything these cover, such as a delivery fee, answer from them; otherwise leave them out, and never mention "shop rules" by name:\n${facts.rules.join('\n')}` : ''}
 Write ${manner.length} that conveys the facts and answers any question in the customer's latest messages. ${style} ${manner.tone} Never use words a ${m.city} shop would not, such as "Ahoy", "Salamat" or "Eekoo", never join words with a slash such as "brother/sister", and never leave a placeholder in brackets. Do not add facts, prices, fees, hours or promises that are not given here, and do not say you will check or confirm anything these facts already answer. Output only the reply text.
 
@@ -150,6 +150,26 @@ const ODD = /\b(ahoy|salamat|e+koo)\b|\b[a-z]+\/[a-z]+\b|\[[^\]]*\]/i
 // The odd phrase in a draft, so it can be written again once.
 export function oddWording(text: string): string | null {
   return ODD.exec(text)?.[0] ?? null
+}
+
+const words = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
+
+// Whether a draft mostly repeats what the customer said, the way a model
+// that loses track of who is speaking writes their request back as the
+// shop's reply. Measured by runs of four words shared with their lines.
+export function echoesCustomer(draft: string, chat: string): boolean {
+  const theirs = chat
+    .split('\n')
+    .filter((l) => /^Customer\b/.test(l))
+    .map((l) => words(l.replace(/^Customer\s*\([^)]*\):/, '')))
+  const runs = (w: string[]) =>
+    w
+      .slice(0, Math.max(0, w.length - 3))
+      .map((_, i) => w.slice(i, i + 4).join(' '))
+  const known = new Set(theirs.flatMap(runs))
+  const mine = runs(words(draft))
+  if (mine.length < 2 || known.size === 0) return false
+  return mine.filter((r) => known.has(r)).length / mine.length >= 0.5
 }
 
 export function draftProblem(text: string): string | null {

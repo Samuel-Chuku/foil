@@ -189,7 +189,7 @@ state: the state or city if they are outside ${m.city}${m.id === 'ng' ? ', inclu
 park: the motor park they named
 payOnDelivery: yes if they will pay the rider on delivery, otherwise empty
 question: anything they asked the shop, in English, or empty
-gloss: one or two plain English sentences saying what they want
+gloss: one or two plain English sentences about the customer in the third person, starting with "They", saying what they want, such as "They want two head wraps delivered to Yaba."
 language: the main language they spoke
 unsure: which of items, quantity, address, area, state or landmark you could not make out clearly
 Leave a field empty when they did not mention it.
@@ -283,5 +283,5 @@ export function clarifyLine(note: VoiceNote): string | null {
 
 // The voice note as the on-device draft sees it: what it said, in English.
 export function voiceLine(note: VoiceNote): string {
-  return `[voice note: ${note.gloss}${note.question ? ` They asked: ${note.question}` : ''}]`
+  return `[voice note, summed up by the desk: ${note.gloss}${note.question ? ` They asked: ${note.question}` : ''}]`
 }
