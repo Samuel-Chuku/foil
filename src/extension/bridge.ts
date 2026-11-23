@@ -9,15 +9,24 @@ import type { OpenChat } from '../ui/host'
 export type FromChat = {
   kind: 'chat'
   chat: OpenChat
-  // What the vendor clicked: a receipt to verify, the order to capture, or a
-  // voice note to read.
-  action: 'verify' | 'capture' | 'voice'
+  // What the vendor picked: a receipt to verify, the order to capture, a
+  // voice note to read, or a reply to draft.
+  action: 'verify' | 'capture' | 'voice' | 'draft'
   messageId?: string
 }
 
 // Content script to panel: the vendor switched to this chat. `chat` carries
 // no messages.
 export type Opened = { kind: 'opened'; chat: OpenChat }
+
+// Content script to the panel: the vendor picked "Ask the desk".
+export type FocusAsk = { kind: 'focus-ask' }
+
+export const isFocusAsk = (m: unknown): m is FocusAsk =>
+  typeof m === 'object' && m !== null && (m as FocusAsk).kind === 'focus-ask'
+
+// Content script to the background: open the side panel on this tab.
+export type OpenPanel = { kind: 'open-panel' }
 
 // Panel to content script.
 export type ToChat =

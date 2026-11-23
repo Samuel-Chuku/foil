@@ -27,6 +27,7 @@ import { rememberMarket, RAIL_NAME } from '../ui/marketChoice'
 import { DemoIntro } from './DemoIntro'
 import type { AlertResult } from '../verify/alerts'
 import { SourceBadge } from '../ui/SourceBadge'
+import { DemoFloat } from './DemoFloat'
 
 // The hosted demo: simulated chat and inbox panes stand in for WhatsApp Web
 // and Gmail, beside the same panel the extension shows.
@@ -384,6 +385,7 @@ export default function DemoApp() {
                     </li>
                   ))}
                 </ol>
+                <DemoFloat chat={chat} onRequest={setRequest} />
                 <div className="compose">
                   <label htmlFor="compose">Message</label>
                   <textarea

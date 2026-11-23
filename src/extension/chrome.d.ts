@@ -3,6 +3,7 @@ declare namespace chrome.sidePanel {
   function setPanelBehavior(behavior: {
     openPanelOnActionClick: boolean
   }): Promise<void>
+  function open(options: { tabId?: number; windowId?: number }): Promise<void>
 }
 
 declare namespace chrome.identity {

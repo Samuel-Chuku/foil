@@ -54,3 +54,6 @@ export type PanelRequest =
   | { action: 'verify'; messageId: string; nonce: number }
   | { action: 'capture'; nonce: number }
   | { action: 'voice'; messageId: string; nonce: number }
+  | { action: 'draft'; nonce: number }
+  // The vendor wants to ask the desk something: its question box is focused.
+  | { action: 'ask'; nonce: number }

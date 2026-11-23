@@ -2372,3 +2372,93 @@ button.mic[aria-pressed='true'] {
 .run-plan input[type='time'] {
   width: auto;
 }
+
+/* ---------- The floating desk (demo's simulated WhatsApp) ---------- */
+
+.chat {
+  position: relative;
+}
+.desk-float {
+  position: sticky;
+  bottom: var(--dk-s4);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--dk-s2);
+  margin: var(--dk-s3) 0 var(--dk-s3) auto;
+  width: max-content;
+  z-index: 3;
+}
+.desk-float-launch {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--dk-surface) 82%, transparent);
+  border: var(--dk-bw) solid var(--dk-line);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.16);
+}
+.desk-float-launch:hover {
+  background: color-mix(in srgb, var(--dk-surface) 92%, transparent);
+}
+.desk-float-launch .mark {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--dk-accent);
+  box-shadow: 2px 2px 0 0 var(--dk-ink);
+  transition: transform var(--dk-fast);
+}
+.desk-float-launch[aria-expanded='true'] .mark {
+  transform: rotate(45deg);
+}
+.desk-float-menu {
+  width: 272px;
+  padding: var(--dk-s2);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--dk-surface) 86%, transparent);
+  border: var(--dk-bw) solid var(--dk-line);
+  backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.2);
+}
+.desk-float-head {
+  padding: 6px 8px 10px;
+}
+.desk-float-head span {
+  display: block;
+  font-size: var(--dk-text-meta);
+  color: var(--dk-ink-2);
+}
+.desk-float-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.desk-float-menu li button {
+  width: 100%;
+  min-height: 0;
+  justify-content: start;
+  gap: 10px;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  font-size: var(--dk-text-body);
+}
+.desk-float-menu li button:hover {
+  background: color-mix(in srgb, var(--dk-ink) 7%, transparent);
+}
+.desk-float-menu li button:active {
+  transform: none;
+}
+.desk-float-menu small {
+  display: block;
+  font-weight: 400;
+  font-size: var(--dk-text-meta);
+  color: var(--dk-ink-2);
+}

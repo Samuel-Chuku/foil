@@ -1,9 +1,11 @@
 import type { ChatMessage, OpenChat } from '../ui/host'
 import type { DraftReply, FromChat, Opened, ToChat } from './bridge'
+import { mountFloatDesk, type FloatAction, type FloatChat } from './floatDesk'
 import { phoneFromText, sentByVendor, timeFrom } from './waParse'
 
-// Runs on web.whatsapp.com. It adds the desk's buttons and reads the open
-// chat only when the vendor clicks one, taking only what is on screen. It
+// Runs on web.whatsapp.com. It adds the floating desk and reads the open
+// chat only when the vendor picks something from it, taking only what is on
+// screen. It
 // never sends, scrolls, opens other chats or clicks WhatsApp's own controls.
 
 const MARK = 'data-vendor-desk'
@@ -196,25 +198,19 @@ async function readChat(): Promise<OpenChat> {
 }
 
 function toast(text: string) {
-  const el = document.createElement('div')
-  el.setAttribute(MARK, 'toast')
-  el.textContent = text
-  el.style.cssText =
-    'position:fixed;bottom:88px;left:50%;transform:translateX(-50%);z-index:9999;background:#2b2b2b;color:#fff;padding:10px 14px;border-radius:6px;font:14px system-ui;max-width:420px'
-  document.body.append(el)
-  setTimeout(() => el.remove(), 5000)
+  float.toast(text)
 }
 
 // Says what actually went wrong, so the vendor knows what to do.
 function problem(e: unknown): string {
   const text = e instanceof Error ? e.message : String(e)
   if (/context invalidated/i.test(text) || !chrome.runtime?.id) {
-    return 'The desk was updated. Reload WhatsApp Web, then click the button again.'
+    return 'The desk was updated. Reload WhatsApp Web, then pick this again.'
   }
   if (
     /receiving end does not exist|could not establish connection/i.test(text)
   ) {
-    return 'Open the payment desk from the toolbar icon, then click the button again.'
+    return 'The desk did not open. Open it from the toolbar icon, then pick this again.'
   }
   return `The desk could not read this chat (${text}). Reload WhatsApp Web and try again.`
 }
@@ -248,26 +244,31 @@ async function send(action: FromChat['action'], messageId?: string) {
   }
   try {
     const message: FromChat = { kind: 'chat', chat, action, messageId }
-    await chrome.runtime.sendMessage(message)
+    await deliver(message)
   } catch (e) {
     toast(problem(e))
   }
 }
 
-function button(label: string, onClick: () => void): HTMLButtonElement {
-  const b = document.createElement('button')
-  b.type = 'button'
-  b.textContent = label
-  b.setAttribute(MARK, label)
-  b.style.cssText =
-    'font:600 12px system-ui;padding:4px 10px;margin:4px;border-radius:999px;border:1.5px solid #c98a1b;background:#fff7e6;color:#5b3a00;cursor:pointer'
-  b.addEventListener('click', (e) => {
-    // Keeps WhatsApp from treating the click as opening the image.
-    e.stopPropagation()
-    e.preventDefault()
-    onClick()
-  })
-  return b
+// The panel may still be opening after the click, so a request is sent
+// again until the panel says it has it (the background script hears every
+// message too, so being heard is not enough).
+async function deliver(message: unknown): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    try {
+      if ((await chrome.runtime.sendMessage(message)) === true) return
+    } catch (e) {
+      const waiting =
+        /receiving end does not exist|could not establish|port closed/i.test(
+          e instanceof Error ? e.message : String(e),
+        )
+      if (!waiting) throw e
+    }
+    await new Promise((r) => setTimeout(r, 300))
+  }
+  throw new Error(
+    'Could not establish connection: receiving end does not exist',
+  )
 }
 
 // WhatsApp re-renders often, so the buttons are put back whenever the chat
@@ -289,28 +290,52 @@ function announceChat() {
   chrome.runtime.sendMessage(opened).catch(() => undefined)
 }
 
-function decorate() {
-  const header = document.querySelector('#main header')
-  if (header && !header.querySelector(`[${MARK}]`)) {
-    header.append(button('Capture order', () => void send('capture')))
-  }
-  for (const thumb of document.querySelectorAll(
-    '#main [data-testid="image-thumb"]',
-  )) {
-    const row = thumb.closest('[role="row"]')
-    const id = row?.querySelector('[data-id]')?.getAttribute('data-id')
-    const container = row?.querySelector('[data-testid="msg-container"]')
-    if (!id || !container || container.querySelector(`[${MARK}]`)) continue
-    container.append(button('Verify payment', () => void send('verify', id)))
-  }
-  for (const play of document.querySelectorAll(`#main ${VOICE_BUTTON}`)) {
-    const row = play.closest('[role="row"]')
-    const id = row?.querySelector('[data-id]')?.getAttribute('data-id')
-    const container = row?.querySelector('[data-testid="msg-container"]')
-    if (!id || !container || container.querySelector(`[${MARK}]`)) continue
-    container.append(button('Read voice note', () => void send('voice', id)))
+// What the open chat offers the floating desk: the customer's pictures and
+// voice notes on screen, by id and time. Nothing is read from them here.
+function floatChat(): FloatChat | null {
+  if (!document.querySelector('#main header')) return null
+  const { name } = chatHeader()
+  const found = (selector: string) =>
+    [...document.querySelectorAll(`#main ${selector}`)].flatMap((el) => {
+      const row = el.closest('[role="row"]')
+      const id = row?.querySelector('[data-id]')?.getAttribute('data-id')
+      if (!row || !id) return []
+      const label = [...row.querySelectorAll('span[aria-label]')]
+        .map((x) => x.getAttribute('aria-label') ?? '')
+        .find((l) => /:\s*$/.test(l))
+      if (sentByVendor(label)) return []
+      const meta = row.querySelector('[data-testid="msg-meta"]')?.textContent
+      return [{ id, time: timeFrom(meta) }]
+    })
+  return {
+    name,
+    receipts: found('[data-testid="image-thumb"]'),
+    voiceNotes: found(VOICE_BUTTON),
   }
 }
+
+const float = mountFloatDesk({
+  chat: floatChat,
+  onAction: (a: FloatAction) => {
+    // Opened at once, while Chrome still counts this as the vendor's click.
+    chrome.runtime.sendMessage({ kind: 'open-panel' }).catch(() => undefined)
+    if (a.kind === 'open') return
+    if (a.kind === 'ask') {
+      void deliver({ kind: 'focus-ask' }).catch((e) => toast(problem(e)))
+      return
+    }
+    toast(
+      a.kind === 'verify'
+        ? 'Checking this payment in the desk…'
+        : a.kind === 'voice'
+          ? 'Opening the voice note in the desk…'
+          : a.kind === 'draft'
+            ? 'Writing a reply in the desk…'
+            : 'Reading the order in the desk…',
+    )
+    void send(a.kind, 'messageId' in a ? a.messageId : undefined)
+  },
+})
 
 let queued = false
 const observer = new MutationObserver(() => {
@@ -324,7 +349,6 @@ const observer = new MutationObserver(() => {
   queued = true
   requestAnimationFrame(() => {
     queued = false
-    decorate()
     announceChat()
   })
 })

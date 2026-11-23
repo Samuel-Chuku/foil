@@ -8,7 +8,13 @@ import { useDevice } from '../ui/useDevice'
 import { useLedger } from '../ui/useLedger'
 import { useShopRules } from '../ui/useShopRules'
 import { lagosFromEpoch } from '../verify/time'
-import { isFromChat, isOpened, type DraftReply, type ToChat } from './bridge'
+import {
+  isFocusAsk,
+  isFromChat,
+  isOpened,
+  type DraftReply,
+  type ToChat,
+} from './bridge'
 import { GmailCard } from './GmailCard'
 import { useGmail } from './useGmail'
 import { forgetGoogle, sheetsCalendarToken } from './googleConnect'
@@ -62,8 +68,15 @@ export default function ExtensionApp() {
     const listen = (
       message: unknown,
       sender: chrome.runtime.MessageSender,
+      reply: (response?: unknown) => void,
     ): void => {
       if (sender.tab?.id === undefined) return
+      if (isFocusAsk(message)) {
+        reply(true)
+        setTabId(sender.tab.id)
+        setRequest({ action: 'ask', nonce: Date.now() })
+        return
+      }
       // Switching chats: show that customer's order, without their messages.
       if (isOpened(message)) {
         const tab = sender.tab.id
@@ -74,6 +87,8 @@ export default function ExtensionApp() {
         return
       }
       if (!isFromChat(message)) return
+      // Tells the WhatsApp tab the request arrived, so it stops resending.
+      reply(true)
       const name = byNameKey(message.chat)
       // A number shown in Contact info is learnt without asking.
       if (name && message.chat.shownPhone) {
@@ -82,10 +97,11 @@ export default function ExtensionApp() {
       setChat(message.chat)
       setTabId(sender.tab.id)
       const nonce = Date.now()
+      const a = message.action
       setRequest(
-        message.action !== 'capture' && message.messageId
-          ? { action: message.action, messageId: message.messageId, nonce }
-          : { action: 'capture', nonce },
+        (a === 'verify' || a === 'voice') && message.messageId
+          ? { action: a, messageId: message.messageId, nonce }
+          : { action: a === 'draft' ? 'draft' : 'capture', nonce },
       )
     }
     chrome.runtime.onMessage.addListener(listen)

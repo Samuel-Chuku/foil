@@ -504,17 +504,21 @@ export function Panel(props: {
     }
   }
 
-  // The chat's own "Verify payment" and "Capture order" buttons. The ref
+  // What the vendor picked from the floating desk in WhatsApp. The ref
   // stops development double-rendering from running a click twice.
   const request = props.request
   const handled = useRef<number | null>(null)
-  const onRequest = useEffectEvent((r: PanelRequest) =>
-    r.action === 'verify'
-      ? void verify(r.messageId)
-      : r.action === 'voice'
-        ? void readVoice(r.messageId)
-        : void capture(),
-  )
+  const onRequest = useEffectEvent((r: PanelRequest) => {
+    if (r.action === 'verify') void verify(r.messageId)
+    else if (r.action === 'voice') void readVoice(r.messageId)
+    else if (r.action === 'draft') void draft()
+    else if (r.action === 'ask') {
+      setSettingsOpen(false)
+      const q = document.getElementById('ask-q')
+      q?.scrollIntoView({ block: 'center' })
+      q?.focus()
+    } else void capture()
+  })
   useEffect(() => {
     if (!request || handled.current === request.nonce) return
     handled.current = request.nonce
