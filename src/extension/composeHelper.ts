@@ -1,3 +1,5 @@
+import { whereMarks, type Where } from './floatDesk'
+
 // A small AI button on WhatsApp's message box. With the box empty it offers
 // a drafted reply; with text in it, the shop's rewrites: friendlier, more
 // formal, shorter, spelling, another language. It only ever changes the box
@@ -45,14 +47,16 @@ const CSS = `
 .menu p { margin: 4px 8px 6px; font-size: 12px; color: var(--ink2); }
 .menu button {
   all: unset; box-sizing: border-box; width: 100%; cursor: pointer;
-  display: block; padding: 8px 10px; border-radius: 10px; font-size: 14px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 10px; font-size: 14px; font-weight: 600;
 }
+.where { display: flex; gap: 4px; margin-left: auto; color: var(--ink2); }
 .menu button:hover, .menu button:focus-visible { background: var(--hover); }
 `
 
 export function mountComposeHelper(opts: {
   box: () => HTMLElement | null
-  styles: () => { id: string; label: string }[]
+  styles: () => { id: string; label: string; onDevice: boolean }[]
   onPick: (p: ComposePick) => void
 }) {
   const host = document.createElement('div')
@@ -92,11 +96,13 @@ export function mountComposeHelper(opts: {
   function open() {
     const text = opts.box()?.innerText.trim() ?? ''
     menu.replaceChildren()
-    const button = (label: string, p: ComposePick) => {
+    const button = (label: string, p: ComposePick, where: Where[]) => {
       const b = document.createElement('button')
       b.type = 'button'
       b.setAttribute('role', 'menuitem')
-      b.textContent = label
+      const text = document.createElement('span')
+      text.textContent = label
+      b.append(text, whereMarks(where))
       b.addEventListener('click', () => pick(p))
       menu.append(b)
     }
@@ -104,13 +110,15 @@ export function mountComposeHelper(opts: {
       const note = document.createElement('p')
       note.textContent = 'The desk writes from this chat and its facts.'
       menu.append(note)
-      button('Draft a reply for me', { kind: 'draft' })
+      button('Draft a reply for me', { kind: 'draft' }, ['device'])
     } else {
       const note = document.createElement('p')
       note.textContent = 'Reword what you typed. Nothing is sent.'
       menu.append(note)
       for (const s of opts.styles()) {
-        button(s.label, { kind: 'rewrite', style: s.id, text })
+        button(s.label, { kind: 'rewrite', style: s.id, text }, [
+          s.onDevice ? 'device' : 'cloud',
+        ])
       }
     }
     menu.hidden = false

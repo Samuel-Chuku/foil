@@ -4,11 +4,11 @@
 
 const PATHS = {
   // Where a result came from.
+  // A laptop: worked out on this computer.
   device: (
     <>
-      <rect x="6.5" y="6.5" width="11" height="11" rx="2.5" />
-      <rect x="10" y="10" width="4" height="4" rx="1" />
-      <path d="M9.5 3v3.5M14.5 3v3.5M9.5 17.5V21M14.5 17.5V21M3 9.5h3.5M3 14.5h3.5M17.5 9.5H21M17.5 14.5H21" />
+      <rect x="4.5" y="5" width="15" height="10.5" rx="1.75" />
+      <path d="M2.5 18.5h19" />
     </>
   ),
   cloud: (

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { OpenChat, PanelRequest } from '../ui/host'
 import { Icon, type IconName } from '../ui/icons'
+import { Where } from '../ui/Where'
 
 // The extension's floating desk, drawn in the demo's simulated WhatsApp so a
 // visitor sees the same way in: one button, and a menu for the open chat.
@@ -31,12 +32,14 @@ export function DemoFloat(props: {
     icon: IconName
     label: string
     sub: string
+    where: ('device' | 'cloud')[]
     request: () => PanelRequest
   }[] = [
     ...receipts.map((m) => ({
       icon: 'receipt' as const,
       label: 'Verify the payment',
       sub: `Picture at ${m.time}`,
+      where: ['device' as const],
       request: (): PanelRequest => ({
         action: 'verify',
         messageId: m.id,
@@ -47,24 +50,28 @@ export function DemoFloat(props: {
       icon: 'bag',
       label: 'Capture the order',
       sub: 'Items, delivery and amount',
+      where: ['device'],
       request: () => ({ action: 'capture', nonce: nonce() }),
     },
     {
       icon: 'reply',
       label: 'Draft a reply',
       sub: 'Placed in the box, never sent',
+      where: ['device'],
       request: () => ({ action: 'draft', nonce: nonce() }),
     },
     {
       icon: 'globe',
-      label: 'Say it in English',
-      sub: 'Their latest messages',
+      label: 'Translate their messages',
+      sub: 'Their latest messages, into English',
+      where: ['device', 'cloud'],
       request: () => ({ action: 'translate', nonce: nonce() }),
     },
     {
       icon: 'spark',
       label: 'Ask the desk',
       sub: 'About orders, stock or money',
+      where: ['device', 'cloud'],
       request: () => ({ action: 'ask', nonce: nonce() }),
     },
   ]
@@ -102,6 +109,7 @@ export function DemoFloat(props: {
                     {it.label}
                     <small>{it.sub}</small>
                   </span>
+                  <Where where={it.where} />
                 </button>
               </li>
             ))}

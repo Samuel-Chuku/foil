@@ -109,38 +109,57 @@ function voiceSeconds(row: Element): number | null {
 }
 
 // The audio of a voice note the vendor has already played in WhatsApp, from
-// the page's own player (see whatsappMain.ts). Null when it was not played.
+// the page itself (see whatsappMain.ts). `seen` says whether the page caught
+// any note playing at all, which tells the vendor what to do next.
 const VOICE_TAG = 'vendor-desk-voice'
-function playedSrc(id: string): Promise<string | null> {
+function playedAudio(
+  id: string,
+): Promise<{ blob: Blob | null; seen: boolean }> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       window.removeEventListener('message', listen)
-      resolve(null)
+      resolve({ blob: null, seen: false })
     }, 1000)
     function listen(e: MessageEvent) {
-      const m = e.data as { tag?: string; id?: string; src?: string | null }
+      const m = e.data as {
+        tag?: string
+        id?: string
+        blob?: Blob | null
+        seen?: boolean
+      }
       if (e.source !== window || m?.tag !== VOICE_TAG || m.id !== id) return
-      if (!('src' in m)) return
+      if (!('blob' in m)) return
       clearTimeout(timer)
       window.removeEventListener('message', listen)
-      resolve(m.src ?? null)
+      resolve({ blob: m.blob ?? null, seen: Boolean(m.seen) })
     }
     window.addEventListener('message', listen)
     window.postMessage({ tag: VOICE_TAG, ask: id })
   })
 }
 
-async function voiceAudio(id: string) {
-  const src = await playedSrc(id)
-  if (!src) return null
-  const blob = await (await fetch(src)).blob()
+async function voiceAudio(
+  id: string,
+): Promise<{ mimeType: string; base64: string } | { missing: string }> {
+  const { blob, seen } = await playedAudio(id)
+  if (!blob) {
+    return {
+      missing: seen
+        ? 'Play this voice note in WhatsApp, for a second is enough, then pick Read the voice note again.'
+        : 'The desk did not catch this note playing. Reload WhatsApp Web once (needed after the desk is installed or updated), play the note, then pick Read the voice note again.',
+    }
+  }
   const bytes = new Uint8Array(await blob.arrayBuffer())
   let binary = ''
   for (let i = 0; i < bytes.length; i += 0x8000) {
     binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
   }
   // WhatsApp voice notes are Ogg files holding Opus audio.
-  return { mimeType: 'audio/ogg', base64: btoa(binary) }
+  const type = blob.type.split(';')[0] ?? ''
+  return {
+    mimeType: /^audio\//.test(type) ? type : 'audio/ogg',
+    base64: btoa(binary),
+  }
 }
 
 async function readMessage(row: Element): Promise<ChatMessage | null> {
@@ -222,10 +241,8 @@ async function send(action: FromChat['action'], messageId?: string) {
     chat = await readChat()
     if (action === 'voice' && messageId) {
       const audio = await voiceAudio(messageId)
-      if (!audio) {
-        toast(
-          'Play this voice note in WhatsApp first, for a second is enough, then click Read voice note again.',
-        )
+      if ('missing' in audio) {
+        toast(audio.missing)
         return
       }
       chat = {
@@ -441,16 +458,16 @@ async function replaceDraft(
 
 // The rewrite choices for the message box's AI button: the shop's market
 // tells the tab once the panel is open; Lagos until then.
-let styles: { id: string; label: string }[] = [
-  { id: 'friendlier', label: 'Friendlier' },
-  { id: 'formal', label: 'More formal' },
-  { id: 'shorter', label: 'Shorter' },
-  { id: 'spelling', label: 'Fix spelling' },
-  { id: 'pidgin', label: 'In Pidgin' },
-  { id: 'english', label: 'In English' },
-  { id: 'yoruba', label: 'In Yoruba' },
-  { id: 'igbo', label: 'In Igbo' },
-  { id: 'hausa', label: 'In Hausa' },
+let styles: { id: string; label: string; onDevice: boolean }[] = [
+  { id: 'friendlier', label: 'Friendlier', onDevice: true },
+  { id: 'formal', label: 'More formal', onDevice: true },
+  { id: 'shorter', label: 'Shorter', onDevice: true },
+  { id: 'spelling', label: 'Fix spelling', onDevice: true },
+  { id: 'pidgin', label: 'In Pidgin', onDevice: true },
+  { id: 'english', label: 'In English', onDevice: true },
+  { id: 'yoruba', label: 'In Yoruba', onDevice: false },
+  { id: 'igbo', label: 'In Igbo', onDevice: false },
+  { id: 'hausa', label: 'In Hausa', onDevice: false },
 ]
 
 mountComposeHelper({

@@ -339,21 +339,15 @@ div.error::before {
 /* ---------- Source badge: On device / Cloud ---------- */
 
 .badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--dk-s1);
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
   height: 24px;
-  padding: 0 var(--dk-s2);
   border: var(--dk-bw) solid var(--dk-ink);
   border-radius: var(--dk-r-tag);
-  font-family: var(--dk-font-num);
-  font-size: var(--dk-text-micro);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--dk-tracking-caps);
   background: var(--dk-surface);
   color: var(--dk-ink);
-  white-space: nowrap;
 }
 .badge[data-source='On device'] {
   background: var(--dk-ink);
@@ -2414,7 +2408,7 @@ button.mic[aria-pressed='true'] {
   transform: rotate(45deg);
 }
 .desk-float-menu {
-  width: 272px;
+  width: 304px;
   padding: var(--dk-s2);
   border-radius: 18px;
   background: color-mix(in srgb, var(--dk-surface) 86%, transparent);
@@ -2536,4 +2530,30 @@ button.mic[aria-pressed='true'] {
 }
 .translation p {
   white-space: pre-line;
+}
+
+/* Where an action runs: device and cloud icons at the end of a menu item. */
+.where {
+  display: flex;
+  gap: var(--dk-s1);
+  margin-left: auto;
+  padding-left: var(--dk-s2);
+  color: var(--dk-ink-2);
+}
+.desk-float-menu li button > span:not(.where),
+.compose-help-menu button > span:not(.where) {
+  flex: 1;
+}
+.compose-help-menu button {
+  display: flex;
+  align-items: center;
+}
+.reply-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dk-s2);
+}
+.reply-actions button.quiet {
+  min-height: var(--dk-h-control);
 }

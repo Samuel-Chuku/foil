@@ -48,6 +48,35 @@ const ICONS = {
   close: svg('<path d="M6 6l12 12M18 6 6 18"/>'),
 }
 
+// Where each action runs: on this computer, in the cloud, or either.
+export type Where = 'device' | 'cloud'
+const mini = (d: string) =>
+  `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
+const WHERE_ICON: Record<Where, string> = {
+  device: mini(
+    '<rect x="4.5" y="5" width="15" height="10.5" rx="1.75"/><path d="M2.5 18.5h19"/>',
+  ),
+  cloud: mini(
+    '<path d="M7.5 18.5h9.25a4.25 4.25 0 0 0 .4-8.48A5.75 5.75 0 0 0 6.1 11.3 3.6 3.6 0 0 0 7.5 18.5Z"/>',
+  ),
+}
+const WHERE_SAID: Record<Where, string> = {
+  device: 'on this computer',
+  cloud: "in Google's cloud, after you approve",
+}
+
+// The icons that say where an action runs, with words for screen readers.
+export function whereMarks(where: Where[]): HTMLElement {
+  const span = document.createElement('span')
+  span.className = 'where'
+  span.innerHTML = where.map((w) => WHERE_ICON[w]).join('')
+  const said = `Runs ${where.map((w) => WHERE_SAID[w]).join(' or ')}`
+  span.setAttribute('role', 'img')
+  span.setAttribute('aria-label', said)
+  span.title = said
+  return span
+}
+
 const CSS = `
 :host { all: initial; }
 * { box-sizing: border-box; }
@@ -83,7 +112,7 @@ const CSS = `
 }
 .launch[aria-expanded='true'] .mark { transform: rotate(45deg); transition: transform 160ms ease-out; }
 .menu {
-  position: absolute; bottom: 64px; right: 0; width: 272px;
+  position: absolute; bottom: 64px; right: 0; width: 304px;
   padding: 8px; border-radius: 18px;
   background: var(--ground); border: 1.5px solid var(--line);
   backdrop-filter: blur(18px) saturate(1.2);
@@ -106,6 +135,8 @@ li button {
 li button:hover, li button:focus-visible { background: var(--hover); }
 li button:focus-visible, .launch:focus-visible, .close:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 li button small { display: block; font-weight: 400; font-size: 12px; color: var(--ink2); }
+li button > span:not(.where) { flex: 1; }
+.where { display: flex; gap: 4px; color: var(--ink2); margin-left: auto; }
 .sep { height: 1px; background: var(--line); margin: 6px 4px; }
 .note { padding: 8px 10px 4px; font-size: 12px; color: var(--ink2); }
 .toast {
@@ -183,6 +214,7 @@ export function mountFloatDesk(opts: {
     label: string,
     sub: string,
     a: FloatAction,
+    where: Where[] = [],
   ) {
     const li = document.createElement('li')
     const b = document.createElement('button')
@@ -192,10 +224,11 @@ export function mountFloatDesk(opts: {
     const text = b.querySelector('span')!
     text.textContent = label
     if (sub) {
-      const small = document.createElement('small')
-      small.textContent = sub
-      text.append(small)
+      const note = document.createElement('small')
+      note.textContent = sub
+      text.append(note)
     }
+    if (where.length) b.append(whereMarks(where))
     b.addEventListener('click', () => {
       close()
       opts.onAction(a)
@@ -225,36 +258,56 @@ export function mountFloatDesk(opts: {
               kind: 'verify',
               messageId: r.id,
             },
+            ['device'],
           ),
         )
       }
       list.append(
-        item('bag', 'Capture the order', 'Items, delivery and amount', {
-          kind: 'capture',
-        }),
+        item(
+          'bag',
+          'Capture the order',
+          'Items, delivery and amount',
+          {
+            kind: 'capture',
+          },
+          ['device'],
+        ),
       )
       for (const v of c.voiceNotes.slice(-1)) {
         list.append(
           item(
             'mic',
             'Read the voice note',
-            `From ${v.time || 'this chat'}, after you approve`,
+            `From ${v.time || 'this chat'}`,
             {
               kind: 'voice',
               messageId: v.id,
             },
+            ['cloud'],
           ),
         )
       }
       list.append(
-        item('reply', 'Draft a reply', 'Placed in the box, never sent', {
-          kind: 'draft',
-        }),
+        item(
+          'reply',
+          'Draft a reply',
+          'Placed in the box, never sent',
+          {
+            kind: 'draft',
+          },
+          ['device'],
+        ),
       )
       list.append(
-        item('globe', 'Say it in English', 'Their latest messages', {
-          kind: 'translate',
-        }),
+        item(
+          'globe',
+          'Translate their messages',
+          'Their latest messages, into English',
+          {
+            kind: 'translate',
+          },
+          ['device', 'cloud'],
+        ),
       )
     } else {
       const note = document.createElement('p')
@@ -264,9 +317,15 @@ export function mountFloatDesk(opts: {
       menu.append(note)
     }
     list.append(
-      item('spark', 'Ask the desk', 'About orders, stock or money', {
-        kind: 'ask',
-      }),
+      item(
+        'spark',
+        'Ask the desk',
+        'About orders, stock or money',
+        {
+          kind: 'ask',
+        },
+        ['device', 'cloud'],
+      ),
     )
     menu.append(list)
     const sep = document.createElement('div')

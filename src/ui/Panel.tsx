@@ -2248,15 +2248,27 @@ export function Panel(props: {
                   <Icon name="reply" />
                   Reply
                 </h3>
-                {d?.status !== 'running' && (
+                <div className="actions reply-actions">
+                  {d?.status !== 'running' && (
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={device.busy}
+                      onClick={() => void draft()}
+                    >
+                      {d?.status === 'done' ? 'Draft again' : 'Draft a reply'}
+                    </button>
+                  )}
                   <button
                     type="button"
+                    className="quiet"
                     disabled={device.busy}
-                    onClick={() => void draft()}
+                    onClick={() => void translate()}
                   >
-                    {d?.status === 'done' ? 'Draft again' : 'Draft a reply'}
+                    <Icon name="globe" />
+                    Translate their messages
                   </button>
-                )}
+                </div>
                 {d?.status === 'running' && <p aria-live="polite">{d.note}</p>}
                 {d?.status === 'error' && (
                   <p className="error" role="alert">
@@ -2328,15 +2340,6 @@ export function Panel(props: {
                     />
                   </div>
                 )}
-                <button
-                  type="button"
-                  className="quiet"
-                  disabled={device.busy}
-                  onClick={() => void translate()}
-                >
-                  <Icon name="globe" />
-                  Say their messages in English
-                </button>
               </section>
             </>
           )}

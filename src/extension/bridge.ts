@@ -46,7 +46,10 @@ export type ToChat =
   // Swap the box's text for a rewrite, only if it still holds `from`.
   | { kind: 'replace-draft'; phone: string; from: string; text: string }
   // The rewrite choices this shop's market offers, for the box's AI button.
-  | { kind: 'desk-styles'; styles: { id: string; label: string }[] }
+  | {
+      kind: 'desk-styles'
+      styles: { id: string; label: string; onDevice: boolean }[]
+    }
   // The vendor clicked a panel button that needs the open chat's messages.
   | { kind: 'read-chat' }
 

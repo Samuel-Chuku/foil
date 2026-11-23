@@ -3,6 +3,7 @@ import { rewriteStyles } from '../capture/rewrite'
 import { market } from '../config/market'
 import type { PanelRequest } from '../ui/host'
 import { Icon } from '../ui/icons'
+import { Where } from '../ui/Where'
 
 // The extension's AI button on WhatsApp's message box, on the demo's
 // simulated one: draft a reply when it is empty, reword what is typed when
@@ -64,8 +65,8 @@ export function DemoCompose(props: {
                   })
                 }
               >
-                {s.label}
-                {!s.onDevice && <small>Cloud, after you approve</small>}
+                <span>{s.label}</span>
+                <Where where={s.onDevice ? ['device'] : ['cloud']} />
               </button>
             ))
           ) : (
@@ -74,7 +75,8 @@ export function DemoCompose(props: {
               role="menuitem"
               onClick={() => choose({ action: 'draft', nonce: Date.now() })}
             >
-              Draft a reply for me
+              <span>Draft a reply for me</span>
+              <Where where={['device']} />
             </button>
           )}
         </div>

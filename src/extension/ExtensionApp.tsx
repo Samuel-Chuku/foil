@@ -72,7 +72,11 @@ export default function ExtensionApp() {
     if (tabId === null) return
     const message: ToChat = {
       kind: 'desk-styles',
-      styles: rewriteStyles(market()).map(({ id, label }) => ({ id, label })),
+      styles: rewriteStyles(market()).map(({ id, label, onDevice }) => ({
+        id,
+        label,
+        onDevice,
+      })),
     }
     chrome.tabs.sendMessage(tabId, message).catch(() => undefined)
   }, [tabId])
