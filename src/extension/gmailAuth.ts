@@ -10,11 +10,20 @@ export class SignInNeeded extends Error {}
 // reach any account, not only the one Chrome itself is signed in to. The
 // token lives in memory for about an hour and is renewed silently while
 // Google's session for that account lasts.
-export async function gmailToken(opts: {
+export function gmailToken(opts: {
   // The account to renew; omitted when connecting a new one.
   email?: string
   interactive: boolean
 }): Promise<Token> {
+  return googleToken([SCOPE], 'Gmail', opts)
+}
+
+// The same sign-in for any of the vendor's Google services.
+export async function googleToken(
+  scopes: string[],
+  product: string,
+  opts: { email?: string; interactive: boolean },
+): Promise<Token> {
   const clientId = gmailClientId()
   if (!clientId) throw new Error('The Gmail client ID is not set.')
   const state = crypto.randomUUID()
@@ -22,7 +31,7 @@ export async function gmailToken(opts: {
     client_id: clientId,
     redirect_uri: chrome.identity.getRedirectURL(),
     response_type: 'token',
-    scope: SCOPE,
+    scope: scopes.join(' '),
     state,
     prompt: opts.interactive ? 'select_account' : 'none',
   })
@@ -44,7 +53,7 @@ export async function gmailToken(opts: {
   const t = tokenFromRedirect(redirect, state, Date.now())
   if ('error' in t) {
     if (t.error === 'access_denied') {
-      throw new Error('Access to Gmail was not allowed.')
+      throw new Error(`Access to ${product} was not allowed.`)
     }
     throw new SignInNeeded(t.error)
   }

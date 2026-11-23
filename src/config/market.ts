@@ -28,6 +28,8 @@ export type Market = {
   refLabel: string
   // Minutes ahead of UTC. None of these markets has daylight saving.
   utcOffsetMin: number
+  // The IANA zone, for events in the vendor's calendar.
+  timeZone: string
   // The language replies are drafted in, and whether Chrome's built-in
   // model supports it (its documented languages are en, ja, es, de, fr).
   reply: { language: string; onDevice: boolean }
@@ -51,6 +53,7 @@ export const MARKETS: Record<MarketId, Market> = {
     rail: 'nip',
     refLabel: 'session ID',
     utcOffsetMin: 60,
+    timeZone: 'Africa/Lagos',
     reply: { language: 'English or Nigerian Pidgin', onDevice: true },
     phonePrefix: '234',
   },
@@ -69,6 +72,7 @@ export const MARKETS: Record<MarketId, Market> = {
     rail: 'upi',
     refLabel: 'UPI reference',
     utcOffsetMin: 330,
+    timeZone: 'Asia/Kolkata',
     reply: { language: 'English', onDevice: true },
     phonePrefix: '91',
   },
@@ -87,6 +91,7 @@ export const MARKETS: Record<MarketId, Market> = {
     rail: 'pix',
     refLabel: 'Pix ID',
     utcOffsetMin: -180,
+    timeZone: 'America/Sao_Paulo',
     reply: { language: 'Brazilian Portuguese', onDevice: false },
     phonePrefix: '55',
   },

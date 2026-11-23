@@ -11,6 +11,7 @@ import { lagosFromEpoch } from '../verify/time'
 import { isFromChat, isOpened, type DraftReply, type ToChat } from './bridge'
 import { GmailCard } from './GmailCard'
 import { useGmail } from './useGmail'
+import { forgetGoogle, sheetsCalendarToken } from './googleConnect'
 
 const byNameKey = (chat: OpenChat | null) =>
   chat?.phone.startsWith('name:') ? chat.contactName : null
@@ -120,6 +121,8 @@ export default function ExtensionApp() {
       if (!reply.ok) throw new Error(reply.reason)
     },
     now: () => lagosFromEpoch(Date.now()),
+    googleToken: sheetsCalendarToken,
+    forgetGoogle,
     // A panel button on a chat the panel only knows by name: read it now,
     // on that click.
     readChat: async () => {

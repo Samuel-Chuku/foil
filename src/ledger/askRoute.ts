@@ -30,8 +30,17 @@ export const ROUTE_SCHEMA = {
           product: { type: 'string' },
           chart: { type: 'string', enum: [...CHART_IDS, ''] },
           step: { type: 'string', enum: ['out', 'delivered', 'collected', ''] },
+          area: { type: 'string' },
         },
-        required: ['tool', 'which', 'number', 'product', 'chart', 'step'],
+        required: [
+          'tool',
+          'which',
+          'number',
+          'product',
+          'chart',
+          'step',
+          'area',
+        ],
         additionalProperties: false,
       },
     },
@@ -52,7 +61,7 @@ export function readPicks(json: unknown): Pick[] {
     const tool = typeof o.tool === 'string' ? o.tool : ''
     if (!TOOL_NAMES.includes(tool)) return []
     const args = Object.fromEntries(
-      ['which', 'number', 'product', 'chart', 'step'].flatMap((k) =>
+      ['which', 'number', 'product', 'chart', 'step', 'area'].flatMap((k) =>
         typeof o[k] === 'string' && o[k] ? [[k, o[k] as string]] : [],
       ),
     )

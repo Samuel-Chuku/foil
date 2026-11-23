@@ -20,6 +20,9 @@ export type CloudRequest = {
   // The text parts, verbatim as sent.
   texts: string[]
   attachment?: Attachment
+  // Where it goes, when not to Google's Gemini service: the vendor's own
+  // Google Sheet or Calendar.
+  to?: 'Google Sheets' | 'Google Calendar'
   // Everything a tool lookup could add later in this chat, in full. Not sent
   // now; the model's lookups send parts of it, and nothing outside it.
   mayReturn?: string

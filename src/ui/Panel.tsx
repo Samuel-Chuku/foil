@@ -122,6 +122,10 @@ import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
 import { Icon } from './icons'
 import { SourceBadge } from './SourceBadge'
+import { GoogleResult } from './GoogleResult'
+import { useGoogle } from './useGoogle'
+import { dailyTable, ordersTable } from '../google/sheet'
+import { deliveryRunEvent, nextHour } from '../google/calendar'
 
 type Step<T> =
   | { status: 'running'; note: string }
@@ -332,6 +336,8 @@ export function Panel(props: {
   const { chat, ledger, device, host, shop } = props
   const online = useOnline()
   const approval = useApproval()
+  const google = useGoogle(host, approval.ask)
+  const [sheetNames, setSheetNames] = useState(false)
   const brand = useBrand()
   const [tab, setTab] = useState<TabId>('chat')
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -1429,6 +1435,46 @@ export function Panel(props: {
       (order.payment.state === 'check' && order.payment.decidedBy !== 'vendor'))
   const paidWhileAway = order !== null && ledger.justPaid.includes(order.id)
 
+  // Every order and a line per day, to the vendor's own sheet.
+  function sendSheet() {
+    if (!data) return
+    return google.sendSheet(
+      'sheet',
+      [
+        {
+          title: 'Orders',
+          table: ordersTable(
+            data.orders,
+            data.credits,
+            lagos.day,
+            customerName,
+            { names: sheetNames },
+          ),
+        },
+        {
+          title: 'By day',
+          table: dailyTable(data.orders, data.credits, lagos.day),
+        },
+      ],
+      host.now(),
+    )
+  }
+
+  // A delivery run for one area, in the vendor's calendar.
+  function addRun(area: string, orders: Order[], startMs: number) {
+    return google.addToCalendar(
+      `run:${area}`,
+      deliveryRunEvent({
+        area,
+        orders,
+        startMs,
+        minutes: 90,
+        timeZone: market().timeZone,
+      }),
+      'Add a delivery run',
+    )
+  }
+
   // Before a payment is confirmed, flag a receipt that does not cover the order.
   const amountGap =
     balance === null &&
@@ -1464,7 +1510,11 @@ export function Panel(props: {
       </header>
 
       {settingsOpen && (
-        <SettingsView device={device} dropsRun={data?.drops.length ?? 0} />
+        <SettingsView
+          device={device}
+          google={google}
+          dropsRun={data?.drops.length ?? 0}
+        />
       )}
 
       {/* Hidden rather than unmounted, so work in progress survives a visit
@@ -2122,6 +2172,28 @@ export function Panel(props: {
                 ))}
               </ul>
             )}
+            {data && data.orders.length > 0 && (
+              <div className="sheet-send">
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={sheetNames}
+                    onChange={(e) => setSheetNames(e.target.checked)}
+                  />{' '}
+                  Include customer names
+                </label>
+                <button
+                  type="button"
+                  className="quiet"
+                  disabled={google.status.sheet?.kind === 'busy'}
+                  onClick={() => void sendSheet()}
+                >
+                  <Icon name="table" />
+                  Send all orders to Google Sheets
+                </button>
+                <GoogleResult status={google.status.sheet} />
+              </div>
+            )}
           </section>
 
           {drops && <DropCard ledger={ledger} clock={clock} side="live" />}
@@ -2131,6 +2203,9 @@ export function Panel(props: {
               ledger={ledger}
               customerName={customerName}
               onOpen={host.openChat}
+              now={host.now()}
+              onAddRun={(area, orders, at) => void addRun(area, orders, at)}
+              runStatus={(area) => google.status[`run:${area}`]}
             />
           )}
         </TabPanel>
@@ -2274,6 +2349,14 @@ export function Panel(props: {
           ask={approval.ask}
           badge={(r) => <Badge source={r.source} ms={r.ms} />}
           openChat={host.openChat}
+          sendSheet={() => void sendSheet()}
+          addRun={(area, ids) =>
+            void addRun(
+              area,
+              (data?.orders ?? []).filter((o) => ids.includes(o.id)),
+              nextHour(host.now()),
+            )
+          }
         />
       </div>
 

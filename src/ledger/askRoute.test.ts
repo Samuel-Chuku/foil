@@ -13,6 +13,7 @@ describe('readPicks', () => {
             product: '',
             chart: '',
             step: '',
+            area: '',
           },
         ],
       }),
@@ -20,7 +21,14 @@ describe('readPicks', () => {
   })
 
   it('drops unknown tools, repeats and anything past two', () => {
-    const p = { which: '', number: '', product: '', chart: '', step: '' }
+    const p = {
+      which: '',
+      number: '',
+      product: '',
+      chart: '',
+      step: '',
+      area: '',
+    }
     expect(
       readPicks({
         picks: [

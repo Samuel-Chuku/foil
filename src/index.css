@@ -2339,3 +2339,36 @@ button.mic[aria-pressed='true'] {
   padding: var(--dk-s3);
   margin: var(--dk-s3) 0;
 }
+
+/* ---------- Google Sheets and Calendar ---------- */
+
+.sheet-send {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dk-s2) var(--dk-s3);
+  margin-top: var(--dk-s3);
+  padding-top: var(--dk-s3);
+  border-top: var(--dk-bw-hair) solid var(--dk-line);
+}
+.sheet-send .hint,
+.sheet-send .error {
+  flex-basis: 100%;
+  margin: 0;
+}
+.run-plan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--dk-s2);
+  margin: var(--dk-s2) 0;
+}
+.run-plan label {
+  display: grid;
+  gap: var(--dk-s1);
+  font-size: var(--dk-text-small);
+  font-weight: 600;
+}
+.run-plan input[type='time'] {
+  width: auto;
+}

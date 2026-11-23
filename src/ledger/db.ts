@@ -30,6 +30,8 @@ type Stores = {
     | ({ id: 'brand' } & Brand)
     // Numbers the vendor gave for saved WhatsApp contacts, by contact name.
     | { id: 'contacts'; byName: Record<string, string> }
+    // The Google Sheet the desk made for this shop, and when it was last sent.
+    | { id: 'google'; sheetId: string; sheetUrl: string; sentAt: number | null }
 }
 export type StoreName = keyof Stores
 

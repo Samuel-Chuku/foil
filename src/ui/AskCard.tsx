@@ -61,10 +61,18 @@ type Turn = {
 class NeedsCloud extends Error {}
 
 const proposalKey = (p: Proposal) =>
-  p.kind === 'delivery' ? `d:${p.orderId}:${p.to}` : `c:${p.customerKey}`
+  p.kind === 'delivery'
+    ? `d:${p.orderId}:${p.to}`
+    : p.kind === 'open-chat'
+      ? `c:${p.customerKey}`
+      : p.kind === 'sheet'
+        ? 's'
+        : `r:${p.area}`
 
 function proposalLabel(p: Proposal): string {
   if (p.kind === 'open-chat') return `Open the chat for #${p.code}`
+  if (p.kind === 'sheet') return 'Send orders to Google Sheets'
+  if (p.kind === 'calendar-run') return `Add the ${p.area} run to Calendar`
   const to = {
     out: 'out for delivery',
     delivered: 'delivered',
@@ -91,6 +99,9 @@ export function AskCard(props: {
   deviceReady: boolean
   // Opens a customer's chat, where the host can (the demo and WhatsApp Web).
   openChat?: (customerKey: string) => void
+  // Sends to the vendor's own Google Sheet or Calendar, after approval.
+  sendSheet: () => void
+  addRun: (area: string, orderIds: string[]) => void
 }) {
   const { data, config } = props.ledger
   const bankName = (id: string | null) =>
@@ -284,7 +295,9 @@ export function AskCard(props: {
 
   function act(p: Proposal) {
     if (p.kind === 'delivery') void props.ledger.setDelivery(p.orderId, p.to)
-    else props.openChat?.(p.customerKey)
+    else if (p.kind === 'open-chat') props.openChat?.(p.customerKey)
+    else if (p.kind === 'sheet') props.sendSheet()
+    else props.addRun(p.area, p.orderIds)
     setDone((d) => new Set(d).add(proposalKey(p)))
   }
 

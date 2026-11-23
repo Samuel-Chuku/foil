@@ -12,7 +12,7 @@ import type { ChatNote, Drop, Order, Product, Settlement } from './types'
 // orders by number, items, stock, money and rules. It never holds a
 // customer's name, phone number, address or chat text.
 
-const PAYMENT: Record<Order['payment']['state'], string> = {
+export const PAYMENT: Record<Order['payment']['state'], string> = {
   awaiting: 'waiting for payment',
   matched: 'paid',
   'not yet credited': 'not yet credited',
@@ -20,14 +20,14 @@ const PAYMENT: Record<Order['payment']['state'], string> = {
   check: 'receipt to check',
 }
 
-const DELIVERY: Record<Order['delivery'], string> = {
+export const DELIVERY: Record<Order['delivery'], string> = {
   pending: 'not sent yet',
   out: 'out for delivery',
   delivered: 'delivered',
   collected: 'collected',
 }
 
-function where(o: Order): string {
+export function where(o: Order): string {
   const p = o.deliveryPlan
   if (!p?.method) return 'delivery not discussed'
   if (p.method === 'pickup') return 'pickup'

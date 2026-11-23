@@ -106,6 +106,24 @@ const PATHS = {
   ),
   chart: <path d="M4 4v16h16M8 16v-4M12 16V8M16 16v-6" />,
   pulse: <path d="M3 12.5h4l2.5-6 4 11 2.5-5h5" />,
+  table: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="4" y="5.5" width="16" height="14.5" rx="2.5" />
+      <path d="M4 10h16M8.5 3.5v4M15.5 3.5v4M12 13v4M10 15h4" />
+    </>
+  ),
+  link: (
+    <>
+      <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" />
+      <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
+    </>
+  ),
   // Actions.
   mic: (
     <>

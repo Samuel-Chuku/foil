@@ -122,11 +122,44 @@ describe('desk tools', () => {
   })
 })
 
+describe('Google suggestions', () => {
+  it('offers a calendar run only for an area with orders to send', () => {
+    const yaba = {
+      ...paid('5'),
+      deliveryPlan: {
+        method: 'own-rider' as const,
+        area: 'Yaba',
+        state: '',
+        park: '',
+        feeKobo: 150_000,
+        paidTo: 'shop' as const,
+      },
+    }
+    const d = desk([yaba])
+    expect(
+      runTool('suggest_calendar_run', { area: 'yaba' }, d).proposal,
+    ).toMatchObject({ kind: 'calendar-run', area: 'Yaba' })
+    expect(
+      runTool('suggest_calendar_run', { area: 'Ikeja' }, d).proposal,
+    ).toBeUndefined()
+    expect(runTool('suggest_sheet_export', {}, d).proposal).toEqual({
+      kind: 'sheet',
+    })
+  })
+})
+
 describe('tool menu', () => {
   it('declares every parameter the tools read', () => {
     for (const t of TOOLS) {
       for (const k of Object.keys(t.params)) {
-        expect(['which', 'number', 'product', 'chart', 'step']).toContain(k)
+        expect([
+          'which',
+          'number',
+          'product',
+          'chart',
+          'step',
+          'area',
+        ]).toContain(k)
       }
     }
   })

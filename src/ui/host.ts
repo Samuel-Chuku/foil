@@ -38,6 +38,11 @@ export type PanelHost = {
   // Opens a customer's chat, where the host can; the extension never drives
   // WhatsApp Web, so it leaves this out.
   openChat?(customerKey: string): void
+  // A token for the vendor's own Google Sheets and Calendar. Only the
+  // extension can sign in; the demo shows what would be sent instead.
+  // Interactive opens Google's sign-in window, so only call it from a click.
+  googleToken?(interactive: boolean): Promise<string>
+  forgetGoogle?(): void
   // Reads the open chat again on the vendor's click, when the panel only
   // knows which chat is open (see the WhatsApp content script).
   readChat?(): Promise<OpenChat | null>

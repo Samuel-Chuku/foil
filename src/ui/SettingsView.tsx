@@ -17,6 +17,8 @@ import {
   type Prefs,
 } from './prefs'
 import { Icon } from './icons'
+import { GoogleResult } from './GoogleResult'
+import type { GoogleApi } from './useGoogle'
 
 const ACCENT_NAME: Record<Prefs['accent'], string> = {
   ember: 'Ember',
@@ -53,6 +55,7 @@ async function downloadRecords() {
 
 export function SettingsView(props: {
   device: DeviceApi
+  google: GoogleApi
   // Drops the shop has run, so the drops switch shows what is in force.
   dropsRun: number
 }) {
@@ -61,7 +64,7 @@ export function SettingsView(props: {
   const recommended = verifyFor(appConfig().verify)
   const lagos = market().id === 'ng'
   const [saving, setSaving] = useState<'idle' | 'saving' | 'error'>('idle')
-  const { device } = props
+  const { device, google } = props
 
   return (
     <div className="settings" aria-labelledby="settings-h">
@@ -201,6 +204,58 @@ export function SettingsView(props: {
             Use the recommended windows
           </button>
         )}
+      </section>
+
+      <section className="card" data-tone="money" aria-labelledby="links-h">
+        <h3 id="links-h">
+          <Icon name="link" />
+          Connections
+        </h3>
+        <p className="hint">
+          Send your orders to a Google Sheet, and add delivery runs to Google
+          Calendar, in your own Google account. Each send shows you exactly what
+          goes first. Phone numbers and addresses never go; customer names only
+          if you tick for them.
+        </p>
+        {!google.canSign ? (
+          <p className="hint">
+            In the demo, Sheets and Calendar show what would be sent and send
+            nothing. Connect them in the extension.
+          </p>
+        ) : google.connected ? (
+          <>
+            <p>
+              <Icon name="check" /> Google Sheets and Calendar are connected.
+            </p>
+            {google.sheet && (
+              <p className="hint">
+                Your sheet:{' '}
+                <a
+                  href={google.sheet.sheetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Payment desk: orders
+                </a>
+                {google.sheet.sentAt &&
+                  `, last sent ${new Date(google.sheet.sentAt).toISOString().slice(0, 16).replace('T', ' ')}`}
+              </p>
+            )}
+            <button
+              type="button"
+              className="quiet"
+              onClick={() => void google.disconnect()}
+            >
+              Disconnect
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={() => void google.connect()}>
+            <Icon name="link" />
+            Connect Google Sheets and Calendar
+          </button>
+        )}
+        <GoogleResult status={google.status.connect} />
       </section>
 
       <section className="card" aria-labelledby="ai-h">

@@ -24,10 +24,15 @@ export function ApprovalDialog(props: {
         props.onCancel()
       }}
     >
-      <h3 id="approval-h">{request.feature}: send to the cloud?</h3>
+      <h3 id="approval-h">
+        {request.feature}: send to {request.to ?? 'the cloud'}?
+      </h3>
       <p>
-        {request.reason} This goes to Google&apos;s Gemini service. Below is
-        everything that will be sent, exactly as it will be sent.
+        {request.reason}{' '}
+        {request.to
+          ? `This goes to your own ${request.to}, in the Google account you connected.`
+          : "This goes to Google's Gemini service."}{' '}
+        Below is everything that will be sent, exactly as it will be sent.
       </p>
       {request.replaced.length > 0 && (
         <p className="hint">

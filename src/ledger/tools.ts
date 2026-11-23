@@ -1,4 +1,4 @@
-import { nextSteps } from '../capture/deliveries'
+import { deliveryGroups, nextSteps } from '../capture/deliveries'
 import type { ShopRules } from '../capture/shopRules'
 import type { Credit } from '../verify/types'
 import { CHART_IDS, CHART_TITLES, type ChartId } from './charts'
@@ -51,6 +51,8 @@ export type DeliveryStep = (typeof DELIVERY_STEPS)[number]
 export type Proposal =
   | { kind: 'delivery'; orderId: string; code: string; to: DeliveryStep }
   | { kind: 'open-chat'; customerKey: string; code: string }
+  | { kind: 'sheet' }
+  | { kind: 'calendar-run'; area: string; orderIds: string[] }
 
 export type ToolResult = {
   // What goes back to the model.
@@ -163,6 +165,25 @@ export const TOOLS: ToolSpec[] = [
         type: 'string',
         enum: DELIVERY_STEPS,
         description: 'out, delivered, or collected (for pickups).',
+      },
+    },
+    action: true,
+  },
+  {
+    name: 'suggest_sheet_export',
+    description:
+      'Offer the owner a button to send all orders and daily totals to their own Google Sheet. They see exactly what goes before it is sent.',
+    params: {},
+    action: true,
+  },
+  {
+    name: 'suggest_calendar_run',
+    description:
+      "Offer the owner a button to add one area's delivery run (paid orders waiting to go out) to their Google Calendar.",
+    params: {
+      area: {
+        type: 'string',
+        description: 'The area or park, as the deliveries list groups it.',
       },
     },
     action: true,
@@ -343,6 +364,33 @@ export function runTool(
         text: `A button to open the chat for order ${code} is shown to the owner.`,
         step: `Offered: open the chat for #${code}`,
         proposal: { kind: 'open-chat', customerKey: o.customerId, code },
+      }
+    }
+    case 'suggest_sheet_export':
+      return {
+        text: 'A button to send the orders to Google Sheets is shown to the owner. Nothing has been sent.',
+        step: 'Offered: send orders to Google Sheets',
+        proposal: { kind: 'sheet' },
+      }
+    case 'suggest_calendar_run': {
+      const want = str(args, 'area').toLowerCase()
+      const group = deliveryGroups(d.orders, d.credits).find(
+        (g) => want && g.label.toLowerCase().includes(want),
+      )
+      if (!group) {
+        return {
+          text: `No paid orders are waiting to go out to "${want}".`,
+          step: `Looked for deliveries to ${want || '?'}`,
+        }
+      }
+      return {
+        text: `A button to add the ${group.label} run (${group.orders.length} orders) to Google Calendar is shown to the owner.`,
+        step: `Offered: add the ${group.label} run to Calendar`,
+        proposal: {
+          kind: 'calendar-run',
+          area: group.label,
+          orderIds: group.orders.map((x) => x.order.id),
+        },
       }
     }
     default:
