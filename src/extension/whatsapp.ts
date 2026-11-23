@@ -372,12 +372,25 @@ function floatChat(): FloatChat | null {
   }
 }
 
+// Asks for the side panel. After the extension is reloaded, this copy of the
+// script stays on the page cut off from it, and Chrome then throws at once
+// rather than rejecting; the vendor is told to reload instead.
+function openPanel(): boolean {
+  try {
+    if (!chrome.runtime?.id) throw new Error('Extension context invalidated')
+    chrome.runtime.sendMessage({ kind: 'open-panel' }).catch(() => undefined)
+    return true
+  } catch (e) {
+    toast(problem(e))
+    return false
+  }
+}
+
 const float = mountFloatDesk({
   chat: floatChat,
   onAction: (a: FloatAction) => {
     // Opened at once, while Chrome still counts this as the vendor's click.
-    chrome.runtime.sendMessage({ kind: 'open-panel' }).catch(() => undefined)
-    if (a.kind === 'open') return
+    if (!openPanel() || a.kind === 'open') return
     if (a.kind === 'ask') {
       void deliver({ kind: 'focus-ask' }).catch((e) => toast(problem(e)))
       return
@@ -683,14 +696,12 @@ const compose = mountComposeHelper({
   box: composeBox,
   chatArea: () => document.querySelector<HTMLElement>('#main'),
   styles: () => styles,
-  onOpenDesk: () => {
-    chrome.runtime.sendMessage({ kind: 'open-panel' }).catch(() => undefined)
-  },
+  onOpenDesk: () => void openPanel(),
   onPick: (pick) => {
     if (pick.kind === 'draft') {
       // A draft is built from the chat, the order and the payment the panel
       // holds, so it opens there.
-      chrome.runtime.sendMessage({ kind: 'open-panel' }).catch(() => undefined)
+      if (!openPanel()) return
       toast('Writing a reply in the desk…')
       void send('draft')
       return
