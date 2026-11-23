@@ -54,6 +54,17 @@ describe('pickVoice', () => {
     expect(pickVoice(voices, 'en-NG', '')?.name).toBe('Nigeria')
     expect(pickVoice(voices, 'en-US', '')?.name).toBe('Local UK')
   })
+  it('prefers a natural voice on this computer to a basic one', () => {
+    const linux = [
+      { name: 'eSpeak English', lang: 'en-GB', localService: true },
+      { name: 'Piper Alba', lang: 'en-GB', localService: true },
+      { name: 'Google UK English Female', lang: 'en-GB', localService: false },
+    ]
+    expect(pickVoice(linux, 'en-GB', '')?.name).toBe('Piper Alba')
+    expect(pickVoice(linux.slice(0, 1), 'en-GB', '')?.name).toBe(
+      'eSpeak English',
+    )
+  })
   it('finds none rather than the wrong language', () => {
     expect(pickVoice(voices, 'yo-NG', '')).toBeNull()
   })

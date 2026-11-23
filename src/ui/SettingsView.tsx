@@ -19,7 +19,11 @@ import {
 import { Icon } from './icons'
 import { GoogleResult } from './GoogleResult'
 import type { GoogleApi } from './useGoogle'
-import { answerLanguage, answerLanguages } from '../config/speech'
+import {
+  answerLanguage,
+  answerLanguages,
+  soundsBasic,
+} from '../config/speech'
 import { useSpeech, type SpeakResult } from './useSpeech'
 
 // A line to try each voice with, in its own language.
@@ -80,6 +84,16 @@ export function SettingsView(props: {
   const { device, google } = props
   const speech = useSpeech()
   const lang = answerLanguage(market(), p.answerLanguage)
+  const voices = speech.voices.filter(
+    (v) =>
+      v.lang.toLowerCase().split(/[-_]/)[0] === lang.voiceLang.split('-')[0],
+  )
+  const onlineVoice = voices.some(
+    (v) => v.name === p.voiceName && !v.localService,
+  )
+  const onlyBasic =
+    voices.some((v) => !v.localService) &&
+    voices.filter((v) => v.localService).every(soundsBasic)
   const [tried, setTried] = useState<SpeakResult | null>(null)
 
   return (
@@ -211,7 +225,7 @@ export function SettingsView(props: {
           label="Read answers aloud"
           checked={p.speakAnswers}
           onChange={(speakAnswers) => set({ speakAnswers })}
-          hint="After a spoken question, and all through a talk. Chrome's own voices read them; ones on this computer are chosen first."
+          hint="After a spoken question, and all through a talk. A voice on this computer is chosen first."
         />
         <label className="setting">
           <span className="setting-label">Voice</span>
@@ -220,20 +234,41 @@ export function SettingsView(props: {
             onChange={(e) => set({ voiceName: e.target.value })}
           >
             <option value="">Choose one for {lang.label}</option>
-            {speech.voices
-              .filter(
-                (v) =>
-                  v.lang.toLowerCase().split(/[-_]/)[0] ===
-                  lang.voiceLang.split('-')[0],
-              )
-              .map((v) => (
-                <option key={v.name} value={v.name}>
-                  {v.name}
-                  {v.localService ? ' (on this computer)' : ''}
-                </option>
-              ))}
+            <optgroup label="On this computer">
+              {voices
+                .filter((v) => v.localService)
+                .map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name}
+                  </option>
+                ))}
+            </optgroup>
+            <optgroup label="Google online voices (the words go to Google)">
+              {voices
+                .filter((v) => !v.localService)
+                .map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name}
+                  </option>
+                ))}
+            </optgroup>
           </select>
         </label>
+        {onlineVoice ? (
+          <p className="hint">
+            <Icon name="cloud" size={14} /> With an online voice, the words of
+            each answer read aloud go to Google to be spoken. Choose a voice
+            on this computer to keep them here.
+          </p>
+        ) : (
+          onlyBasic && (
+            <p className="hint">
+              The voices on this computer are basic, robotic ones. For a
+              natural voice, choose one of Google&apos;s online voices; the
+              words of each answer then go to Google to be spoken.
+            </p>
+          )
+        )}
         <Slider
           label="Speed"
           value={p.speechRate}

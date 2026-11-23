@@ -1,9 +1,31 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
+
+// Chrome loads content scripts as classic scripts, which cannot import, so a
+// content script that shares a module with the panel would silently never
+// run on WhatsApp. The build fails instead.
+const CONTENT_SCRIPTS = ['whatsapp', 'whatsappMain']
+const selfContained: Plugin = {
+  name: 'content-scripts-self-contained',
+  generateBundle(_options, bundle) {
+    for (const chunk of Object.values(bundle)) {
+      if (
+        chunk.type === 'chunk' &&
+        CONTENT_SCRIPTS.includes(chunk.name) &&
+        chunk.isEntry &&
+        (chunk.imports.length > 0 || chunk.dynamicImports.length > 0)
+      ) {
+        this.error(
+          `${chunk.name}.js imports ${[...chunk.imports, ...chunk.dynamicImports].join(', ')}; content scripts must not share modules with the panel.`,
+        )
+      }
+    }
+  },
+}
 
 // Builds the Chrome extension into dist-extension/. Load it unpacked from there.
 export default defineConfig(({ mode }) => ({
-  plugins: [react()],
+  plugins: [react(), selfContained],
   // With the App Check bridge configured, the extension gets real tokens
   // and must not carry the development debug token.
   define: loadEnv(mode, process.cwd()).VITE_APPCHECK_BRIDGE_URL
@@ -16,6 +38,8 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input: {
         sidepanel: 'src/extension/sidepanel.html',
+        writer: 'src/extension/writer.html',
+        mic: 'src/extension/mic.html',
         background: 'src/extension/background.ts',
         whatsapp: 'src/extension/whatsapp.ts',
         whatsappMain: 'src/extension/whatsappMain.ts',
@@ -24,7 +48,7 @@ export default defineConfig(({ mode }) => ({
         // The manifest names the service worker and the content scripts, so
         // their files must not be hashed.
         entryFileNames: (chunk) =>
-          ['background', 'whatsapp', 'whatsappMain'].includes(chunk.name)
+          ['background', ...CONTENT_SCRIPTS].includes(chunk.name)
             ? `${chunk.name}.js`
             : 'assets/[name]-[hash].js',
       },

@@ -17,13 +17,16 @@ import { answerLines, type Exchange } from '../ledger/snapshot'
 import {
   runTool,
   TOOLS,
+  withoutNotes,
   type DeskData,
   type Proposal,
   type ToolResult,
 } from '../ledger/tools'
 import { askOnDevice } from './books'
 import {
+  answerFromResults,
   deviceAnswerPrompt,
+  thinAnswer,
   readPicks,
   ROUTE_SCHEMA,
   routePrompt,
@@ -152,7 +155,7 @@ export async function askCloudWithTools(
     response = (await chat.sendMessage(replies)).response
   }
   return {
-    text: response.text(),
+    text: withoutNotes(response.text()),
     ...gather(results),
     steps: results.map((r) => ({ label: r.step, source: 'Cloud' as const })),
     source: 'Cloud',
@@ -202,7 +205,9 @@ export async function askOnDeviceWithTools(
   const picked = answer.fields
   const g = gather(results)
   return {
-    text: picked.text,
+    text: thinAnswer(picked.text)
+      ? answerFromResults(results)
+      : withoutNotes(picked.text),
     chart: g.chart ?? picked.chart,
     proposals: g.proposals,
     steps: [

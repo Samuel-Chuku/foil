@@ -21,6 +21,9 @@ declare namespace chrome.runtime {
   const id: string | undefined
   type MessageSender = { tab?: { id?: number } }
   function sendMessage(message: unknown): Promise<unknown>
+  function getContexts(filter: {
+    contextTypes?: 'OFFSCREEN_DOCUMENT'[]
+  }): Promise<{ contextType: string }[]>
   const onMessage: {
     addListener(
       listener: (
@@ -35,4 +38,12 @@ declare namespace chrome.runtime {
 
 declare namespace chrome.tabs {
   function sendMessage(tabId: number, message: unknown): Promise<unknown>
+}
+
+declare namespace chrome.offscreen {
+  function createDocument(parameters: {
+    url: string
+    reasons: 'LOCAL_STORAGE'[]
+    justification: string
+  }): Promise<void>
 }

@@ -14,7 +14,7 @@
   "side_panel": {
     "default_path": "src/extension/sidepanel.html"
   },
-  "permissions": ["sidePanel", "identity"],
+  "permissions": ["sidePanel", "identity", "offscreen"],
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzEZEd09ZVuh9HP2ICCi2Zcfu+JDi+6OtrCyjMyEGbz+B6tqqPTe4tDXJaUTC7fEpb+TtCPQ8kq4YZZw9J+3at/kj9A2zy+Yg/x3lh2untSZ6WMq3bQ+6pcq1qaPcHQ4C5EIRsqpXzbdYWSdNk+bGf1mCpfhN3o+zUBuXu7j3mppc2jtfVk5vavwwjH2RCFT0e1wu/xnjmLC7f+MrAsvrSX3Seh321JDA2n0b4hlGCBNzp6o46At2Ljvn2CZJtelwS2v2Bb6wXfMxq2HHatI3UE5RVV+rWp8osAaosZt1vjEBt26Ut356ha7ic0ctenQyxv8fVp1RLLbRihMzorFOFQIDAQAB",
   "host_permissions": ["https://web.whatsapp.com/*"],
   "content_scripts": [

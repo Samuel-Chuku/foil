@@ -242,6 +242,19 @@ function inGroup(o: Order, which: OrderGroup, credits: Credit[]): boolean {
   }
 }
 
+// For the model only: the owner already sees the buttons, so the answer
+// need not offer them. A model that repeats it anyway has it removed.
+export const BUTTON_NOTE =
+  '(Note for you, not for the owner: each of these already has its button on screen. Do not repeat this note.)'
+
+export function withoutNotes(text: string): string {
+  return text
+    .split('\n')
+    .filter((l) => !/note for you|already (has its button|shown to the owner)/i.test(l))
+    .join('\n')
+    .trim()
+}
+
 // Runs one tool. The arguments come from a model, so they are checked here
 // and anything unexpected becomes a plain "not found" rather than an error.
 export function runTool(
@@ -287,7 +300,7 @@ export function runTool(
         text:
           (lines.length ? lines.join('\n') : `No ${GROUP_LABEL[which]}.`) +
           (buttons.length
-            ? '\nA button to move each of these along is already shown to the owner.'
+            ? `\n${BUTTON_NOTE}`
             : ''),
         step: `Looked up ${GROUP_LABEL[which]} (${lines.length})`,
         ...(buttons.length && { buttons }),

@@ -34,7 +34,8 @@ export type PanelHost = {
   insertDraft(phone: string, text: string): void | Promise<void>
   // Swaps the message box's text for a rewrite, only if it still holds
   // exactly `from`, so nothing the vendor typed since is lost. Never sends.
-  replaceDraft(phone: string, from: string, to: string): Promise<void>
+  // Only the demo has it: the extension rewrites on WhatsApp itself.
+  replaceDraft?(phone: string, from: string, to: string): Promise<void>
   // The time now, in Lagos wall-clock milliseconds. The demo runs its own
   // clock on the sample day.
   now(): number
@@ -58,7 +59,7 @@ export type PanelRequest =
   | { action: 'capture'; nonce: number }
   | { action: 'voice'; messageId: string; nonce: number }
   | { action: 'draft'; nonce: number }
-  // Reword what the vendor typed in the message box.
+  // Reword what the vendor typed in the demo's message box.
   | { action: 'rewrite'; style: string; text: string; nonce: number }
   // Put the customer's latest messages into English.
   | { action: 'translate'; nonce: number }

@@ -33,6 +33,18 @@ export const TEXT_ONLY: CreateOptions = {
   expectedOutputs: [{ type: 'text', languages: ['en'] }],
 }
 
+// The vendor's choice to let the cloud stand in when this machine has no
+// model, kept in this browser and shared by every page of the extension.
+export const CONSENT_KEY = 'cloud-consent'
+
+export function storedConsent(): boolean {
+  try {
+    return localStorage.getItem(CONSENT_KEY) === 'yes'
+  } catch {
+    return false
+  }
+}
+
 export async function deviceState(): Promise<DeviceState> {
   if (!globalThis.LanguageModel) return 'unavailable'
   try {

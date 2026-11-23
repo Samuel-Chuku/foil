@@ -1,5 +1,5 @@
 import type { CalendarEvent } from './calendar'
-import type { Table } from './sheet'
+import type { Kind, SheetTab } from './sheet'
 
 // The vendor's own Google Sheets and Calendar, called straight from the
 // browser with their token. The drive.file scope lets the desk see only the
@@ -18,16 +18,21 @@ export class GoogleError extends Error {
   }
 }
 
-async function call<T>(token: string, url: string, body: unknown): Promise<T> {
+// Posts `body`, or reads when there is none.
+async function call<T>(
+  token: string,
+  url: string,
+  body?: unknown,
+): Promise<T> {
   let res: Response
   try {
     res = await fetch(url, {
-      method: 'POST',
+      method: body === undefined ? 'GET' : 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      ...(body !== undefined && { body: JSON.stringify(body) }),
     })
   } catch {
     throw new GoogleError(
@@ -52,8 +57,6 @@ async function call<T>(token: string, url: string, body: unknown): Promise<T> {
 
 const SHEETS = 'https://sheets.googleapis.com/v4/spreadsheets'
 
-export type Tab = { title: string; table: Table }
-
 export async function createSheet(
   token: string,
   title: string,
@@ -70,19 +73,178 @@ export async function createSheet(
   return { id: r.spreadsheetId, url: r.spreadsheetUrl }
 }
 
-// Replaces each tab's contents, so sending again never doubles a row.
+// Column widths in pixels, and how numbers show, by kind of column.
+const WIDTH: Record<Kind, number> = {
+  date: 130,
+  order: 80,
+  money: 115,
+  count: 95,
+  text: 170,
+  long: 280,
+}
+
+function numberFormat(kind: Kind, symbol: string, cents: boolean) {
+  if (kind === 'date') return { type: 'DATE', pattern: 'ddd d mmm yyyy' }
+  if (kind === 'order') return { type: 'NUMBER', pattern: '"#"0' }
+  if (kind === 'count') return { type: 'NUMBER', pattern: '0' }
+  if (kind === 'money') {
+    return {
+      type: 'CURRENCY',
+      pattern: `"${symbol}"#,##0${cents ? '.00' : ''}`,
+    }
+  }
+  return null
+}
+
+// The header's fill: the desk's muted ground, so the sheet reads as its own.
+const HEAD_FILL = { red: 0.91, green: 0.9, blue: 0.86 }
+const PADDING = { top: 6, bottom: 6, left: 8, right: 8 }
+
+function formatTab(sheetId: number, tab: SheetTab, symbol: string): unknown[] {
+  const rows = tab.table.length
+  const band = (from: number, to: number) => ({
+    sheetId,
+    startRowIndex: from,
+    endRowIndex: to,
+  })
+  const columns = tab.kinds.flatMap((kind, col) => {
+    const column = { sheetId, startColumnIndex: col, endColumnIndex: col + 1 }
+    const cents = tab.table
+      .slice(1)
+      .some((r) => typeof r[col] === 'number' && !Number.isInteger(r[col]))
+    const format = numberFormat(kind, symbol, cents)
+    const fields = [
+      ...(format ? ['numberFormat'] : []),
+      ...(kind === 'long' ? ['wrapStrategy'] : []),
+    ]
+    return [
+      {
+        updateDimensionProperties: {
+          range: { ...column, dimension: 'COLUMNS' },
+          properties: { pixelSize: WIDTH[kind] },
+          fields: 'pixelSize',
+        },
+      },
+      ...(fields.length
+        ? [
+            {
+              repeatCell: {
+                range: { ...column, startRowIndex: 1, endRowIndex: rows },
+                cell: {
+                  userEnteredFormat: {
+                    ...(format && { numberFormat: format }),
+                    ...(kind === 'long' && { wrapStrategy: 'WRAP' }),
+                  },
+                },
+                fields: `userEnteredFormat(${fields.join(',')})`,
+              },
+            },
+          ]
+        : []),
+    ]
+  })
+  const bold = (from: number, to: number) => ({
+    repeatCell: {
+      range: band(from, to),
+      cell: {
+        userEnteredFormat: {
+          textFormat: { bold: true },
+          backgroundColor: HEAD_FILL,
+        },
+      },
+      fields: 'userEnteredFormat(textFormat,backgroundColor)',
+    },
+  })
+  return [
+    {
+      updateSheetProperties: {
+        properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+        fields: 'gridProperties.frozenRowCount',
+      },
+    },
+    // A clean start for every cell, so an earlier send leaves nothing behind.
+    {
+      repeatCell: {
+        range: band(0, rows),
+        cell: {
+          userEnteredFormat: {
+            verticalAlignment: 'MIDDLE',
+            padding: PADDING,
+            wrapStrategy: 'CLIP',
+          },
+        },
+        fields:
+          'userEnteredFormat(verticalAlignment,padding,wrapStrategy,textFormat,backgroundColor,numberFormat)',
+      },
+    },
+    bold(0, 1),
+    ...(tab.totalRow ? [bold(rows - 1, rows)] : []),
+    ...columns,
+    // Rows grow to fit wrapped items, with the padding as spacing.
+    {
+      autoResizeDimensions: {
+        dimensions: {
+          sheetId,
+          dimension: 'ROWS',
+          startIndex: 0,
+          endIndex: rows,
+        },
+      },
+    },
+  ]
+}
+
+// Replaces each tab's contents, so sending again never doubles a row, then
+// lays the sheet out: header, widths, dates and amounts. Values go as RAW,
+// so nothing a customer typed can become a formula.
 export async function writeTabs(
   token: string,
   id: string,
-  tabs: Tab[],
+  tabs: SheetTab[],
+  opts: { title: string; symbol: string },
 ): Promise<void> {
-  const base = `${SHEETS}/${encodeURIComponent(id)}/values`
-  await call(token, `${base}:batchClear`, {
+  const base = `${SHEETS}/${encodeURIComponent(id)}`
+  type Props = { properties: { sheetId: number; title: string } }
+  const meta = await call<{ sheets: Props[] }>(
+    token,
+    `${base}?fields=sheets.properties(sheetId,title)`,
+  )
+  const ids = new Map(
+    meta.sheets.map((s) => [s.properties.title, s.properties.sheetId]),
+  )
+  // A tab the vendor deleted, or one added since their sheet was made.
+  const missing = tabs.filter((t) => !ids.has(t.title))
+  if (missing.length) {
+    const added = await call<{ replies: { addSheet: Props }[] }>(
+      token,
+      `${base}:batchUpdate`,
+      {
+        requests: missing.map((t) => ({
+          addSheet: { properties: { title: t.title } },
+        })),
+      },
+    )
+    for (const r of added.replies) {
+      ids.set(r.addSheet.properties.title, r.addSheet.properties.sheetId)
+    }
+  }
+  await call(token, `${base}/values:batchClear`, {
     ranges: tabs.map((t) => `'${t.title}'`),
   })
-  await call(token, `${base}:batchUpdate`, {
+  await call(token, `${base}/values:batchUpdate`, {
     valueInputOption: 'RAW',
     data: tabs.map((t) => ({ range: `'${t.title}'!A1`, values: t.table })),
+  })
+  await call(token, `${base}:batchUpdate`, {
+    requests: [
+      {
+        updateSpreadsheetProperties: {
+          properties: { title: opts.title },
+          fields: 'title',
+        },
+      },
+      ...tabs.flatMap((t) => formatTab(ids.get(t.title)!, t, opts.symbol)),
+    ],
   })
 }
 

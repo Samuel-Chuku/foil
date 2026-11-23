@@ -56,9 +56,22 @@ export type VoiceState =
   | { status: 'idle' }
   | { status: 'listening'; heard: string; mode: 'device' | 'cloud' }
   | { status: 'writing'; note: string }
-  | { status: 'error'; message: string }
+  // `mic`: the microphone is blocked; in the extension, a page that asks
+  // for it can be opened.
+  | { status: 'error'; message: string; mic?: boolean }
 
 const MAX_RECORD_MS = 30_000
+
+// The side panel cannot show Chrome's permission prompt, so in the extension
+// a tab asks once; on a web page the address bar does.
+const inExtension = globalThis.location?.protocol === 'chrome-extension:'
+const MIC_BLOCKED = inExtension
+  ? 'Chrome has not let the desk use the microphone yet. Press Allow the microphone; a small page asks once.'
+  : 'The microphone is blocked. Allow it from the icon at the left of the address bar, then try again.'
+
+export function allowMic(): void {
+  window.open('/src/extension/mic.html', '_blank')
+}
 
 const transcriber = cloudModel()
 
@@ -205,10 +218,12 @@ export function useVoiceAsk(props: {
           heard = ''
           setState({
             status: 'error',
-            message:
-              e.error === 'not-allowed'
-                ? 'The microphone is blocked. Allow it for this page and try again.'
-                : 'Speech recognition stopped. Try again, or type the question.',
+            ...(e.error === 'not-allowed'
+              ? { message: MIC_BLOCKED, mic: inExtension }
+              : {
+                  message:
+                    'Speech recognition stopped. Try again, or type the question.',
+                }),
           })
         }
         r.onend = () => {
@@ -239,11 +254,7 @@ export function useVoiceAsk(props: {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch {
-      setState({
-        status: 'error',
-        message:
-          'The microphone is blocked. Allow it for this page and try again.',
-      })
+      setState({ status: 'error', message: MIC_BLOCKED, mic: inExtension })
       return
     }
     const chunks: Blob[] = []

@@ -3,7 +3,7 @@ import { newOrder } from '../ledger/ledger'
 import type { Order } from '../ledger/types'
 import type { Credit } from '../verify/types'
 import { atTime, deliveryRunEvent, nextHour } from './calendar'
-import { dailyTable, ordersTable, tableText } from './sheet'
+import { dailyTable, ordersTable, sheetDay, shown, tableText } from './sheet'
 
 // Synthetic records only.
 const order = (code: string, over: Partial<Order> = {}): Order => ({
@@ -32,38 +32,56 @@ const day = () => '2026-11-21'
 const name = () => 'Ada'
 
 describe('orders sheet', () => {
-  it('writes amounts as numbers and leaves names out by default', () => {
+  it('writes dates and amounts as numbers and leaves names out by default', () => {
     const t = ordersTable([order('2'), paid('1')], credits, day, name, {
       names: false,
     })
-    expect(t[0]).not.toContain('Customer')
-    expect(t[1]).toEqual([
-      '2026-11-21',
+    expect(t.table[0]).not.toContain('Customer')
+    expect(t.table[1]).toEqual([
+      sheetDay('2026-11-21'),
       1,
-      '2 x Headwrap',
+      '2 × Headwrap',
       7000,
       7000,
       0,
-      'paid',
-      'not sent yet',
-      'delivery not discussed',
+      'Paid',
+      'Not sent yet',
+      'Delivery not discussed',
     ])
-    expect(t[2]![5]).toBe('')
-    expect(tableText('Orders', t)).not.toContain('2348000000001')
+    expect(t.table[2]![5]).toBe('')
+    expect(t.kinds).toHaveLength(t.table[0]!.length)
+    expect(tableText(t, '₦')).not.toContain('2348000000001')
   })
 
   it('adds names only when asked, never phone numbers', () => {
     const t = ordersTable([paid('1')], credits, day, name, { names: true })
-    expect(t[0]![2]).toBe('Customer')
-    expect(t[1]![2]).toBe('Ada')
+    expect(t.table[0]![2]).toBe('Customer')
+    expect(t.table[1]![2]).toBe('Ada')
     expect(JSON.stringify(t)).not.toContain('2348000000001')
   })
 
-  it('totals each day', () => {
-    expect(dailyTable([order('2'), paid('1')], credits, day)).toEqual([
-      ['Day', 'Orders', 'Paid orders', 'Money in', 'Still owed'],
-      ['2026-11-21', 2, 1, 7000, 7000],
+  it('totals each day, then all days', () => {
+    const t = dailyTable([order('2'), paid('1')], credits, day)
+    expect(t.table).toEqual([
+      ['Date', 'Orders', 'Paid orders', 'Money in', 'Still owed'],
+      [sheetDay('2026-11-21'), 2, 1, 7000, 7000],
+      ['Total', 2, 1, 7000, 7000],
     ])
+    expect(t.totalRow).toBe(true)
+  })
+
+  it('counts days the way Sheets does', () => {
+    expect(sheetDay('1899-12-31')).toBe(1)
+    expect(sheetDay('2026-11-21')).toBe(46_347)
+    expect(sheetDay('soon')).toBe('soon')
+  })
+
+  it('shows the approval exactly as the sheet will read', () => {
+    const t = ordersTable([paid('1')], credits, day, name, { names: false })
+    expect(tableText(t, '₦').split('\n')[2]).toBe(
+      'Sat 21 Nov 2026 | #1 | 2 × Headwrap | ₦7,000 | ₦7,000 | ₦0 | Paid | Not sent yet | Delivery not discussed',
+    )
+    expect(shown(1500.5, 'money', '₦')).toBe('₦1,500.5')
   })
 })
 

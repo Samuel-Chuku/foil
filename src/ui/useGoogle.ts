@@ -5,10 +5,10 @@ import {
   createSheet,
   GoogleError,
   writeTabs,
-  type Tab,
 } from '../google/api'
 import type { CalendarEvent } from '../google/calendar'
-import { tableText } from '../google/sheet'
+import { tableText, type SheetTab } from '../google/sheet'
+import { market } from '../config/market'
 import { get, putAll } from '../ledger/db'
 import type { PanelHost } from './host'
 
@@ -23,7 +23,9 @@ export type GoogleStatus =
   | { kind: 'done'; text: string; url?: string }
   | { kind: 'error'; message: string }
 
-const SHEET_TITLE = 'Payment desk: orders'
+// The sheet carries the shop's name, so it is easy to find in Drive.
+const sheetTitle = (shop: string) =>
+  shop.trim() ? `${shop.trim()}: orders` : 'Shop orders'
 
 export function useGoogle(
   host: PanelHost,
@@ -114,21 +116,28 @@ export function useGoogle(
     }
   }
 
-  const sendSheet = (key: string, tabs: Tab[], now: number) =>
-    run(
+  const sendSheet = (
+    key: string,
+    tabs: SheetTab[],
+    now: number,
+    shop: string,
+  ) => {
+    const symbol = market().currency.symbol
+    const title = sheetTitle(shop)
+    return run(
       key,
       {
         feature: 'Send your orders',
         reason:
           'Your orders and daily totals are written to a sheet the desk keeps in your Google Drive. Sending again replaces them, so nothing is doubled.',
-        texts: tabs.map((t) => tableText(t.title, t.table)),
+        texts: tabs.map((t) => tableText(t, symbol)),
         to: 'Google Sheets',
         replaced: [],
       },
       async (t) => {
         let s = sheet?.sheetId ? sheet : null
         const write = async (target: Sheet) => {
-          await writeTabs(t, target.sheetId, tabs)
+          await writeTabs(t, target.sheetId, tabs, { title, symbol })
           const saved = { ...target, sentAt: now }
           setSheet(saved)
           await putAll({ settings: [{ id: 'google', ...saved }] })
@@ -137,7 +146,7 @@ export function useGoogle(
         if (!s) {
           const made = await createSheet(
             t,
-            SHEET_TITLE,
+            title,
             tabs.map((x) => x.title),
           )
           s = { sheetId: made.id, sheetUrl: made.url, sentAt: null }
@@ -150,7 +159,7 @@ export function useGoogle(
           if (!(e instanceof GoogleError && e.status === 404)) throw e
           const made = await createSheet(
             t,
-            SHEET_TITLE,
+            title,
             tabs.map((x) => x.title),
           )
           done = await write({
@@ -166,6 +175,7 @@ export function useGoogle(
         }
       },
     )
+  }
 
   const addToCalendar = (key: string, event: CalendarEvent, what: string) =>
     run(

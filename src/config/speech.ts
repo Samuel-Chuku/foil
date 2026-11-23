@@ -75,6 +75,10 @@ export function speakable(text: string, m: Market): string {
 
 export type VoiceInfo = { name: string; lang: string; localService: boolean }
 
+// The synthetic voices Linux ships (eSpeak and its kin), which sound robotic.
+export const soundsBasic = (v: VoiceInfo): boolean =>
+  /espeak|mbrola|festival|pico\b/i.test(v.name)
+
 // The voice to read an answer in: the vendor's pick if it still exists, else
 // one for that exact language (on this computer first), else one for the
 // same language anywhere. Null when no voice speaks it, so the desk says so
@@ -90,6 +94,10 @@ export function pickVoice(
   const base = norm(lang).split('-')[0]
   const exact = voices.filter((v) => norm(v.lang) === norm(lang))
   const same = voices.filter((v) => norm(v.lang).split('-')[0] === base)
-  const local = (vs: VoiceInfo[]) => vs.find((v) => v.localService) ?? vs[0]
+  // On this computer first, a natural-sounding one before a basic one.
+  const local = (vs: VoiceInfo[]) =>
+    vs.find((v) => v.localService && !soundsBasic(v)) ??
+    vs.find((v) => v.localService) ??
+    vs[0]
   return local(exact) ?? local(same) ?? null
 }

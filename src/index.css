@@ -1493,13 +1493,63 @@ p.meta:has(.badge) {
 .books-chat li {
   margin: 0;
 }
-.books-chat .asked {
+/* A chat, read the same way as the demo's WhatsApp pane: the owner's
+   questions sit right in the accent's soft shade with a square bottom-right
+   corner; the desk's answers sit left on the ground, square bottom-left,
+   with where the answer was made in their header. */
+.ask-chat > li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dk-s2);
+}
+.bubble {
+  max-width: 88%;
+  padding: var(--dk-s2) var(--dk-s3);
+  border-radius: var(--dk-r-control);
+  border: var(--dk-bw-hair) solid var(--dk-line);
+}
+.bubble p {
+  margin: 0;
+}
+.bubble.me {
+  align-self: flex-end;
+  background: var(--dk-accent-soft);
+  border-color: color-mix(in oklab, var(--dk-accent) 45%, transparent);
+  border-bottom-right-radius: var(--dk-r-tag);
+}
+.bubble.desk {
+  align-self: flex-start;
+  background: var(--dk-ground);
+  border-bottom-left-radius: var(--dk-r-tag);
+}
+.bubble .who {
+  display: flex;
+  align-items: center;
+  gap: var(--dk-s2);
+  font-size: var(--dk-text-micro);
   font-weight: 650;
-  margin: 0 0 var(--dk-s1);
+  letter-spacing: 0.02em;
+  color: var(--dk-ink-2);
+  margin-bottom: 2px;
+}
+.bubble.me .who {
+  justify-content: flex-end;
+}
+.bubble .who .meta {
+  margin: 0;
 }
 /* Answers that list orders keep one per line. */
-.books-chat .asked ~ p {
+.bubble .said {
   white-space: pre-line;
+}
+.bubble footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dk-s1) var(--dk-s3);
+  margin-top: var(--dk-s2);
+}
+.bubble footer .read-aloud {
+  margin-right: 0;
 }
 .ask-desk .suggestions {
   display: flex;

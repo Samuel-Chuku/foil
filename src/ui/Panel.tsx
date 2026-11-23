@@ -122,20 +122,8 @@ import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
 import { Icon } from './icons'
 import { SourceBadge } from './SourceBadge'
-import {
-  lostNumbers,
-  protect,
-  readsAsEnglish,
-  rewritePrompt,
-  rewriteStyles,
-  translatePrompt,
-  unmark,
-} from '../capture/rewrite'
-import {
-  inCloud as writeInCloud,
-  onDevice as writeOnDevice,
-  writingRequest,
-} from '../ai/rewrite'
+import { lostNumbers, rewriteStyles } from '../capture/rewrite'
+import { planWrite, type WriteJob } from '../ai/rewrite'
 import { GoogleResult } from './GoogleResult'
 import { useGoogle } from './useGoogle'
 import { dailyTable, ordersTable } from '../google/sheet'
@@ -1162,10 +1150,9 @@ export function Panel(props: {
     )
   }
 
-  // Rewords what the vendor typed, then swaps it into the box only if the
-  // box still holds exactly that. English and Pidgin are written on this
-  // computer; other languages go to the cloud after approval, with names and
-  // long numbers swapped out and put back afterwards.
+  // Rewords what the vendor typed (in the demo; the extension rewrites on
+  // WhatsApp itself), then swaps it into the box only if the box still holds
+  // exactly that.
   async function rewrite(styleId: string, text: string) {
     const phone = props.chat?.phone
     if (!phone) return
@@ -1173,51 +1160,17 @@ export function Panel(props: {
     if (!style) return
     patch(phone, { rewrite: { status: 'running', note: `${style.label}…` } })
     try {
-      let reading: Reading<string>
-      if (style.onDevice) {
-        await device.ready()
-        reading = await writeOnDevice(
-          rewritePrompt(text, style, market()),
-          device.consent,
-        )
-        reading = { ...reading, fields: unmark(reading.fields) }
-        // A number the model dropped is asked for once more by name.
-        const missing = lostNumbers(text, reading.fields)
-        if (missing.length) {
-          const again = await writeOnDevice(
-            rewritePrompt(text, style, market(), missing),
-            device.consent,
-          )
-          reading = {
-            ...again,
-            fields: unmark(again.fields),
-            ms: reading.ms + again.ms,
-          }
-        }
-      } else {
-        const names = [
-          props.chat?.contactName ?? '',
-          customerName(customerId),
-        ].filter((n) => n && n !== 'Customer')
-        const safe = protect(text, names)
-        const approved = await approval.ask(
-          writingRequest(
-            'Rewrite your reply',
-            `Writing in ${style.language ?? 'this language'} is done by the cloud model, because the model on this computer cannot write it yet. Only your typed reply goes, with names and long numbers swapped out; they are put back when it returns.`,
-            rewritePrompt(safe.text, style, market()),
-            safe.replaced,
-          ),
-        )
-        if (!approved) {
-          patch(phone, { rewrite: undefined })
-          return
-        }
-        const r = await writeInCloud(approved)
-        reading = { ...r, fields: safe.restore(r.fields) }
+      const reading = await runWrite({
+        op: 'rewrite',
+        style: styleId,
+        text,
+        names: [props.chat?.contactName ?? '', customerName(customerId)],
+      })
+      if (!reading) {
+        patch(phone, { rewrite: undefined })
+        return
       }
-      const problem = draftProblem(reading.fields)
-      if (problem) throw new Error(`${problem} Your text was left as it is.`)
-      await host.replaceDraft(phone, text, reading.fields)
+      await host.replaceDraft?.(phone, text, reading.fields)
       patch(phone, {
         rewrite: {
           status: 'done',
@@ -1235,12 +1188,24 @@ export function Panel(props: {
     }
   }
 
+  // A writing job: at once on this computer, or in the cloud once the vendor
+  // approves exactly what goes. Null when they decline.
+  async function runWrite(job: WriteJob): Promise<Reading<string> | null> {
+    const plan = planWrite(job, market(), device.consent)
+    if (plan.where === 'device') {
+      await device.ready()
+      return plan.run()
+    }
+    const approved = await approval.ask(plan.request)
+    return approved ? plan.run(approved) : null
+  }
+
   async function undoRewrite() {
     const phone = props.chat?.phone
     const r = current.rewrite
     if (!phone || r?.status !== 'done') return
     try {
-      await host.replaceDraft(phone, r.value.to, r.value.from)
+      await host.replaceDraft?.(phone, r.value.to, r.value.from)
       patch(phone, {
         rewrite: { status: 'done', value: { ...r.value, undone: true } },
       })
@@ -1271,30 +1236,14 @@ export function Panel(props: {
     }
     patch(phone, { translate: { status: 'running', note: 'Reading…' } })
     try {
-      let reading: Reading<string>
-      if (lines.every(readsAsEnglish)) {
-        await device.ready()
-        const r = await writeOnDevice(translatePrompt(lines), device.consent)
-        reading = { ...r, fields: unmark(r.fields) }
-      } else {
-        const safe = protect(lines.join('\n'), [
-          chat.contactName,
-          customerName(customerKey(phone)),
-        ])
-        const approved = await approval.ask(
-          writingRequest(
-            'Translate their messages',
-            'Their messages look like a language the model on this computer cannot read yet, so the cloud model puts them into English. Only these messages go, with names and long numbers swapped out.',
-            translatePrompt(safe.text.split('\n')),
-            safe.replaced,
-          ),
-        )
-        if (!approved) {
-          patch(phone, { translate: undefined })
-          return
-        }
-        const r = await writeInCloud(approved)
-        reading = { ...r, fields: safe.restore(r.fields) }
+      const reading = await runWrite({
+        op: 'translate',
+        lines,
+        names: [chat.contactName, customerName(customerKey(phone))],
+      })
+      if (!reading) {
+        patch(phone, { translate: undefined })
+        return
       }
       patch(phone, { translate: { status: 'done', value: reading } })
     } catch (error) {
@@ -1625,22 +1574,13 @@ export function Panel(props: {
     return google.sendSheet(
       'sheet',
       [
-        {
-          title: 'Orders',
-          table: ordersTable(
-            data.orders,
-            data.credits,
-            lagos.day,
-            customerName,
-            { names: sheetNames },
-          ),
-        },
-        {
-          title: 'By day',
-          table: dailyTable(data.orders, data.credits, lagos.day),
-        },
+        ordersTable(data.orders, data.credits, lagos.day, customerName, {
+          names: sheetNames,
+        }),
+        dailyTable(data.orders, data.credits, lagos.day),
       ],
       host.now(),
+      shop.rules.shopName,
     )
   }
 
@@ -2546,18 +2486,22 @@ export function Panel(props: {
             badge={(r) => <Badge source={r.source} ms={r.ms} />}
           />
           {data && data.orders.length > 0 && (
-            <section
-              className="card"
-              data-tone="money"
-              aria-labelledby="sheet-h"
-            >
-              <h3 id="sheet-h">
-                <Icon name="table" />
-                Your orders in Google Sheets
-              </h3>
+            <details className="card shop-rules" data-tone="money">
+              <summary>
+                <h3>
+                  <Icon name="table" />
+                  Your orders in Google Sheets
+                </h3>
+                <span className="hint">
+                  {google.sheet?.sentAt
+                    ? `Last sent ${new Date(google.sheet.sentAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                    : 'Every order and a total per day'}
+                </span>
+              </summary>
               <p className="hint">
-                Every order and a line per day, written to a sheet in your own
-                Google Drive. Sending again replaces them, so nothing doubles.
+                Every order and a total for each day, laid out in a sheet in
+                your own Google Drive. Sending again replaces them, so nothing
+                doubles.
               </p>
               <div className="sheet-send">
                 <label className="check">
@@ -2579,7 +2523,7 @@ export function Panel(props: {
                 </button>
                 <GoogleResult status={google.status.sheet} />
               </div>
-            </section>
+            </details>
           )}
         </TabPanel>
 

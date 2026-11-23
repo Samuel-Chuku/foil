@@ -1,3 +1,5 @@
+import type { WriteJob } from '../ai/rewrite'
+import type { CloudRequest } from '../cloud/approval'
 import type { OpenChat } from '../ui/host'
 
 // Messages between the WhatsApp Web content script and the side panel. The
@@ -19,18 +21,6 @@ export type FromChat = {
 // no messages.
 export type Opened = { kind: 'opened'; chat: OpenChat }
 
-// Content script to the panel: reword what the vendor typed. `chat` names
-// the chat only; its messages are not sent.
-export type Rewrite = {
-  kind: 'rewrite'
-  chat: OpenChat
-  style: string
-  text: string
-}
-
-export const isRewrite = (m: unknown): m is Rewrite =>
-  typeof m === 'object' && m !== null && (m as Rewrite).kind === 'rewrite'
-
 // Content script to the panel: the vendor picked "Ask the desk".
 export type FocusAsk = { kind: 'focus-ask' }
 
@@ -40,13 +30,6 @@ export const isFocusAsk = (m: unknown): m is FocusAsk =>
 // Panel to content script.
 export type ToChat =
   | { kind: 'insert-draft'; phone: string; text: string }
-  // Swap the box's text for a rewrite, only if it still holds `from`.
-  | { kind: 'replace-draft'; phone: string; from: string; text: string }
-  // The rewrite choices this shop's market offers, for the box's AI button.
-  | {
-      kind: 'desk-styles'
-      styles: { id: string; label: string; onDevice: boolean }[]
-    }
   // The vendor clicked a panel button that needs the open chat's messages.
   | { kind: 'read-chat' }
 
@@ -57,3 +40,45 @@ export const isFromChat = (m: unknown): m is FromChat =>
 
 export const isOpened = (m: unknown): m is Opened =>
   typeof m === 'object' && m !== null && (m as Opened).kind === 'opened'
+
+// Writing help on WhatsApp itself, without the panel: the content script asks
+// the background script, which hands the job to the desk's hidden writer
+// page (an offscreen document). Only the text the vendor picked travels.
+export type StyleChoice = { id: string; label: string; onDevice: boolean }
+
+export type WriteAsk =
+  | { kind: 'desk-write'; op: 'styles' }
+  | { kind: 'desk-write'; op: 'start'; job: WriteJob }
+  // The vendor approved, or declined, the cloud request shown on WhatsApp.
+  | { kind: 'desk-write'; op: 'approve'; id: string }
+  | { kind: 'desk-write'; op: 'decline'; id: string }
+
+export type WriteAnswer =
+  | { kind: 'styles'; styles: StyleChoice[] }
+  | {
+      kind: 'done'
+      text: string
+      where: 'device' | 'cloud'
+      ms: number
+      // Numbers in the original that the result no longer has.
+      lost: string[]
+    }
+  // Shown on WhatsApp exactly as it would be sent, and sent only on a click.
+  | {
+      kind: 'approve'
+      id: string
+      request: Pick<CloudRequest, 'feature' | 'reason' | 'texts' | 'replaced'>
+    }
+  | { kind: 'declined' }
+  // `openDesk`: the panel is needed first, to download the model or to
+  // choose the cloud.
+  | { kind: 'error'; message: string; openDesk?: boolean }
+
+// Background to the writer page.
+export type ToWriter = { kind: 'writer'; ask: WriteAsk }
+
+export const isWriteAsk = (m: unknown): m is WriteAsk =>
+  typeof m === 'object' && m !== null && (m as WriteAsk).kind === 'desk-write'
+
+export const isToWriter = (m: unknown): m is ToWriter =>
+  typeof m === 'object' && m !== null && (m as ToWriter).kind === 'writer'

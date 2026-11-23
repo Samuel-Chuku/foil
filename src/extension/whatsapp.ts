@@ -1,7 +1,21 @@
 import type { ChatMessage, OpenChat } from '../ui/host'
-import type { DraftReply, FromChat, Opened, Rewrite, ToChat } from './bridge'
-import { mountComposeHelper } from './composeHelper'
-import { mountFloatDesk, type FloatAction, type FloatChat } from './floatDesk'
+import type { WriteJob } from '../ai/rewrite'
+import type {
+  DraftReply,
+  FromChat,
+  Opened,
+  StyleChoice,
+  ToChat,
+  WriteAnswer,
+  WriteAsk,
+} from './bridge'
+import { mountComposeHelper, type ComposePick } from './composeHelper'
+import {
+  mountFloatDesk,
+  type FloatAction,
+  type FloatChat,
+  type Where,
+} from './floatDesk'
 import { phoneFromText, sentByVendor, timeFrom } from './waParse'
 
 // Runs on web.whatsapp.com. It adds the floating desk and reads the open
@@ -145,8 +159,8 @@ async function voiceAudio(
   if (!blob) {
     return {
       missing: seen
-        ? 'Play this voice note in WhatsApp, for a second is enough, then pick Read the voice note again.'
-        : 'The desk did not catch this note playing. Reload WhatsApp Web once (needed after the desk is installed or updated), play the note, then pick Read the voice note again.',
+        ? 'The desk saw this note play but could not keep its sound. Play it again for a few seconds, then pick Read the voice note again.'
+        : 'Play this voice note in WhatsApp first, for a few seconds, then pick Read the voice note. If you already did, reload WhatsApp Web once (needed after the desk is installed or updated) and play it again.',
     }
   }
   const bytes = new Uint8Array(await blob.arrayBuffer())
@@ -394,15 +408,54 @@ async function insertDraft(
       reason: 'The message box already has text. Clear it to place the draft.',
     }
   }
-  box.focus()
-  document.execCommand('insertText', false, m.text)
-  // WhatsApp's editor shows the text a moment later, so look again shortly.
-  for (let i = 0; i < 10 && !box.innerText.trim(); i++) {
-    await new Promise((r) => setTimeout(r, 50))
-  }
-  return box.innerText.trim()
+  return (await setBoxText(box, m.text))
     ? { ok: true }
     : { ok: false, reason: 'WhatsApp did not accept the draft.' }
+}
+
+const flat = (s: string) => s.replace(/\s+/g, ' ').trim()
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+function selectAllIn(box: HTMLElement) {
+  box.focus()
+  const range = document.createRange()
+  range.selectNodeContents(box)
+  const sel = document.getSelection()
+  sel?.removeAllRanges()
+  sel?.addRange(range)
+}
+
+// WhatsApp's editor shows new text a moment later, so it looks again shortly.
+async function shows(box: HTMLElement, text: string): Promise<boolean> {
+  for (let i = 0; i < 10; i++) {
+    if (flat(box.innerText) === flat(text)) return true
+    await pause(50)
+  }
+  return false
+}
+
+// Puts text in the message box in place of what is there. WhatsApp's editor
+// keeps its own copy of the text and undoes changes it did not make itself,
+// so the text arrives as a person's would: typed over a selection, or failing
+// that, pasted over it. The editor notices a new selection only after a
+// moment, hence the pauses. Says whether the box now shows exactly `text`.
+async function setBoxText(box: HTMLElement, text: string): Promise<boolean> {
+  selectAllIn(box)
+  await pause(40)
+  document.execCommand('insertText', false, text)
+  if (await shows(box, text)) return true
+  selectAllIn(box)
+  await pause(40)
+  const data = new DataTransfer()
+  data.setData('text/plain', text)
+  box.dispatchEvent(
+    new ClipboardEvent('paste', {
+      clipboardData: data,
+      bubbles: true,
+      cancelable: true,
+    }),
+  )
+  return shows(box, text)
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, reply) => {
@@ -411,54 +464,27 @@ chrome.runtime.onMessage.addListener((message, _sender, reply) => {
     void readChat().then(reply, () => reply(null))
     return true
   }
-  if (m?.kind === 'desk-styles') {
-    styles = m.styles
-    return
-  }
-  if (m?.kind === 'replace-draft') {
-    void replaceDraft(m).then(reply)
-    return true
-  }
   if (m?.kind !== 'insert-draft') return
   void insertDraft(m).then(reply)
   // Keeps the channel open for the answer above.
   return true
 })
 
-// Swaps the box's text for a rewrite, only if the vendor has not changed it
-// since asking. Never presses send.
-async function replaceDraft(
-  m: Extract<ToChat, { kind: 'replace-draft' }>,
-): Promise<DraftReply> {
-  if (chatKey() !== m.phone) {
-    return {
-      ok: false,
-      reason: 'That chat is no longer open in WhatsApp. Open it and try again.',
-    }
+// Writing help, run by the desk's writer page without the side panel. A
+// cloud job is shown in full on WhatsApp and goes only on the vendor's click.
+async function askWriter(ask: WriteAsk): Promise<WriteAnswer> {
+  try {
+    const answer = (await chrome.runtime.sendMessage(ask)) as
+      | WriteAnswer
+      | undefined
+    return answer ?? { kind: 'error', message: problem(new Error('no answer')) }
+  } catch (e) {
+    return { kind: 'error', message: problem(e) }
   }
-  const box = composeBox()
-  if (!box) return { ok: false, reason: 'The message box was not found.' }
-  if (box.innerText.trim() !== m.from.trim()) {
-    return {
-      ok: false,
-      reason:
-        'The message box changed since you asked, so it was left as it is. Try again on what is there now.',
-    }
-  }
-  box.focus()
-  document.execCommand('selectAll')
-  document.execCommand('insertText', false, m.text)
-  for (let i = 0; i < 10 && box.innerText.trim() !== m.text.trim(); i++) {
-    await new Promise((r) => setTimeout(r, 50))
-  }
-  return box.innerText.trim()
-    ? { ok: true }
-    : { ok: false, reason: 'WhatsApp did not accept the rewrite.' }
 }
 
-// The rewrite choices for the message box's AI button: the shop's market
-// tells the tab once the panel is open; Lagos until then.
-let styles: { id: string; label: string; onDevice: boolean }[] = [
+// The rewrite choices for this shop's market; Lagos until the writer says.
+let styles: StyleChoice[] = [
   { id: 'friendlier', label: 'Friendlier', onDevice: true },
   { id: 'formal', label: 'More formal', onDevice: true },
   { id: 'shorter', label: 'Shorter', onDevice: true },
@@ -469,31 +495,184 @@ let styles: { id: string; label: string; onDevice: boolean }[] = [
   { id: 'igbo', label: 'In Igbo', onDevice: false },
   { id: 'hausa', label: 'In Hausa', onDevice: false },
 ]
+async function refreshStyles() {
+  const answer = await askWriter({ kind: 'desk-write', op: 'styles' })
+  if (answer.kind === 'styles') styles = answer.styles
+}
 
-mountComposeHelper({
+async function write(
+  job: WriteJob,
+  title: string,
+  where: Where,
+): Promise<Extract<WriteAnswer, { kind: 'done' }> | null> {
+  compose.busy(title, where)
+  let answer = await askWriter({ kind: 'desk-write', op: 'start', job })
+  if (answer.kind === 'approve') {
+    const id = answer.id
+    if (!(await compose.approve(answer.request))) {
+      void askWriter({ kind: 'desk-write', op: 'decline', id })
+      return null
+    }
+    compose.busy(title, 'cloud')
+    answer = await askWriter({ kind: 'desk-write', op: 'approve', id })
+  }
+  if (answer.kind === 'error') {
+    compose.error(answer.message, answer.openDesk)
+    return null
+  }
+  if (answer.kind !== 'done') {
+    compose.close()
+    return null
+  }
+  return answer
+}
+
+const copy = (text: string) => ({
+  label: 'Copy',
+  run: async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast('Copied.')
+    } catch {
+      toast('Chrome did not allow copying. Select the text and copy it.')
+    }
+  },
+})
+
+// A result that is not placed in the box: shown, to copy or to use.
+function offerText(
+  title: string,
+  done: Extract<WriteAnswer, { kind: 'done' }>,
+  warning?: string,
+) {
+  compose.result({
+    title,
+    where: done.where,
+    ms: done.ms,
+    text: done.text,
+    warning,
+    actions: [
+      copy(done.text),
+      {
+        label: composeBox()?.innerText.trim()
+          ? 'Add to the message box'
+          : 'Put in the message box',
+        run: async () => {
+          const box = composeBox()
+          if (!box) return toast('Open a chat first.')
+          const typed = box.innerText.trim()
+          const next = typed ? `${typed}\n${done.text}` : done.text
+          if (await setBoxText(box, next)) compose.close()
+          else toast('WhatsApp did not take the text. Copy it instead.')
+        },
+      },
+    ],
+  })
+}
+
+const lostWarning = (lost: string[]) =>
+  lost.length
+    ? `The rewrite left out ${lost.join(', ')}. Check it before sending.`
+    : undefined
+
+async function rewrite(pick: Extract<ComposePick, { kind: 'rewrite' }>) {
+  const { style, text, source } = pick
+  const before = composeBox()?.innerText ?? ''
+  const done = await write(
+    { op: 'rewrite', style: style.id, text, names: [chatHeader().name] },
+    style.label,
+    style.onDevice ? 'device' : 'cloud',
+  )
+  if (!done) return
+  const warning = lostWarning(done.lost)
+  if (source.from === 'chat') return offerText(style.label, done, warning)
+  const box = composeBox()
+  // Only the part they selected changes; the rest stays as typed.
+  const after =
+    source.from === 'box' ? done.text : before.replace(text, done.text)
+  if (!box || flat(box.innerText) !== flat(before) || after === before) {
+    return offerText(
+      style.label,
+      done,
+      'The message box changed while the desk was writing, so it was left as it is.',
+    )
+  }
+  if (!(await setBoxText(box, after))) {
+    return offerText(
+      style.label,
+      done,
+      'WhatsApp did not take the new text, so the box was left as it is. Copy it instead.',
+    )
+  }
+  compose.result({
+    title: `${style.label}: in the message box, not sent`,
+    where: done.where,
+    ms: done.ms,
+    warning,
+    actions: [
+      {
+        label: 'Put back what I wrote',
+        run: async () => {
+          const now = composeBox()
+          if (!now || flat(now.innerText) !== flat(after)) {
+            return toast('The message box changed since, so it was left as it is.')
+          }
+          if (await setBoxText(now, before)) compose.close()
+          else toast('WhatsApp did not take the text back.')
+        },
+      },
+    ],
+  })
+}
+
+async function meaning(text: string) {
+  const done = await write(
+    { op: 'translate', lines: [text], names: [chatHeader().name] },
+    'What it means',
+    'device',
+  )
+  if (done) offerText('What it means in English', done)
+}
+
+async function fromClipboard() {
+  let text = ''
+  try {
+    text = (await navigator.clipboard.readText()).trim()
+  } catch {
+    compose.error(
+      'Chrome did not let the desk read what you copied. Allow it when Chrome asks, or select the text in the chat instead.',
+    )
+    return
+  }
+  if (!text) {
+    compose.error('Nothing text-like has been copied yet.')
+    return
+  }
+  compose.offer(text)
+}
+
+const compose = mountComposeHelper({
   box: composeBox,
+  chatArea: () => document.querySelector<HTMLElement>('#main'),
   styles: () => styles,
-  onPick: (pick) => {
+  onOpenDesk: () => {
     chrome.runtime.sendMessage({ kind: 'open-panel' }).catch(() => undefined)
+  },
+  onPick: (pick) => {
     if (pick.kind === 'draft') {
+      // A draft is built from the chat, the order and the payment the panel
+      // holds, so it opens there.
+      chrome.runtime.sendMessage({ kind: 'open-panel' }).catch(() => undefined)
       toast('Writing a reply in the desk…')
       void send('draft')
       return
     }
-    toast('Rewriting in the desk…')
-    void deliverRewrite(pick.style, pick.text)
+    if (pick.kind === 'clipboard') return void fromClipboard()
+    if (pick.kind === 'meaning') return void meaning(pick.text)
+    void rewrite(pick)
   },
 })
 
-// Only which chat it is goes with a rewrite: the vendor's own text, never
-// the customer's messages.
-async function deliverRewrite(style: string, text: string) {
-  const { name } = chatHeader()
-  const chat: OpenChat = { phone: chatKey(), contactName: name, messages: [] }
-  try {
-    const message: Rewrite = { kind: 'rewrite', chat, style, text }
-    await deliver(message)
-  } catch (e) {
-    toast(problem(e))
-  }
-}
+void refreshStyles()
+// The vendor may change the shop's market in the panel meanwhile.
+window.addEventListener('focus', () => void refreshStyles())

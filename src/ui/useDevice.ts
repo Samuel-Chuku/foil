@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
-import { deviceState, warmUp, type DeviceState } from '../ai/device'
+import {
+  CONSENT_KEY,
+  deviceState,
+  storedConsent,
+  warmUp,
+  type DeviceState,
+} from '../ai/device'
 import { modelLoad } from '../ai/run'
 import { prepareReceiptModel } from '../ai/receipt'
 
@@ -13,16 +19,6 @@ export class NeedsConsent extends Error {
         ? 'The on-device model is not downloaded yet.'
         : 'This computer has no on-device model.',
     )
-  }
-}
-
-const CONSENT_KEY = 'cloud-consent'
-
-function storedConsent(): boolean {
-  try {
-    return localStorage.getItem(CONSENT_KEY) === 'yes'
-  } catch {
-    return false
   }
 }
 

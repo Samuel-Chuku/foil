@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { readPicks, routePrompt } from './askRoute'
+import {
+  answerFromResults,
+  readPicks,
+  routePrompt,
+  thinAnswer,
+} from './askRoute'
+import { BUTTON_NOTE, withoutNotes } from './tools'
 
 describe('readPicks', () => {
   it('keeps known tools and only the arguments given', () => {
@@ -62,5 +68,37 @@ describe('routePrompt', () => {
     expect(p).toContain('Question: Which orders are unpaid?')
     // Well under the device's 9,216-token limit (about 4 characters a token).
     expect(p.length).toBeLessThan(6000)
+  })
+})
+
+describe('thin answers', () => {
+  it('spots answers too thin to read', () => {
+    expect(thinAnswer('none')).toBe(true)
+    expect(thinAnswer(' None. ')).toBe(true)
+    expect(thinAnswer('0')).toBe(true)
+    expect(thinAnswer('')).toBe(true)
+    expect(thinAnswer('No orders are waiting to be sent.')).toBe(false)
+  })
+
+  it('falls back to the lookups, without the button note', () => {
+    expect(
+      answerFromResults([
+        {
+          text: `#12 gown, Lekki\n${BUTTON_NOTE}`,
+          step: 'Looked up orders to send (1)',
+        },
+        { text: 'No orders on the way.', step: 'Looked up orders on the way (0)' },
+      ]),
+    ).toBe('#12 gown, Lekki\nNo orders on the way.')
+  })
+})
+
+describe('notes for the model', () => {
+  it('are taken out of an answer that repeats them', () => {
+    expect(
+      withoutNotes(
+        'Orders 77 and 81 are ready.\nA button to move each of these along is already shown to the owner.',
+      ),
+    ).toBe('Orders 77 and 81 are ready.')
   })
 })

@@ -40,7 +40,7 @@ import { trends, trendsText } from '../ledger/trends'
 import { Chart } from './Chart'
 import type { Lagos } from './TrendsCard'
 import type { LedgerApi } from './useLedger'
-import { useVoiceAsk } from './useVoiceAsk'
+import { allowMic, useVoiceAsk } from './useVoiceAsk'
 import { useSpeech } from './useSpeech'
 import { prefsStore } from './prefs'
 import { answerLanguage, speakable } from '../config/speech'
@@ -387,96 +387,111 @@ export function AskCard(props: {
         </p>
       )}
       {turns.length > 0 && (
-        <ol className="books-chat" aria-live="polite">
+        <ol className="books-chat ask-chat" aria-live="polite">
           {turns.map((t, i) => (
             <li key={i}>
-              <p className="asked">{t.question}</p>
-              {t.answer ? (
-                <>
-                  {t.answer.steps.length > 0 && (
-                    <ol className="ask-steps" aria-label="What the desk did">
-                      {t.answer.steps.map((st, n) => (
-                        <li key={n} data-source={st.source}>
-                          <Icon
-                            name={
-                              st.source === 'On device' ? 'device' : 'cloud'
-                            }
-                            size={13}
-                          />
-                          {st.label}
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                  <p>{t.answer.text}</p>
-                  {t.answer.chart && recent && (
-                    <Chart spec={chartSpec(recent, t.answer.chart, bankName)} />
-                  )}
-                  {t.answer.proposals.length > 0 && (
-                    <div className="actions ask-actions">
-                      {t.answer.proposals
-                        .filter((p) => p.kind !== 'open-chat' || props.openChat)
-                        .map((p) => (
-                          <button
-                            key={proposalKey(p)}
-                            type="button"
-                            className="quiet"
-                            disabled={done.has(proposalKey(p))}
-                            onClick={() => act(p)}
-                          >
-                            {done.has(proposalKey(p))
-                              ? `Done: ${proposalLabel(p)}`
-                              : proposalLabel(p)}
-                          </button>
+              <div className="bubble me">
+                <span className="who">You</span>
+                <p>{t.question}</p>
+              </div>
+              <div className="bubble desk">
+                <header className="who">
+                  <span>Desk</span>
+                  {t.answer &&
+                    props.badge({
+                      fields: null,
+                      source: t.answer.source,
+                      ms: t.answer.ms,
+                    })}
+                </header>
+                {t.answer ? (
+                  <>
+                    {t.answer.steps.length > 0 && (
+                      <ol className="ask-steps" aria-label="What the desk did">
+                        {t.answer.steps.map((st, n) => (
+                          <li key={n} data-source={st.source}>
+                            <Icon
+                              name={
+                                st.source === 'On device' ? 'device' : 'cloud'
+                              }
+                              size={13}
+                            />
+                            {st.label}
+                          </li>
                         ))}
-                    </div>
-                  )}
-                  {i === turns.length - 1 && speech.speaking ? (
-                    <button
-                      type="button"
-                      className="link read-aloud"
-                      onClick={speech.stop}
-                    >
-                      <Icon name="stop" size={14} />
-                      Stop reading
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="link read-aloud"
-                      onClick={() => {
-                        if (t.answer)
-                          void say(t.answer.text).then((r) =>
-                            setNoVoice(r === 'no-voice'),
+                      </ol>
+                    )}
+                    <p className="said">{t.answer.text}</p>
+                    {t.answer.chart && recent && (
+                      <Chart
+                        spec={chartSpec(recent, t.answer.chart, bankName)}
+                      />
+                    )}
+                    {t.answer.proposals.length > 0 && (
+                      <div className="actions ask-actions">
+                        {t.answer.proposals
+                          .filter(
+                            (p) => p.kind !== 'open-chat' || props.openChat,
                           )
-                      }}
-                    >
-                      <Icon name="speaker" size={14} />
-                      Read aloud
-                    </button>
-                  )}
-                  {props.badge({
-                    fields: null,
-                    source: t.answer.source,
-                    ms: t.answer.ms,
-                  })}
-                  {t.answer.source === 'On device' && !busy && (
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() => void send(t.question, true)}
-                    >
-                      Ask the cloud instead
-                    </button>
-                  )}
-                </>
-              ) : t.error ? (
-                <p className="error" role="alert">
-                  {t.error}
-                </p>
-              ) : (
-                <p className="hint">Asking…</p>
-              )}
+                          .map((p) => (
+                            <button
+                              key={proposalKey(p)}
+                              type="button"
+                              className="quiet"
+                              disabled={done.has(proposalKey(p))}
+                              onClick={() => act(p)}
+                            >
+                              {done.has(proposalKey(p))
+                                ? `Done: ${proposalLabel(p)}`
+                                : proposalLabel(p)}
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                    <footer>
+                      {i === turns.length - 1 && speech.speaking ? (
+                        <button
+                          type="button"
+                          className="link read-aloud"
+                          onClick={speech.stop}
+                        >
+                          <Icon name="stop" size={14} />
+                          Stop reading
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="link read-aloud"
+                          onClick={() => {
+                            if (t.answer)
+                              void say(t.answer.text).then((r) =>
+                                setNoVoice(r === 'no-voice'),
+                              )
+                          }}
+                        >
+                          <Icon name="speaker" size={14} />
+                          Read aloud
+                        </button>
+                      )}
+                      {t.answer.source === 'On device' && !busy && (
+                        <button
+                          type="button"
+                          className="link"
+                          onClick={() => void send(t.question, true)}
+                        >
+                          Ask the cloud instead
+                        </button>
+                      )}
+                    </footer>
+                  </>
+                ) : t.error ? (
+                  <p className="error" role="alert">
+                    {t.error}
+                  </p>
+                ) : (
+                  <p className="hint said">Thinking…</p>
+                )}
+              </div>
             </li>
           ))}
         </ol>
@@ -596,9 +611,15 @@ export function AskCard(props: {
         </p>
       )}
       {voice.state.status === 'error' && (
-        <p className="error" role="alert">
-          {voice.state.message}
-        </p>
+        <div className="error" role="alert">
+          <p>{voice.state.message}</p>
+          {voice.state.mic && (
+            <button type="button" className="quiet" onClick={allowMic}>
+              <Icon name="mic" />
+              Allow the microphone
+            </button>
+          )}
+        </div>
       )}
     </section>
   )

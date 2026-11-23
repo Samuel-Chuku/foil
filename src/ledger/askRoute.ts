@@ -1,7 +1,12 @@
 import { shopWords } from '../config/marketWords'
 import { CHART_IDS } from './charts'
 import type { Exchange } from './snapshot'
-import { toolMenu, TOOL_NAMES, type ToolResult } from './tools'
+import {
+  toolMenu,
+  TOOL_NAMES,
+  withoutNotes,
+  type ToolResult,
+} from './tools'
 
 // The prompts and checks around Ask the desk's tools, kept free of Firebase
 // so they can be tested. See ai/deskTools.ts for the calls.
@@ -102,6 +107,22 @@ export function deviceAnswerPrompt(
     `Quick answers, worked out from the records and correct:\n${quick.join('\n')}`,
     ...results.map((r) => `${r.step}:\n${r.text}`),
     ...(recent ? [`Earlier:\n${recent}`] : []),
-    `Question: ${question}\nAnswer in "answer"; name a chart in "chart" only if one helps, otherwise "none".`,
+    `Question: ${question}\nIn "answer", reply to the owner in one or more full sentences, even when the answer is that there are none. In "chart", name a chart only if one helps, otherwise "none".`,
   ].join('\n\n')
+}
+
+// An answer too thin to read, such as "none" or "0", which a small model
+// sometimes gives for an empty lookup.
+export function thinAnswer(text: string): boolean {
+  const t = text.trim()
+  return /^(none|nothing|n\/?a|null|no|0|-)?\.?$/i.test(t) || t.split(/\s+/).length < 3
+}
+
+// The lookups' own words, which are already sentences, in place of a thin
+// answer.
+export function answerFromResults(results: ToolResult[]): string {
+  return results
+    .map((r) => withoutNotes(r.text))
+    .filter(Boolean)
+    .join('\n')
 }
