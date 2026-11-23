@@ -19,11 +19,11 @@ Customers' names, phone numbers, addresses and chats never leave the computer by
 | **Hosted demo**         | Link to follow at release. Sample data, no sign-up, any desktop Chrome ([§2](#2-try-it-in-five-minutes))                                                                                                                                  |
 | **Demo video**          | Link to follow at release                                                                                                                                                                                                                 |
 | **Markets**             | Lagos (Nigerian bank transfers, built and measured), Mumbai (UPI) and São Paulo (Pix), each with its own currency, payment-reference rules, banks, reply language and sample day ([§14](#14-scope-what-the-desk-does-and-does-not-claim)) |
-| **Chrome extension**    | Manifest V3 side panel for WhatsApp Web and Gmail, built from this repository ([§19](#19-run-it-yourself))                                                                                                                                |
-| **Hybrid surface used** | `ONLY_ON_DEVICE` for six private features, `PREFER_ON_DEVICE` after consent, `ONLY_IN_CLOUD` for audio, multi-turn chat and multi-day review ([§7](#7-hybrid-inference-feature-by-feature))                                               |
+| **Chrome extension**    | Manifest V3 side panel for WhatsApp Web and Gmail, a floating desk and a writing button on WhatsApp Web itself, built from this repository ([§19](#19-run-it-yourself))                                                                                                                                |
+| **Hybrid surface used** | `ONLY_ON_DEVICE` for the private features, `PREFER_ON_DEVICE` after consent, `ONLY_IN_CLOUD` for audio, other languages, multi-day review and function calling; on the device, tools are chosen through constrained output ([§7](#7-hybrid-inference-feature-by-feature))                                               |
 | **Headline result**     | Receipts read on device in a median **3.4 s**; **every** wrong reading became "check this", never a false match ([§11](#11-measured-not-asserted))                                                                                        |
 | **Privacy**             | Approval dialog on every cloud call; books in Firestore hold amounts and states only, behind closed-schema rules ([§10](#10-privacy-and-data-flow))                                                                                       |
-| **Tests**               | 389 unit tests and 7 Firestore-rules emulator tests ([§13](#13-testing))                                                                                                                                                                  |
+| **Tests**               | 449 unit tests and 7 Firestore-rules emulator tests ([§13](#13-testing))                                                                                                                                                                  |
 | **Firebase products**   | AI Logic, App Check, Remote Config, Cloud Firestore, Authentication, Hosting ([§12](#12-firebase-products-used))                                                                                                                          |
 | **Licence**             | [Apache-2.0](LICENSE)                                                                                                                                                                                                                     |
 
@@ -60,7 +60,7 @@ _Screenshots show the hosted demo with invented sample data, in its pre-design s
 
 Adaeze orders an ankara gown and a headwrap on WhatsApp and sends a screenshot of an ₦18,500 transfer. **Today**, the seller opens two banking apps, scrolls for a matching credit, squints at the sender's name, copies the address into a notebook and types a reply, while three other customers wait. If the screenshot was edited, the gown is already on a bike.
 
-**With the desk**, the seller clicks **Verify payment** under the screenshot. Four seconds later the panel says **Paid, confirmed against the GTBank alert email**, with an _On device_ badge. One more click captures the order and the delivery fee to Yaba; another drafts the reply into WhatsApp's message box, still unsent. When the money is short, it says so and drafts a polite request for the balance. When a session ID is unreadable, it says _check this_, never _fake_.
+**With the desk**, the seller clicks the desk's floating button on WhatsApp Web and picks **Verify the payment**. Four seconds later the panel says **Paid, confirmed against the GTBank alert email**, with an _On device_ badge. One more click captures the order and the delivery fee to Yaba; another drafts the reply into WhatsApp's message box, still unsent. When the money is short, it says so and drafts a polite request for the balance. When a session ID is unreadable, it says _check this_, never _fake_.
 
 The hard part is not reading a receipt. It is deciding, safely, whether a specific credit in a specific bank account belongs to a specific order, across banks with different alert formats, same-bank transfers without session IDs, part payments, reversals and customers who pay twice. **AI reads, rules decide**: the model only extracts text, and tested rules make every decision.
 
@@ -88,7 +88,7 @@ No install, no account and no keys. Everything in the demo is invented and stays
 
 ```bash
 npm install
-npm test             # expect: 389 passed, covering matching, parsing, books, receipts, errors
+npm test             # expect: 449 passed, covering matching, parsing, books, tools, writing help, receipts, errors
 npm run test:rules   # expect: 7 passed against the Firestore emulator (needs Java)
 npm run typecheck && npm run lint   # expect: no output
 ```
@@ -137,16 +137,23 @@ Around that answer, the desk finishes the job: the order, the delivery fee, the 
 
 ## 6. What it does
 
-The panel has four tabs, **This chat**, **Today**, **Money** and **Shop**, with **Ask the desk** at the foot of every tab. A click in WhatsApp, or opening another chat, brings **This chat** forward.
+The panel has four tabs, **This chat**, **Today**, **Money** and **Shop**, with **Ask the desk** at the foot of every tab and **Settings** at the top. On WhatsApp Web itself, two small controls bring the desk to where the seller works:
+
+- **The floating desk:** one draggable button that opens a menu for the open chat: verify the latest payments, capture the order, read the voice note, draft a reply, translate the customer's messages, ask the desk. Picking one opens the side panel and runs it there. It lives in its own shadow root and adds nothing to WhatsApp's own markup.
+- **The writing button** on the message box: **Draft** when the box is empty; **Rewrite** once the seller has typed, to make it friendlier, more formal or shorter, fix the spelling, or put it in Pidgin, English, Yoruba, Igbo or Hausa. The same choices appear beside any text the seller selects in the chat, with **What it means in English** for a customer's message. Rewrites run on WhatsApp itself, without opening the panel, through the extension's hidden writer page (an offscreen document) and the same Firebase AI Logic models; a cloud rewrite shows exactly what will be sent, right there, before anything goes.
+
+Each menu item shows where it runs: a laptop for this computer, a cloud for Google's cloud, both when it can run either way.
 
 ### In the open chat
 
 | Feature                      | What happens                                                                                                                                                                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Verify payment**           | A button under each receipt image. The model reads the amount, sender, bank, session ID and time on the device; rules match them against the seller's credits and give a verdict with its reason.                                             |
+| **Verify payment**           | From the floating desk, or the panel. The model reads the amount, sender, bank, session ID and time on the device; rules match them against the seller's credits and give a verdict with its reason.                                             |
 | **Capture order**            | Reads items, quantities (including words like "two of the caps"), name, phone, address, landmark and delivery choice from the chat. Prices come from the shop's stock list, and sold-out items are flagged.                                   |
 | **Draft a reply**            | Writes in English or Pidgin from the chat, the order, the payment state and the shop's own rules, and places it in the WhatsApp message box. It is never sent; the seller reads, edits and sends.                                             |
-| **Read voice note**          | After approval, a voice note is heard in the cloud. It returns order fields, an English summary and the parts that were unclear. A street the desk cannot recognise is marked unclear, and the draft asks the customer to confirm it by name. |
+| **Read the voice note**      | Once the seller has played it in WhatsApp, and after approval, a voice note is heard in the cloud. It returns order fields, an English summary and the parts that were unclear. A street the desk cannot recognise is marked unclear, and the draft asks the customer to confirm it by name. |
+| **Rewrite your reply**       | Rewords what the seller typed, in place, and only if the box still holds exactly that. Every amount and number is checked to survive; a rewrite that drops one is tried again, then flagged. **Put back what I wrote** undoes it. |
+| **Translate their messages** | The customer's messages since the seller last wrote, in plain English. English and Pidgin are handled on the device; other languages in the cloud after approval. |
 | **Receipt for the customer** | Once paid, a receipt as WhatsApp text or as a picture to copy or download. Part payments show what is still owed.                                                                                                                             |
 
 The receipt picture can carry the shop's own look: its logo (with colours suggested from it), a brand colour that runs through the whole card, a built-in or uploaded font, and an option to show or hide the order number. Text colours are chosen to stay readable on the brand colour; the paid mark always stays green.
@@ -163,6 +170,11 @@ The receipt picture can carry the shop's own look: its logo (with colours sugges
 - **Money not tied to an order:** double payments and overpayments are recorded as refund owed, refunded or kept, and outgoing refund alerts are matched automatically. The desk records decisions; it never moves money.
 - **Books for the day:** totals, part payments, refunds, deliveries and open orders by number.
 - **Your business over time:** sales, order hours, time to payment, money by bank and top items over 7, 14 or 30 days, as six charts, with a written review from the cloud.
+- **Only what the shop uses:** drop tools appear only for shops that sell in drops, deliveries only for shops that deliver and only when an order is waiting, and the Shop rules ask what the shop sells before anything about riders or parks.
+- **Ask the desk, with tools:** the desk has twelve tools, lookups (orders by group, one order, stock, today's money, the week, chats waiting, the drop, refunds owed, shop rules) and actions it can only offer as buttons (mark an order out or delivered, open a chat, send orders to Google Sheets, add a delivery run to Calendar). Every lookup it made shows as a step above the answer. Lists of orders to send come with their buttons, so the seller never depends on the model to offer them.
+- **Talk to the desk:** ask by voice, hear the answer, ask again, hands-free, in the answer language chosen in Settings. Chrome recognises the speech on the computer when it can, and reads answers with its own voices, amounts and order numbers said the way people say them.
+- **Google Sheets and Calendar:** every order and a total per day to a sheet the desk keeps in the seller's own Drive (it can see only that file), laid out with real dates, currency, a frozen header and a totals row, and an area's delivery run to their calendar at a chosen time. Each send shows exactly what goes first; names go only if ticked, phone numbers and addresses never.
+- **Settings:** theme, accent and text size; reply tone and length; the answer language, voice and speed; the matching windows (over Remote Config's recommended values); cloud consent; connections; a download of the seller's records.
 - **Ask the desk:** a chat about the whole business ("which orders still need sending?", "what should I restock?", "how did this week compare with last?"). It is sent the shop's own facts, orders by number, items, stock, money and rules, never customers' names, phones or addresses. Answers can carry a chart. When Chrome's model is ready, each question is answered on the device and nothing is sent; **Ask the cloud instead** sends it after approval. Common answers, such as which orders are unpaid or ready to send, are worked out in code first, and order numbers in an on-device answer are checked against the real orders.
 - **Offline and power cuts:** records are saved on the device with strict durability, and the cloud books catch up when the connection returns.
 
@@ -183,8 +195,11 @@ Every AI call goes through the **Firebase AI Logic** web SDK. Each feature has i
 | Sort the waiting queue                   | `ONLY_ON_DEVICE`                                   | High volume, private, no cost per message                                                          |
 | Any of the above, after explicit consent | `PREFER_ON_DEVICE`                                 | Computers without the model can still use the desk                                                 |
 | Read a voice note                        | `ONLY_IN_CLOUD`, after approval                    | The on-device model does not take audio                                                            |
-| Ask the desk                             | `ONLY_ON_DEVICE` when the model is ready           | One self-contained request per question, carrying the facts and the last exchanges                 |
-| Ask the desk, cloud                      | `ONLY_IN_CLOUD`, after approval, shop facts only   | On request, in Portuguese, or without the model; multi-turn chat runs only in the cloud on the web |
+| Ask the desk                             | `ONLY_ON_DEVICE` when the model is ready, in two steps | Tools are not available on the device on the web, so the model picks one or two through constrained output, code runs them, and the model answers from their results; with no fitting tool, from the whole fact sheet |
+| Rewrite a reply, translate a message     | `ONLY_ON_DEVICE` for English and Pidgin            | The seller's own words and the customer's chat |
+| Rewrite in Yoruba, Igbo, Hausa or Hindi  | `ONLY_IN_CLOUD`, after approval                    | The on-device model does not write them; names and long numbers are swapped for markers and put back afterwards |
+| Ask the desk, cloud                      | `ONLY_IN_CLOUD` with **function calling**, after approval | Multi-turn chat and tools run only in the cloud on the web. The approval shows, in full, everything a lookup could send; the model's lookups send only parts of it, from the records as approved |
+| Ask by voice, without on-device speech   | `ONLY_IN_CLOUD`, after approval                    | The recording is shown and approved, then written down; the question waits in the box |
 | Review the last 7 to 30 days             | `ONLY_IN_CLOUD`, after approval, totals only       | Reasoning across many days with structured output                                                  |
 | Match a payment                          | Rules, no model                                    | A payment decision must be explainable and repeatable                                              |
 
@@ -226,7 +241,7 @@ export function sendApproved(model: GenerativeModel, request: Approved) {
 
 **What makes the split visible on screen:**
 
-- **Source badges.** Every AI result carries an _On device_ or _Cloud_ badge with its time, read from the SDK response's `inferenceSource`, never assumed.
+- **Source badges.** Every AI result carries a laptop (_on device_) or cloud (_Cloud_) badge with its time, read from the SDK response's `inferenceSource`, never assumed. Ask the desk marks every tool step the same way.
 - **The approval dialog.** Before any cloud call, it shows every word and file that will be sent, with names, phone numbers, account numbers and references replaced by neutral labels, and waits for a click. Cancelling sends nothing.
 - **Charts the cloud cannot falsify.** In the review and in Ask the desk, the cloud picks _which_ of the desk's charts backs a point, by its id. Every number in a chart is drawn on the device from the seller's own records.
 - **Model states.** The panel shows whether Chrome's model is being checked, can be downloaded, is downloading (with progress) or is ready. When it can be downloaded, the seller chooses between the one-time download and the cloud, instead of a first click starting a large download.
@@ -317,8 +332,11 @@ The matching rules ([`src/verify/match.ts`](src/verify/match.ts)), with threshol
 | Books: amounts, payment states, times, order ids | Cloud Firestore                                            | Yes, owner-only, with no names or contact details                                                         |
 | Refund decisions: amount, state, times           | Cloud Firestore                                            | Yes, with no customer or account number                                                                   |
 | Receipt look: logo, colour, font                 | IndexedDB in the browser                                   | Never                                                                                                     |
+| Orders sent to Google Sheets, runs to Calendar   | The seller's own Google account                            | Only when the seller approves each send; names only if ticked, never phones or addresses                  |
+| Spoken questions and answers                     | Recognised and spoken by Chrome on the computer             | Never, when Chrome recognises speech on the device; otherwise the recording goes only after approval     |
+| The seller's typed reply, for a rewrite          | In memory                                                  | Only for Yoruba, Igbo, Hausa or Hindi, after approval, with names and long numbers swapped out          |
 
-- **WhatsApp Web is read only when the seller clicks**, and only what is already on screen. The extension never sends messages, never clicks WhatsApp's own controls and never crawls chats. The seller plays a voice note themselves before it can be read.
+- **WhatsApp Web is read only when the seller clicks**, and only what is already on screen. The extension never sends messages, never clicks WhatsApp's own controls and never crawls chats. The seller plays a voice note themselves before it can be read, and the floating desk and writing button change nothing until the seller picks something.
 - **Firestore security rules** allow only the signed-in seller to read or write their books, and refuse any field outside a closed list, so a client that tried to add a name or account number would be refused ([`firestore.rules`](firestore.rules), tested against the emulator).
 - **Nothing private is logged** to the console, analytics or Firestore.
 
@@ -373,7 +391,7 @@ The one São Paulo verdict miss was a misread Pix ID that became _check this_.
 
 | Product                                      | How it is used                                                                                                                                                                         |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Firebase AI Logic** (Gemini Developer API) | Hybrid on-device and cloud inference, per-feature inference modes, JSON-schema and regex-constrained output on device, structured output, multi-turn chat and audio input in the cloud |
+| **Firebase AI Logic** (Gemini Developer API) | Hybrid on-device and cloud inference, per-feature inference modes, JSON-schema and regex-constrained output on device, structured output, multi-turn chat, function calling and audio input in the cloud |
 | **App Check**                                | reCAPTCHA Enterprise on the hosted demo; the extension gets real reCAPTCHA Enterprise tokens through a small bridge page on the hosted domain, which only the extension may embed      |
 | **Remote Config**                            | The cloud model name, matching thresholds, bank details and alert patterns, photo-match thresholds and the Pidgin glossary, with in-code defaults when offline                         |
 | **Cloud Firestore**                          | The seller's books and refund decisions, with an offline cache and closed-schema, owner-only security rules                                                                            |
@@ -383,7 +401,7 @@ The one São Paulo verdict miss was a misread Pix ID that became _check this_.
 ## 13. Testing
 
 ```bash
-npm test             # 389 unit tests for all pure logic
+npm test             # 449 unit tests for all pure logic
 npm run test:rules   # 7 Firestore rules tests against the local emulators (needs Java)
 npm run typecheck
 npm run lint
@@ -392,10 +410,13 @@ npm run lint
 | Suite                      | What it proves                                                                                                                                                        |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Matching                   | Every rule: session-ID structure, bank code, time, reuse and one-digit recovery; same-bank windows; names; one credit per order; reversals; part payments and top-ups |
-| Parsing                    | Alert emails for each known bank, receipt fields, PDF receipts, bank-app history rows                                                                                 |
+| Parsing                    | Alert emails for each known bank, receipt fields, bank-app history rows                                                                                 |
 | Capture                    | Order fields and quantity words, delivery planning, drop mode and image matching, voice-note fields and street checks                                                 |
 | Books                      | Day books, trends, chart data, the business snapshot, and that none of them carries a name or phone number                                                            |
 | Receipts and brand         | Receipt contents and text, brand colours, tints and contrast                                                                                                          |
+| Ask the desk tools         | Every tool's output, bad arguments from a model, buttons offered only when the desk itself would, the approval preview holding everything a lookup could send, the on-device router's parsing |
+| Writing help               | Rewrite styles per market, numbers surviving a rewrite, markers swapped out and back, which messages read as English |
+| Sheets, Calendar, voice    | Sheet rows without phones, dates as Sheets counts them, daily totals, calendar events in the shop's time zone, answer languages, spoken wording, voice choice |
 | Cloud safety               | Redaction of names and numbers, the approved-only sender, plain error wording for every failure                                                                       |
 | Firestore rules (emulator) | Only the owner reads or writes; names, account numbers, wrong types and negative amounts are refused                                                                  |
 
@@ -440,6 +461,8 @@ What does not change between markets: the "did the money land?" matching, orders
 - **Known banks.** Alert parsing by rules covers the banks whose sender addresses and formats are built in; other formats go to the on-device model.
 - **Streets.** The street check knows a list of well-known Lagos streets; other streets heard in voice notes are always confirmed with the customer.
 - **WhatsApp Web changes.** The content script reads the page as displayed; a WhatsApp Web redesign may need selector updates. It never automates WhatsApp, in line with WhatsApp's terms.
+- **Google Sheets and Calendar need the extension.** The Google project is in testing mode, so only its test users can connect; the hosted demo shows exactly what would be sent and sends nothing.
+- **Voices and on-device speech depend on the computer.** Chrome usually has English voices; Yoruba, Igbo and Hausa voices often are not installed, and the desk then says so and keeps the answer on screen.
 - **Gmail only** for alert emails in this version. Bank SMS alerts are not read.
 - **Free-tier cloud.** The cloud features run on the Gemini Developer API free tier, so heavy use can hit rate limits; the error says so plainly, and the device features keep working.
 - **The extension's App Check bridge** answers only the extension ID it was set up for, so a copy built from this repository needs its own Firebase project and bridge. Judges are pointed to the hosted demo.
@@ -519,7 +542,7 @@ npm run build:extension
 
 | Rule                                                | How this project meets it                                                                                                                                           |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Every AI call goes through Firebase AI Logic        | All model calls use the Firebase AI Logic web SDK. Chrome's `LanguageModel.availability()` is called directly only to show the model's state, never for inference   |
+| Every AI call goes through Firebase AI Logic        | All model calls use the Firebase AI Logic web SDK. Chrome's `LanguageModel.availability()` is called directly only to show the model's state, never for inference. Speech is turned into text, and answers into speech, by Chrome's Web Speech features on the computer (`processLocally`); every question, answer, draft and rewrite is still written through Firebase AI Logic |
 | Firebase AI Logic is imported and called at runtime | Every feature in [§7](#7-hybrid-inference-feature-by-feature) calls it on the seller's click                                                                        |
 | App Check is enabled                                | reCAPTCHA Enterprise on the hosted demo and, through a bridge page, in the extension; debug tokens are for local development, kept in `.env.local`, never committed |
 | No secrets or personal data in the repo             | `.env.example` holds empty values; sample data, screenshots and tests are invented                                                                                  |
