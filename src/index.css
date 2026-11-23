@@ -2361,8 +2361,30 @@ button.mic[aria-pressed='true'] {
   background: var(--dk-accent);
   color: var(--dk-on-accent);
 }
-.voice-live {
-  margin: var(--dk-s2) 0 0;
+/* The question being spoken: an owner's bubble with a dashed edge and a
+   breathing mic, until it is sent. */
+.bubble.me.live {
+  border-style: dashed;
+  min-width: 55%;
+}
+.bubble.me.live .who svg {
+  color: var(--dk-accent);
+  animation: live-breathe 1.4s ease-in-out infinite;
+}
+.bubble.me.live .meta {
+  display: block;
+  margin-top: var(--dk-s1);
+  text-align: right;
+}
+@keyframes live-breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble.me.live .who svg {
+    animation: none;
+  }
 }
 .approval .may-return {
   margin-top: var(--dk-s3);

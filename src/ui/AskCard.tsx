@@ -322,6 +322,14 @@ export function AskCard(props: {
     ask: props.ask,
     online: props.online,
   })
+  // While the owner speaks, their words fill a bubble at the end of the
+  // chat, so it follows them as it grows.
+  const listening = voice.state.status === 'listening' ? voice.state : null
+  const heardSoFar = listening?.heard
+  useEffect(() => {
+    const list = chatList.current
+    if (list && listening) list.scrollTo({ top: list.scrollHeight })
+  }, [listening, heardSoFar])
   const speech = useSpeech()
   // Talk mode: listen, answer, say the answer, listen again, until stopped.
   const [talking, setTalking] = useState(false)
@@ -393,7 +401,7 @@ export function AskCard(props: {
             : "Ask anything about your orders, stock, money or week. Answers come from Google's Gemini service, and your first question shows you exactly what it will be sent: your shop's facts, never customers' names, phones or addresses."}
         </p>
       )}
-      {turns.length > 0 && (
+      {(turns.length > 0 || listening) && (
         <ol
           ref={chatList}
           className="books-chat ask-chat"
@@ -507,6 +515,26 @@ export function AskCard(props: {
               </div>
             </li>
           ))}
+          {listening && (
+            <li>
+              <div className="bubble me live">
+                <span className="who">
+                  <Icon name="mic" size={14} />
+                  {listening.mode === 'device' ? 'Listening' : 'Recording'}
+                </span>
+                {listening.mode === 'device' && listening.heard ? (
+                  <p>{listening.heard}</p>
+                ) : (
+                  <p className="hint">
+                    {listening.mode === 'device'
+                      ? 'Speak; take your time.'
+                      : 'Speak; you will see the recording before anything is sent.'}
+                  </p>
+                )}
+                <span className="meta">Sends after a short pause</span>
+              </div>
+            </li>
+          )}
         </ol>
       )}
       {sent !== null && sent !== records && (
@@ -609,13 +637,6 @@ export function AskCard(props: {
           No voice on this computer reads {lang.label}, so answers stay on
           screen. Chrome adds voices from your computer&apos;s language
           settings.
-        </p>
-      )}
-      {voice.state.status === 'listening' && (
-        <p className="hint voice-live" aria-live="polite">
-          {voice.state.mode === 'device'
-            ? `Listening on this computer. Take your time; it sends after a short pause. ${voice.state.heard}`
-            : 'Recording. Take your time; it stops after a short pause, or press Stop. You will see the recording before anything is sent.'}
         </p>
       )}
       {voice.state.status === 'writing' && (
