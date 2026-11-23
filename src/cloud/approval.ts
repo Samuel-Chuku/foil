@@ -20,6 +20,9 @@ export type CloudRequest = {
   // The text parts, verbatim as sent.
   texts: string[]
   attachment?: Attachment
+  // Everything a tool lookup could add later in this chat, in full. Not sent
+  // now; the model's lookups send parts of it, and nothing outside it.
+  mayReturn?: string
   // What was swapped out before sending, e.g. "the customer's name".
   replaced: string[]
 }

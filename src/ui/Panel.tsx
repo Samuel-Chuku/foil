@@ -2257,6 +2257,7 @@ export function Panel(props: {
           online={online}
           ask={approval.ask}
           badge={(r) => <Badge source={r.source} ms={r.ms} />}
+          openChat={host.openChat}
         />
       </div>
 

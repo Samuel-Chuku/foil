@@ -39,6 +39,14 @@ export function ApprovalDialog(props: {
         {request.texts.map((t, n) => (
           <pre key={n}>{t}</pre>
         ))}
+        {request.mayReturn && (
+          <details className="may-return">
+            <summary>
+              What the desk&apos;s lookups can send if the model asks for them
+            </summary>
+            <pre>{request.mayReturn}</pre>
+          </details>
+        )}
         {a && (
           <figure>
             <figcaption>

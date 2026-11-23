@@ -2,7 +2,6 @@ import {
   getGenerativeModel,
   InferenceMode,
   InferenceSource,
-  type ChatSession,
   type GenerateContentResult,
   type GenerationConfig,
   type GenerativeModel,
@@ -36,15 +35,6 @@ export function sendApproved(
   request: Approved,
 ): Promise<{ text: string; source: Source; ms: number }> {
   return timed(() => model.generateContent(partsOf(request)))
-}
-
-// One turn of a cloud chat; the session keeps the earlier turns, which the
-// vendor approved when they were sent.
-export function sendInChat(
-  chat: ChatSession,
-  request: Approved,
-): Promise<{ text: string; source: Source; ms: number }> {
-  return timed(() => chat.sendMessage(partsOf(request)))
 }
 
 async function timed(

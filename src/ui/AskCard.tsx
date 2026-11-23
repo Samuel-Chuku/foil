@@ -1,14 +1,20 @@
 import type { ChatSession } from 'firebase/ai'
-import { useRef, useState, type ReactNode } from 'react'
 import {
-  askBooks,
-  askOnDevice,
-  booksChat,
-  deskRequest,
-  followUpRequest,
-} from '../ai/books'
-import { market } from '../config/market'
-import { chartMenu } from '../ledger/charts'
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { askOnDevice, followUpRequest } from '../ai/books'
+import {
+  askCloudWithTools,
+  askOnDeviceWithTools,
+  toolChat,
+  toolRequest,
+  type DeskAnswer,
+} from '../ai/deskTools'
 import type { Reading } from '../ai/run'
 import {
   approve,
@@ -18,19 +24,21 @@ import {
 } from '../cloud/approval'
 import { cloudErrorText } from '../cloud/send'
 import type { ShopRules } from '../capture/shopRules'
-import { chartSpec } from '../ledger/charts'
+import { market } from '../config/market'
+import { chartMenu, chartSpec } from '../ledger/charts'
 import { booksText, dayBooks } from '../ledger/dayBooks'
-import type { Answer } from '../ledger/report'
 import {
   businessText,
   deskInstructions,
   deviceAskPrompt,
   repairOrderNumbers,
 } from '../ledger/snapshot'
+import { lookupPreview, type DeskData, type Proposal } from '../ledger/tools'
 import { trends, trendsText } from '../ledger/trends'
 import { Chart } from './Chart'
 import type { Lagos } from './TrendsCard'
 import type { LedgerApi } from './useLedger'
+import { useVoiceAsk } from './useVoiceAsk'
 
 // The week to today against the week before, for "how did this week go?".
 const SPAN = 7
@@ -44,8 +52,24 @@ const SUGGESTIONS = [
 
 type Turn = {
   question: string
-  answer?: Reading<Answer>
+  answer?: DeskAnswer
   error?: string
+}
+
+// A question that needs more of the records than the device can hold.
+class NeedsCloud extends Error {}
+
+const proposalKey = (p: Proposal) =>
+  p.kind === 'delivery' ? `d:${p.orderId}:${p.to}` : `c:${p.customerKey}`
+
+function proposalLabel(p: Proposal): string {
+  if (p.kind === 'open-chat') return `Open the chat for #${p.code}`
+  const to = {
+    out: 'out for delivery',
+    delivered: 'delivered',
+    collected: 'collected',
+  }[p.to]
+  return `Mark #${p.code} ${to}`
 }
 
 // A chat about the whole business, on every tab. With Chrome's model ready,
@@ -64,6 +88,8 @@ export function AskCard(props: {
   badge: (r: Reading<unknown>) => ReactNode
   // Whether Chrome's built-in model is ready on this computer.
   deviceReady: boolean
+  // Opens a customer's chat, where the host can (the demo and WhatsApp Web).
+  openChat?: (customerKey: string) => void
 }) {
   const { data, config } = props.ledger
   const bankName = (id: string | null) =>
@@ -71,6 +97,23 @@ export function AskCard(props: {
   const recent = data
     ? trends(props.today, SPAN, data, config, props.lagos)
     : null
+  const desk: DeskData | null =
+    data && recent
+      ? {
+          orders: data.orders,
+          credits: data.credits,
+          products: data.products,
+          drops: data.drops,
+          settlements: data.settlements,
+          chats: data.chats,
+          rules: props.rules,
+          books: booksText(
+            dayBooks(props.today, data, config, props.lagos.day),
+          ),
+          trends: trendsText(recent, bankName),
+          now: props.now(),
+        }
+      : null
   const facts =
     data && recent
       ? businessText({
@@ -103,6 +146,10 @@ export function AskCard(props: {
     : ''
 
   const chat = useRef<ChatSession | null>(null)
+  // The records as the owner approved them with the first cloud question;
+  // the chat's lookups answer from these and nothing newer.
+  const approvedDesk = useRef<DeskData | null>(null)
+  const [done, setDone] = useState<Set<string>>(() => new Set())
   const [sent, setSent] = useState<string | null>(null)
   const [turns, setTurns] = useState<Turn[]>([])
   const [question, setQuestion] = useState('')
@@ -110,6 +157,7 @@ export function AskCard(props: {
 
   const startOver = () => {
     chat.current = null
+    approvedDesk.current = null
     setSent(null)
     setTurns([])
   }
@@ -121,46 +169,49 @@ export function AskCard(props: {
   async function send(asked: string, viaCloud = false) {
     const typed = asked.trim()
     if (!typed || !facts || busy) return
-    if (onDevice && !viaCloud) {
+    if (onDevice && !viaCloud && desk) {
+      const history = turns.flatMap((t) =>
+        t.answer?.source === 'On device'
+          ? [{ question: t.question, answer: t.answer.text }]
+          : [],
+      )
       const prompt = deviceAskPrompt(
         deskInstructions(),
         chartMenu(),
         facts,
-        turns.flatMap((t) =>
-          t.answer?.source === 'On device'
-            ? [{ question: t.question, answer: t.answer.fields.text }]
-            : [],
-        ),
+        history,
         typed,
       )
-      if (prompt) {
-        setQuestion('')
-        setBusy(true)
-        const at = turns.length
-        setTurns((t) => [...t, { question: typed }])
-        try {
-          const read = await askOnDevice(prompt)
-          // Order numbers are checked against the shop's real orders.
-          const answer = {
-            ...read,
-            fields: {
-              ...read.fields,
-              text: repairOrderNumbers(
-                read.fields.text,
-                (data?.orders ?? []).map((o) => o.code),
+      setQuestion('')
+      setBusy(true)
+      const at = turns.length
+      setTurns((t) => [...t, { question: typed }])
+      try {
+        const read = await askOnDeviceWithTools(typed, history, desk, () =>
+          prompt
+            ? askOnDevice(prompt)
+            : Promise.reject(
+                new NeedsCloud(
+                  'That needs more of your records than the model on this computer can hold. Ask the cloud instead.',
+                ),
               ),
-            },
-          }
-          setTurns((t) => t.map((x, i) => (i === at ? { ...x, answer } : x)))
-        } catch (e) {
-          const error = cloudErrorText(e)
-          setTurns((t) => t.map((x, i) => (i === at ? { ...x, error } : x)))
-        } finally {
-          setBusy(false)
+        )
+        // Order numbers are checked against the shop's real orders.
+        const answer = {
+          ...read,
+          text: repairOrderNumbers(
+            read.text,
+            desk.orders.map((o) => o.code),
+          ),
         }
-        return
+        setTurns((t) => t.map((x, i) => (i === at ? { ...x, answer } : x)))
+      } catch (e) {
+        const error = e instanceof NeedsCloud ? e.message : cloudErrorText(e)
+        setTurns((t) => t.map((x, i) => (i === at ? { ...x, error } : x)))
+      } finally {
+        setBusy(false)
       }
-      // Too long for the device: the cloud path below asks first.
+      return
     }
     if (!props.online) {
       setTurns((t) => [
@@ -178,21 +229,29 @@ export function AskCard(props: {
     const { text, replaced } = redact(typed, names)
     const first = !chat.current
     const request = first
-      ? deskRequest(facts, text, replaced)
+      ? toolRequest(text, desk ? lookupPreview(desk) : '', replaced)
       : followUpRequest(text, replaced)
     // A follow-up the vendor typed and nothing was swapped in is already on
     // screen exactly as it will be sent, so their Ask click is the approval.
     const approved =
       first || replaced.length ? await props.ask(request) : approve(request)
     if (!approved) return
-    chat.current ??= booksChat()
-    if (first) setSent(records)
+    if (first) {
+      chat.current = toolChat()
+      approvedDesk.current = desk
+      setSent(records)
+    }
+    const session = chat.current!
     setQuestion('')
     setBusy(true)
     const at = turns.length
     setTurns((t) => [...t, { question: text }])
     try {
-      const answer = await askBooks(chat.current, approved)
+      const answer = await askCloudWithTools(
+        session,
+        approved,
+        () => approvedDesk.current!,
+      )
       setTurns((t) => t.map((x, i) => (i === at ? { ...x, answer } : x)))
     } catch (e) {
       const error = cloudErrorText(e)
@@ -200,6 +259,32 @@ export function AskCard(props: {
     } finally {
       setBusy(false)
     }
+  }
+
+  // Product names and order numbers, so speech recognition hears them right.
+  const vocabulary = useMemo(
+    () => [
+      ...(data?.products ?? []).map((p) => p.name.trim()).filter(Boolean),
+      ...(data?.orders ?? []).map((o) => `order ${o.code}`),
+    ],
+    [data],
+  )
+  // The latest send, for answers to voice questions that finish later.
+  const sendRef = useRef(send)
+  useEffect(() => {
+    sendRef.current = send
+  })
+  const voice = useVoiceAsk({
+    vocabulary,
+    onQuestion: useCallback((q: string) => void sendRef.current(q), []),
+    ask: props.ask,
+    online: props.online,
+  })
+
+  function act(p: Proposal) {
+    if (p.kind === 'delivery') void props.ledger.setDelivery(p.orderId, p.to)
+    else props.openChat?.(p.customerKey)
+    setDone((d) => new Set(d).add(proposalKey(p)))
   }
 
   return (
@@ -219,13 +304,43 @@ export function AskCard(props: {
               <p className="asked">{t.question}</p>
               {t.answer ? (
                 <>
-                  <p>{t.answer.fields.text}</p>
-                  {t.answer.fields.chart && recent && (
-                    <Chart
-                      spec={chartSpec(recent, t.answer.fields.chart, bankName)}
-                    />
+                  {t.answer.steps.length > 0 && (
+                    <ol className="ask-steps" aria-label="What the desk did">
+                      {t.answer.steps.map((st, n) => (
+                        <li key={n} data-source={st.source}>
+                          {st.label}
+                        </li>
+                      ))}
+                    </ol>
                   )}
-                  {props.badge(t.answer)}
+                  <p>{t.answer.text}</p>
+                  {t.answer.chart && recent && (
+                    <Chart spec={chartSpec(recent, t.answer.chart, bankName)} />
+                  )}
+                  {t.answer.proposals.length > 0 && (
+                    <div className="actions ask-actions">
+                      {t.answer.proposals
+                        .filter((p) => p.kind !== 'open-chat' || props.openChat)
+                        .map((p) => (
+                          <button
+                            key={proposalKey(p)}
+                            type="button"
+                            className="quiet"
+                            disabled={done.has(proposalKey(p))}
+                            onClick={() => act(p)}
+                          >
+                            {done.has(proposalKey(p))
+                              ? `Done: ${proposalLabel(p)}`
+                              : proposalLabel(p)}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                  {props.badge({
+                    fields: null,
+                    source: t.answer.source,
+                    ms: t.answer.ms,
+                  })}
                   {t.answer.source === 'On device' && !busy && (
                     <button
                       type="button"
@@ -291,6 +406,29 @@ export function AskCard(props: {
           <button type="submit" disabled={busy || !question.trim()}>
             {busy ? 'Asking…' : 'Ask'}
           </button>
+          {(voice.mode === 'device' || voice.mode === 'cloud') && (
+            <button
+              type="button"
+              className="quiet mic"
+              aria-pressed={voice.state.status === 'listening'}
+              disabled={busy || !desk || voice.state.status === 'writing'}
+              onClick={
+                voice.state.status === 'listening' ? voice.stop : voice.start
+              }
+            >
+              {voice.state.status === 'listening' ? '■ Stop' : '● Speak'}
+            </button>
+          )}
+          {voice.mode === 'device-download' && (
+            <button
+              type="button"
+              className="link"
+              disabled={voice.state.status === 'writing'}
+              onClick={() => void voice.download()}
+            >
+              Set up voice on this computer
+            </button>
+          )}
           {turns.length > 0 && !busy && (
             <button type="button" className="quiet" onClick={startOver}>
               Clear the chat
@@ -298,6 +436,23 @@ export function AskCard(props: {
           )}
         </div>
       </form>
+      {voice.state.status === 'listening' && (
+        <p className="hint voice-live" aria-live="polite">
+          {voice.state.mode === 'device'
+            ? `Listening on this computer… ${voice.state.heard}`
+            : 'Recording. Press Stop when you have asked; you will see the recording before anything is sent.'}
+        </p>
+      )}
+      {voice.state.status === 'writing' && (
+        <p className="hint" aria-live="polite">
+          {voice.state.note}
+        </p>
+      )}
+      {voice.state.status === 'error' && (
+        <p className="error" role="alert">
+          {voice.state.message}
+        </p>
+      )}
     </section>
   )
 }

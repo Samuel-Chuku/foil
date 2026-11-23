@@ -1510,6 +1510,10 @@ p.meta:has(.badge) {
   font-weight: 650;
   margin: 0 0 var(--dk-s1);
 }
+/* Answers that list orders keep one per line. */
+.books-chat .asked ~ p {
+  white-space: pre-line;
+}
 .ask-desk .suggestions {
   display: flex;
   flex-wrap: wrap;
@@ -2277,4 +2281,56 @@ input[type='range']:focus-visible {
   .panel-tabs [role='tab']::before {
     display: none;
   }
+}
+
+/* ---------- Ask the desk: steps, actions, voice ---------- */
+
+/* What the desk looked up, in order: a quiet trail above the answer. */
+.ask-steps {
+  list-style: none;
+  margin: var(--dk-s2) 0;
+  padding: 0 0 0 var(--dk-s3);
+  border-left: var(--dk-bw) solid
+    color-mix(in oklab, var(--tone-deep, var(--dk-ink)) 45%, transparent);
+  display: grid;
+  gap: 2px;
+}
+.ask-steps li {
+  font-family: var(--dk-font-num);
+  font-stretch: var(--dk-num-stretch);
+  font-size: var(--dk-text-meta);
+  color: var(--dk-ink-2);
+}
+/* The glyph says who chose the step, matching the source badges. */
+.ask-steps li::before {
+  margin-right: var(--dk-s2);
+}
+.ask-steps li[data-source='On device']::before {
+  content: '■';
+}
+.ask-steps li[data-source='Cloud']::before {
+  content: '□';
+}
+.ask-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dk-s2);
+  margin: var(--dk-s2) 0;
+}
+.ask-actions button:disabled {
+  border-style: dashed;
+}
+button.mic[aria-pressed='true'] {
+  background: var(--dk-accent);
+  color: var(--dk-on-accent);
+}
+.voice-live {
+  margin: var(--dk-s2) 0 0;
+}
+.approval .may-return {
+  margin-top: var(--dk-s3);
+}
+.approval .may-return > summary {
+  font-size: var(--dk-text-small);
+  font-weight: 600;
 }

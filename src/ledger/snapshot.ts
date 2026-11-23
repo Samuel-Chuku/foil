@@ -46,21 +46,25 @@ export function openOrderLines(orders: Order[], credits: Credit[]): string[] {
         o.delivery === 'out',
     )
     .sort((a, b) => Number(a.code) - Number(b.code))
-    .map((o) => {
-      const due = dueKobo(o)
-      const owed = balanceKobo(o, credits) ?? 0
-      const items = o.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
-      return [
-        `Order ${o.code}`,
-        items || 'items not captured',
-        due === null ? 'no price yet' : formatMoney(due),
-        owed > 0
-          ? `paid in part, ${formatMoney(owed)} still owed`
-          : PAYMENT[o.payment.state],
-        where(o),
-        DELIVERY[o.delivery],
-      ].join('; ')
-    })
+    .map((o) => orderLine(o, credits))
+}
+
+// One order as the desk describes it: number, items, money, payment,
+// delivery. No name, phone or address.
+export function orderLine(o: Order, credits: Credit[]): string {
+  const due = dueKobo(o)
+  const owed = balanceKobo(o, credits) ?? 0
+  const items = o.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
+  return [
+    `Order ${o.code}`,
+    items || 'items not captured',
+    due === null ? 'no price yet' : formatMoney(due),
+    owed > 0
+      ? `paid in part, ${formatMoney(owed)} still owed`
+      : PAYMENT[o.payment.state],
+    where(o),
+    DELIVERY[o.delivery],
+  ].join('; ')
 }
 
 export function stockLines(products: Product[], orders: Order[]): string[] {
@@ -126,6 +130,24 @@ export function rulesLines(rules: ShopRules): string[] {
   ]
 }
 
+// Still owed money and not yet finished.
+export function isUnpaid(o: Order, credits: Credit[]): boolean {
+  return (
+    (o.payment.state !== 'matched' || (balanceKobo(o, credits) ?? 0) > 0) &&
+    (o.delivery === 'pending' || o.delivery === 'out')
+  )
+}
+
+// Fully paid and waiting to go out; pickups wait for the customer instead.
+export function isToSend(o: Order, credits: Credit[]): boolean {
+  return (
+    o.payment.state === 'matched' &&
+    (balanceKobo(o, credits) ?? 0) <= 0 &&
+    o.delivery === 'pending' &&
+    o.deliveryPlan?.method !== 'pickup'
+  )
+}
+
 // The answers to the common questions, worked out here so the model only has
 // to read them: small on-device models garble long lists they must filter.
 export function answerLines(
@@ -143,18 +165,8 @@ export function answerLines(
           .map((o) => `#${o.code}`)
           .join(', ')
       : 'none'
-  const unpaid = orders.filter(
-    (o) =>
-      (o.payment.state !== 'matched' || (balanceKobo(o, credits) ?? 0) > 0) &&
-      (o.delivery === 'pending' || o.delivery === 'out'),
-  )
-  const toSend = orders.filter(
-    (o) =>
-      o.payment.state === 'matched' &&
-      (balanceKobo(o, credits) ?? 0) <= 0 &&
-      o.delivery === 'pending' &&
-      o.deliveryPlan?.method !== 'pickup',
-  )
+  const unpaid = orders.filter((o) => isUnpaid(o, credits))
+  const toSend = orders.filter((o) => isToSend(o, credits))
   const counted = products
     .filter((p) => !p.dropId && p.name.trim())
     .map((p) => ({ p, left: leftOf(p, orders, products) }))
