@@ -2557,3 +2557,28 @@ button.mic[aria-pressed='true'] {
 .reply-actions button.quiet {
   min-height: var(--dk-h-control);
 }
+
+/* ---------- Voice: settings, talk mode, reading aloud ---------- */
+
+label.setting {
+  display: grid;
+  gap: var(--dk-s1);
+}
+.setting-label {
+  font-size: var(--dk-text-small);
+  font-weight: 600;
+}
+button.talk[aria-pressed='true'] {
+  background: var(--dk-accent);
+  color: var(--dk-on-accent);
+}
+.read-aloud {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dk-s1);
+  margin-right: var(--dk-s3);
+  font-size: var(--dk-text-small);
+}
+.talk-live {
+  margin: var(--dk-s2) 0 0;
+}

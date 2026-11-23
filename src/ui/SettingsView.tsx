@@ -19,6 +19,19 @@ import {
 import { Icon } from './icons'
 import { GoogleResult } from './GoogleResult'
 import type { GoogleApi } from './useGoogle'
+import { answerLanguage, answerLanguages } from '../config/speech'
+import { useSpeech, type SpeakResult } from './useSpeech'
+
+// A line to try each voice with, in its own language.
+const VOICE_SAMPLE: Record<string, string> = {
+  english: 'Order 77 is paid. Three orders are waiting to go out.',
+  pidgin: 'Order 77 don pay. Three orders dey wait to go out.',
+  yoruba: 'Wọ́n ti san owó fún order 77.',
+  igbo: 'Akwụọla ụgwọ order 77.',
+  hausa: 'An biya order 77.',
+  hindi: 'ऑर्डर 77 का भुगतान हो गया है।',
+  portuguese: 'O pedido 77 está pago. Três pedidos esperam envio.',
+}
 
 const ACCENT_NAME: Record<Prefs['accent'], string> = {
   ember: 'Ember',
@@ -65,6 +78,9 @@ export function SettingsView(props: {
   const lagos = market().id === 'ng'
   const [saving, setSaving] = useState<'idle' | 'saving' | 'error'>('idle')
   const { device, google } = props
+  const speech = useSpeech()
+  const lang = answerLanguage(market(), p.answerLanguage)
+  const [tried, setTried] = useState<SpeakResult | null>(null)
 
   return (
     <div className="settings" aria-labelledby="settings-h">
@@ -169,6 +185,87 @@ export function SettingsView(props: {
             onChange={(pidgin) => set({ pidgin })}
             hint="When a customer writes in Pidgin, the draft answers the same way. Off, drafts stay in English."
           />
+        )}
+      </section>
+
+      <section className="card" data-tone="ask" aria-labelledby="voice-h">
+        <h3 id="voice-h">
+          <Icon name="speaker" />
+          Voice and language
+        </h3>
+        <label className="setting">
+          <span className="setting-label">Ask the desk answers in</span>
+          <select
+            value={lang.id}
+            onChange={(e) => set({ answerLanguage: e.target.value })}
+          >
+            {answerLanguages(market()).map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+                {l.onDevice ? '' : ' (in the cloud, after you approve)'}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Switch
+          label="Read answers aloud"
+          checked={p.speakAnswers}
+          onChange={(speakAnswers) => set({ speakAnswers })}
+          hint="After a spoken question, and all through a talk. Chrome's own voices read them; ones on this computer are chosen first."
+        />
+        <label className="setting">
+          <span className="setting-label">Voice</span>
+          <select
+            value={p.voiceName}
+            onChange={(e) => set({ voiceName: e.target.value })}
+          >
+            <option value="">Choose one for {lang.label}</option>
+            {speech.voices
+              .filter(
+                (v) =>
+                  v.lang.toLowerCase().split(/[-_]/)[0] ===
+                  lang.voiceLang.split('-')[0],
+              )
+              .map((v) => (
+                <option key={v.name} value={v.name}>
+                  {v.name}
+                  {v.localService ? ' (on this computer)' : ''}
+                </option>
+              ))}
+          </select>
+        </label>
+        <Slider
+          label="Speed"
+          value={p.speechRate}
+          range={RANGES.speechRate}
+          unit="%"
+          onChange={(speechRate) => set({ speechRate })}
+        />
+        <button
+          type="button"
+          className="quiet"
+          onClick={() =>
+            void speech
+              .speak(
+                VOICE_SAMPLE[lang.id] ?? VOICE_SAMPLE.english!,
+                lang.voiceLang,
+                {
+                  voiceName: p.voiceName,
+                  rate: p.speechRate,
+                },
+              )
+              .then((r) => setTried(r))
+          }
+        >
+          <Icon name="speaker" />
+          Try the voice
+        </button>
+        {tried === 'no-voice' && (
+          <p className="hint" role="status">
+            No voice on this computer reads {lang.label}. Answers stay on
+            screen; Chrome adds voices from your computer&apos;s language
+            settings.
+          </p>
         )}
       </section>
 

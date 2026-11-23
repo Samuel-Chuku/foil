@@ -6,9 +6,10 @@ import { toolMenu, TOOL_NAMES, type ToolResult } from './tools'
 // The prompts and checks around Ask the desk's tools, kept free of Firebase
 // so they can be tested. See ai/deskTools.ts for the calls.
 
-export function toolInstructions(): string {
+// `language` is the answer language the owner chose, as prompts name it.
+export function toolInstructions(language?: string): string {
   const w = shopWords()
-  return `You are the assistant for ${w.shop}. Answer the owner's questions about their business. Use the tools to look facts up before you answer, and answer only from what they return: never guess an order number, an amount or a count. Write short, plain, practical ${w.language}, with ${w.money}, and refer to orders by number, copied exactly. Write plain text with no markdown, asterisks or bullet symbols; when you list orders, put each on its own line with its items and where it goes. An order is ready to send only once it is paid; an unpaid order is waiting for payment, not for sending. When an action would help, use a suggest_ tool so the owner gets a button: for paid orders waiting to go out, suggest marking each out for delivery; for an unpaid order the owner asks about, suggest opening its chat. Never say you have done something yourself; say the button is below. Use show_chart when a picture helps. You do not know customers' names, phone numbers or addresses; if a question needs them, say those details stay on the shop's computer. Never call a payment or a customer fake or a fraud. Do not give financial, tax, loan or investment advice.`
+  return `You are the assistant for ${w.shop}. Answer the owner's questions about their business. Use the tools to look facts up before you answer, and answer only from what they return: never guess an order number, an amount or a count. Write short, plain, practical ${language ?? w.language}, with ${w.money}, and refer to orders by number, copied exactly. Write plain text with no markdown, asterisks or bullet symbols; when you list orders, put each on its own line with its items and where it goes. An order is ready to send only once it is paid; an unpaid order is waiting for payment, not for sending. When an action would help, use a suggest_ tool so the owner gets a button, for example to open an unpaid order's chat. Lists of orders to send or on the way already come with their buttons. Mention a button only when a tool result says one is shown, and never say you have done something yourself. Use show_chart when a picture helps. You do not know customers' names, phone numbers or addresses; if a question needs them, say those details stay on the shop's computer. Never call a payment or a customer fake or a fraud. Do not give financial, tax, loan or investment advice.`
 }
 
 // On this computer: first pick at most two tools, then answer from them.
@@ -90,13 +91,14 @@ export function deviceAnswerPrompt(
   quick: string[],
   results: ToolResult[],
   history: Exchange[],
+  language?: string,
 ): string {
   const recent = history
     .slice(-2)
     .map((e) => `Owner asked: ${e.question}\nYou answered: ${e.answer}`)
     .join('\n')
   return [
-    toolInstructions(),
+    toolInstructions(language),
     `Quick answers, worked out from the records and correct:\n${quick.join('\n')}`,
     ...results.map((r) => `${r.step}:\n${r.text}`),
     ...(recent ? [`Earlier:\n${recent}`] : []),

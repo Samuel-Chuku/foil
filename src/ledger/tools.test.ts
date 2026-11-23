@@ -122,6 +122,21 @@ describe('desk tools', () => {
   })
 })
 
+describe('list buttons', () => {
+  it('gives each paid order to send its next step, whatever the model does', () => {
+    const d = desk([order('3'), paid('1'), paid('2', 'out')])
+    expect(runTool('list_orders', { which: 'to_send' }, d).buttons).toEqual([
+      expect.objectContaining({ kind: 'delivery', code: '1', to: 'out' }),
+    ])
+    expect(runTool('list_orders', { which: 'on_the_way' }, d).buttons).toEqual([
+      expect.objectContaining({ code: '2', to: 'delivered' }),
+    ])
+    expect(
+      runTool('list_orders', { which: 'unpaid' }, d).buttons,
+    ).toBeUndefined()
+  })
+})
+
 describe('Google suggestions', () => {
   it('offers a calendar run only for an area with orders to send', () => {
     const yaba = {

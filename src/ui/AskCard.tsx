@@ -2,9 +2,11 @@ import type { ChatSession } from 'firebase/ai'
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react'
 import { askOnDevice, followUpRequest } from '../ai/books'
@@ -39,6 +41,9 @@ import { Chart } from './Chart'
 import type { Lagos } from './TrendsCard'
 import type { LedgerApi } from './useLedger'
 import { useVoiceAsk } from './useVoiceAsk'
+import { useSpeech } from './useSpeech'
+import { prefsStore } from './prefs'
+import { answerLanguage, speakable } from '../config/speech'
 import { Icon } from './icons'
 
 // The week to today against the week before, for "how did this week go?".
@@ -174,9 +179,12 @@ export function AskCard(props: {
     setTurns([])
   }
 
-  // On the device when the model is ready and the market's reply language is
-  // one it supports; the cloud otherwise.
-  const onDevice = props.deviceReady && market().reply.onDevice
+  const userPrefs = useSyncExternalStore(prefsStore.subscribe, prefsStore.get)
+  // The language answers come in, from Settings.
+  const lang = answerLanguage(market(), userPrefs.answerLanguage)
+  // On the device when the model is ready and can write that language; the
+  // cloud otherwise.
+  const onDevice = props.deviceReady && lang.onDevice
 
   async function send(asked: string, viaCloud = false) {
     const typed = asked.trim()
@@ -188,7 +196,7 @@ export function AskCard(props: {
           : [],
       )
       const prompt = deviceAskPrompt(
-        deskInstructions(),
+        deskInstructions(lang.prompt),
         chartMenu(),
         facts,
         history,
@@ -199,14 +207,19 @@ export function AskCard(props: {
       const at = turns.length
       setTurns((t) => [...t, { question: typed }])
       try {
-        const read = await askOnDeviceWithTools(typed, history, desk, () =>
-          prompt
-            ? askOnDevice(prompt)
-            : Promise.reject(
-                new NeedsCloud(
-                  'That needs more of your records than the model on this computer can hold. Ask the cloud instead.',
+        const read = await askOnDeviceWithTools(
+          typed,
+          history,
+          desk,
+          () =>
+            prompt
+              ? askOnDevice(prompt)
+              : Promise.reject(
+                  new NeedsCloud(
+                    'That needs more of your records than the model on this computer can hold. Ask the cloud instead.',
+                  ),
                 ),
-              ),
+          lang.prompt,
         )
         // Order numbers are checked against the shop's real orders.
         const answer = {
@@ -241,7 +254,12 @@ export function AskCard(props: {
     const { text, replaced } = redact(typed, names)
     const first = !chat.current
     const request = first
-      ? toolRequest(text, desk ? lookupPreview(desk) : '', replaced)
+      ? toolRequest(
+          text,
+          desk ? lookupPreview(desk) : '',
+          replaced,
+          lang.prompt,
+        )
       : followUpRequest(text, replaced)
     // A follow-up the vendor typed and nothing was swapped in is already on
     // screen exactly as it will be sent, so their Ask click is the approval.
@@ -286,12 +304,66 @@ export function AskCard(props: {
   useEffect(() => {
     sendRef.current = send
   })
+  // Whether the last question was spoken, so its answer is read aloud.
+  const voiceAsked = useRef(false)
   const voice = useVoiceAsk({
     vocabulary,
-    onQuestion: useCallback((q: string) => void sendRef.current(q), []),
+    onQuestion: useCallback((q: string) => {
+      voiceAsked.current = true
+      void sendRef.current(q)
+    }, []),
     ask: props.ask,
     online: props.online,
   })
+  const speech = useSpeech()
+  // Talk mode: listen, answer, say the answer, listen again, until stopped.
+  const [talking, setTalking] = useState(false)
+  // The first turn of the current talk, so an older failure does not end it.
+  const [talkFrom, setTalkFrom] = useState(0)
+  const [noVoice, setNoVoice] = useState(false)
+  // A failed question or a microphone problem ends the talk.
+  if (
+    talking &&
+    (voice.state.status === 'error' ||
+      (turns.length > talkFrom && turns[turns.length - 1]?.error))
+  ) {
+    setTalking(false)
+  }
+  const say = (text: string) =>
+    speech.speak(speakable(text, market()), lang.voiceLang, {
+      voiceName: userPrefs.voiceName,
+      rate: userPrefs.speechRate,
+    })
+  // Each finished answer, once: read aloud if it was asked aloud or the
+  // owner is talking, then listen for the next question.
+  const handledTurn = useRef(-1)
+  const onTurnDone = useEffectEvent(async (i: number) => {
+    const t = turns[i]
+    if (!t || (!t.answer && !t.error) || handledTurn.current === i) return
+    handledTurn.current = i
+    const aloud = (talking || voiceAsked.current) && userPrefs.speakAnswers
+    voiceAsked.current = false
+    if (aloud && t.answer) {
+      const r = await say(t.answer.text)
+      setNoVoice(r === 'no-voice')
+    }
+    if (talking && t.answer) voice.start()
+  })
+  useEffect(() => {
+    void onTurnDone(turns.length - 1)
+  }, [turns])
+
+  function startTalking() {
+    setTalking(true)
+    setTalkFrom(turns.length)
+    setNoVoice(false)
+    voice.start()
+  }
+  function stopTalking() {
+    setTalking(false)
+    voice.stop()
+    speech.stop()
+  }
 
   function act(p: Proposal) {
     if (p.kind === 'delivery') void props.ledger.setDelivery(p.orderId, p.to)
@@ -358,6 +430,30 @@ export function AskCard(props: {
                           </button>
                         ))}
                     </div>
+                  )}
+                  {i === turns.length - 1 && speech.speaking ? (
+                    <button
+                      type="button"
+                      className="link read-aloud"
+                      onClick={speech.stop}
+                    >
+                      <Icon name="stop" size={14} />
+                      Stop reading
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="link read-aloud"
+                      onClick={() => {
+                        if (t.answer)
+                          void say(t.answer.text).then((r) =>
+                            setNoVoice(r === 'no-voice'),
+                          )
+                      }}
+                    >
+                      <Icon name="speaker" size={14} />
+                      Read aloud
+                    </button>
                   )}
                   {props.badge({
                     fields: null,
@@ -445,6 +541,18 @@ export function AskCard(props: {
               {voice.state.status === 'listening' ? 'Stop' : 'Speak'}
             </button>
           )}
+          {(voice.mode === 'device' || voice.mode === 'cloud') && (
+            <button
+              type="button"
+              className="quiet talk"
+              aria-pressed={talking}
+              disabled={!desk}
+              onClick={talking ? stopTalking : startTalking}
+            >
+              <Icon name={talking ? 'stop' : 'speaker'} />
+              {talking ? 'End the talk' : 'Talk'}
+            </button>
+          )}
           {voice.mode === 'device-download' && (
             <button
               type="button"
@@ -462,6 +570,19 @@ export function AskCard(props: {
           )}
         </div>
       </form>
+      {talking && (
+        <p className="hint talk-live" aria-live="polite">
+          Talking with the desk in {lang.label}. Ask, wait for the answer, then
+          ask the next thing. Press End the talk when you are done.
+        </p>
+      )}
+      {noVoice && (
+        <p className="hint" role="status">
+          No voice on this computer reads {lang.label}, so answers stay on
+          screen. Chrome adds voices from your computer&apos;s language
+          settings.
+        </p>
+      )}
       {voice.state.status === 'listening' && (
         <p className="hint voice-live" aria-live="polite">
           {voice.state.mode === 'device'

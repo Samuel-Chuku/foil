@@ -60,6 +60,8 @@ export type ToolResult = {
   // What the owner sees as a step of the answer.
   step: string
   proposal?: Proposal
+  // Buttons that come with a list: each order to send can be marked out.
+  buttons?: Proposal[]
   chart?: ChartId
 }
 
@@ -258,13 +260,37 @@ export function runTool(
       const which = (ORDER_GROUPS as readonly string[]).includes(w)
         ? (w as OrderGroup)
         : 'all_open'
-      const lines = d.orders
+      const listed = d.orders
         .filter((o) => inGroup(o, which, d.credits))
         .sort((a, b) => Number(a.code) - Number(b.code))
-        .map((o) => orderLine(o, d.credits))
+      const lines = listed.map((o) => orderLine(o, d.credits))
+      // Orders waiting to go out, or on their way, come with the button that
+      // moves each one along, so the owner never relies on the model to
+      // offer it.
+      const buttons: Proposal[] =
+        which === 'to_send' || which === 'on_the_way'
+          ? listed.flatMap((o) => {
+              const next = nextSteps(o).find((x) => !x.undo)
+              return next && next.to !== 'pending'
+                ? [
+                    {
+                      kind: 'delivery' as const,
+                      orderId: o.id,
+                      code: o.code,
+                      to: next.to,
+                    },
+                  ]
+                : []
+            })
+          : []
       return {
-        text: lines.length ? lines.join('\n') : `No ${GROUP_LABEL[which]}.`,
+        text:
+          (lines.length ? lines.join('\n') : `No ${GROUP_LABEL[which]}.`) +
+          (buttons.length
+            ? '\nA button to move each of these along is already shown to the owner.'
+            : ''),
         step: `Looked up ${GROUP_LABEL[which]} (${lines.length})`,
+        ...(buttons.length && { buttons }),
       }
     }
     case 'order_details': {

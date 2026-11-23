@@ -98,12 +98,13 @@ export function toolRequest(
   question: string,
   preview: string,
   replaced: string[],
+  language?: string,
 ): CloudRequest {
   return {
     feature: 'Ask the desk',
     reason:
       'Chat answers come from the cloud model, which looks up what it needs with the desk’s tools. Your question goes now; a lookup’s result goes only if the model asks for it. Lookups hold orders by number, items, stock, money and rules, never customers’ names, phones or addresses.',
-    texts: [toolInstructions(), `Question: ${question}`],
+    texts: [toolInstructions(language), `Question: ${question}`],
     mayReturn: preview,
     replaced,
   }
@@ -115,7 +116,13 @@ const MAX_ROUNDS = 4
 
 const gather = (results: ToolResult[]) => ({
   chart: results.findLast((r) => r.chart)?.chart ?? null,
-  proposals: results.flatMap((r) => (r.proposal ? [r.proposal] : [])),
+  // Each button once, whether the model asked for it or a list brought it.
+  proposals: results
+    .flatMap((r) => [...(r.proposal ? [r.proposal] : []), ...(r.buttons ?? [])])
+    .filter(
+      (p, i, all) =>
+        all.findIndex((q) => JSON.stringify(q) === JSON.stringify(p)) === i,
+    ),
 })
 
 export async function askCloudWithTools(
@@ -165,6 +172,7 @@ export async function askOnDeviceWithTools(
   data: DeskData,
   // When no tool fits, the question is answered from the whole fact sheet.
   wholeSheet: () => Promise<Reading<Answer>>,
+  language?: string,
 ): Promise<DeskAnswer> {
   const route = await generateJson(routeModel(false), [
     routePrompt(question, history),
@@ -188,6 +196,7 @@ export async function askOnDeviceWithTools(
       answerLines(data.orders, data.credits, data.products),
       results,
       history,
+      language,
     ),
   )
   const picked = answer.fields

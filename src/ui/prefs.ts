@@ -34,6 +34,14 @@ export type Prefs = {
   // Whether the shop sells in drops. Null decides from the records: on once
   // the shop has run a drop, so other shops never see drop tools.
   drops: boolean | null
+  // The language Ask the desk answers in; empty is the market's own.
+  answerLanguage: string
+  // Read answers aloud after a spoken question, and in talk mode.
+  speakAnswers: boolean
+  // The voice that reads them; empty picks one for the language.
+  voiceName: string
+  // Percent of normal speed.
+  speechRate: number
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -48,6 +56,10 @@ export const DEFAULT_PREFS: Prefs = {
   sameBankWindowMin: null,
   interbankWindowMin: null,
   drops: null,
+  answerLanguage: '',
+  speakAnswers: true,
+  voiceName: '',
+  speechRate: 100,
 }
 
 // The ranges the sliders offer; stored values outside them are pulled in.
@@ -55,6 +67,7 @@ export const RANGES = {
   textScale: { min: 90, max: 125, step: 5 },
   sameBankWindowMin: { min: 2, max: 30, step: 1 },
   interbankWindowMin: { min: 15, max: 180, step: 5 },
+  speechRate: { min: 70, max: 140, step: 5 },
 } as const
 
 const oneOf = <T extends string>(list: readonly T[], v: unknown, d: T): T =>
@@ -117,6 +130,14 @@ export function parsePrefs(raw: unknown): Prefs {
       d.interbankWindowMin,
     ),
     drops: typeof r.drops === 'boolean' ? r.drops : d.drops,
+    answerLanguage:
+      typeof r.answerLanguage === 'string'
+        ? r.answerLanguage
+        : d.answerLanguage,
+    speakAnswers:
+      typeof r.speakAnswers === 'boolean' ? r.speakAnswers : d.speakAnswers,
+    voiceName: typeof r.voiceName === 'string' ? r.voiceName : d.voiceName,
+    speechRate: within('speechRate', r.speechRate, d.speechRate),
   }
 }
 
