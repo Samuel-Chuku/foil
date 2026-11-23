@@ -85,7 +85,7 @@ export function DemoFloat(props: {
       }}
     >
       {open && (
-        <div className="desk-float-menu" role="menu" aria-label="Payment desk">
+        <div className="desk-float-menu" role="group" aria-label="Payment desk">
           <div className="desk-float-head">
             <div>
               <strong>Payment desk</strong>
@@ -98,7 +98,6 @@ export function DemoFloat(props: {
                 <button
                   ref={n === 0 ? first : undefined}
                   type="button"
-                  role="menuitem"
                   onClick={() => {
                     setOpen(false)
                     props.onRequest(it.request())
@@ -119,7 +118,7 @@ export function DemoFloat(props: {
       <button
         type="button"
         className="desk-float-launch"
-        aria-haspopup="menu"
+
         aria-expanded={open}
         aria-label="Payment desk"
         title="Payment desk"

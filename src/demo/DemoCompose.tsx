@@ -18,7 +18,7 @@ export function DemoCompose(props: {
 
   useEffect(() => {
     if (!open) return
-    box.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()
+    box.current?.querySelector<HTMLButtonElement>('button')?.focus()
     const away = (e: PointerEvent) => {
       if (!box.current?.contains(e.target as Node)) setOpen(false)
     }
@@ -42,7 +42,7 @@ export function DemoCompose(props: {
       {open && (
         <div
           className="compose-help-menu"
-          role="menu"
+          role="group"
           aria-label="Writing help"
         >
           <p>
@@ -55,7 +55,6 @@ export function DemoCompose(props: {
               <button
                 key={s.id}
                 type="button"
-                role="menuitem"
                 onClick={() =>
                   choose({
                     action: 'rewrite',
@@ -72,7 +71,6 @@ export function DemoCompose(props: {
           ) : (
             <button
               type="button"
-              role="menuitem"
               onClick={() => choose({ action: 'draft', nonce: Date.now() })}
             >
               <span>Draft a reply for me</span>
@@ -84,7 +82,7 @@ export function DemoCompose(props: {
       <button
         type="button"
         className="compose-help-chip"
-        aria-haspopup="menu"
+
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >

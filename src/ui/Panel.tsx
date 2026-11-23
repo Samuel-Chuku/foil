@@ -129,6 +129,7 @@ import {
   rewritePrompt,
   rewriteStyles,
   translatePrompt,
+  unmark,
 } from '../capture/rewrite'
 import {
   inCloud as writeInCloud,
@@ -1179,6 +1180,7 @@ export function Panel(props: {
           rewritePrompt(text, style, market()),
           device.consent,
         )
+        reading = { ...reading, fields: unmark(reading.fields) }
         // A number the model dropped is asked for once more by name.
         const missing = lostNumbers(text, reading.fields)
         if (missing.length) {
@@ -1186,7 +1188,11 @@ export function Panel(props: {
             rewritePrompt(text, style, market(), missing),
             device.consent,
           )
-          reading = { ...again, ms: reading.ms + again.ms }
+          reading = {
+            ...again,
+            fields: unmark(again.fields),
+            ms: reading.ms + again.ms,
+          }
         }
       } else {
         const names = [
@@ -1268,7 +1274,8 @@ export function Panel(props: {
       let reading: Reading<string>
       if (lines.every(readsAsEnglish)) {
         await device.ready()
-        reading = await writeOnDevice(translatePrompt(lines), device.consent)
+        const r = await writeOnDevice(translatePrompt(lines), device.consent)
+        reading = { ...r, fields: unmark(r.fields) }
       } else {
         const safe = protect(lines.join('\n'), [
           chat.contactName,
@@ -1276,7 +1283,7 @@ export function Panel(props: {
         ])
         const approved = await approval.ask(
           writingRequest(
-            'Say it in English',
+            'Translate their messages',
             'Their messages look like a language the model on this computer cannot read yet, so the cloud model puts them into English. Only these messages go, with names and long numbers swapped out.',
             translatePrompt(safe.text.split('\n')),
             safe.replaced,
@@ -1402,6 +1409,17 @@ export function Panel(props: {
         priced.length > 0 && priced.every((a) => a.product.priceKobo !== null)
           ? priced.reduce((n, a) => n + a.qty * a.product.priceKobo!, 0)
           : null
+      // Before an order is saved, delivery is planned from the place the
+      // customer named. A confirmed transfer that covers the items but not
+      // that fee leaves the fee owed, as it would on a saved order.
+      const chatPlan = order ? null : planFromChat(said, shop.rules, chatText)
+      const fee = chatPlan?.paidTo === 'shop' ? chatPlan.feeKobo : null
+      const paidNow =
+        !order && v?.verdict.kind === 'matched' ? v.receipt.amountKobo : null
+      const feeOwed =
+        fee && askedKobo !== null && paidNow !== null && paidNow >= askedKobo
+          ? Math.max(0, askedKobo + fee - paidNow) || null
+          : null
       const prompt = draftPrompt(
         {
           payment: outOfLine
@@ -1448,9 +1466,7 @@ export function Panel(props: {
               : []),
           ],
           delivery: deliveryFacts(
-            order
-              ? (order.deliveryPlan ?? null)
-              : planFromChat(said, shop.rules, chatText),
+            order ? (order.deliveryPlan ?? null) : chatPlan,
             shop.rules,
             order ? order.amountKobo : askedKobo,
           ),
@@ -1461,13 +1477,14 @@ export function Panel(props: {
               amountKobo: r.amountKobo,
               hasAccount: Boolean(r.settlement!.refundTo?.accountNumber),
             })),
-          shortKobo: balance !== null && balance > 0 ? balance : null,
+          shortKobo: balance !== null && balance > 0 ? balance : feeOwed,
           deliveryOwed:
-            !!order &&
-            order.amountKobo !== null &&
-            balance !== null &&
-            balance > 0 &&
-            paidKobo(order, data.credits) >= order.amountKobo,
+            feeOwed !== null ||
+            (!!order &&
+              order.amountKobo !== null &&
+              balance !== null &&
+              balance > 0 &&
+              paidKobo(order, data.credits) >= order.amountKobo),
           rules: rulesForDraft(shop.rules, chatText),
           complaint:
             data.chats.find((x) => x.id === customerId)?.label === 'complaint',
@@ -2407,28 +2424,6 @@ export function Panel(props: {
                 ))}
               </ul>
             )}
-            {data && data.orders.length > 0 && (
-              <div className="sheet-send">
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={sheetNames}
-                    onChange={(e) => setSheetNames(e.target.checked)}
-                  />{' '}
-                  Include customer names
-                </label>
-                <button
-                  type="button"
-                  className="quiet"
-                  disabled={google.status.sheet?.kind === 'busy'}
-                  onClick={() => void sendSheet()}
-                >
-                  <Icon name="table" />
-                  Send all orders to Google Sheets
-                </button>
-                <GoogleResult status={google.status.sheet} />
-              </div>
-            )}
           </section>
 
           {drops && <DropCard ledger={ledger} clock={clock} side="live" />}
@@ -2550,6 +2545,42 @@ export function Panel(props: {
             ask={approval.ask}
             badge={(r) => <Badge source={r.source} ms={r.ms} />}
           />
+          {data && data.orders.length > 0 && (
+            <section
+              className="card"
+              data-tone="money"
+              aria-labelledby="sheet-h"
+            >
+              <h3 id="sheet-h">
+                <Icon name="table" />
+                Your orders in Google Sheets
+              </h3>
+              <p className="hint">
+                Every order and a line per day, written to a sheet in your own
+                Google Drive. Sending again replaces them, so nothing doubles.
+              </p>
+              <div className="sheet-send">
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={sheetNames}
+                    onChange={(e) => setSheetNames(e.target.checked)}
+                  />{' '}
+                  Include customer names
+                </label>
+                <button
+                  type="button"
+                  className="quiet"
+                  disabled={google.status.sheet?.kind === 'busy'}
+                  onClick={() => void sendSheet()}
+                >
+                  <Icon name="table" />
+                  Send all orders
+                </button>
+                <GoogleResult status={google.status.sheet} />
+              </div>
+            </section>
+          )}
         </TabPanel>
 
         <TabPanel id="shop" current={tab}>

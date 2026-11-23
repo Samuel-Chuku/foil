@@ -1,9 +1,7 @@
 import { market, type MarketId } from '../config/market'
 import { Schema } from 'firebase/ai'
-import { parsePdfReceiptText } from '../verify/pdfReceipt'
 import { RAW_RECEIPT_FIELDS, type RawReceipt } from '../verify/receiptFields'
 import { privateModels, TEXT_AND_IMAGE } from './device'
-import { pdfText } from './pdfText'
 import { generateJson, pickStrings, type Reading } from './run'
 
 // Amounts and IDs are requested as strings: a numeric constraint makes the
@@ -92,34 +90,4 @@ export async function readReceiptImage(
     },
   ])
   return { fields: pickStrings(json, RAW_RECEIPT_FIELDS), source, ms }
-}
-
-// PDF receipts carry a text layer, so their text is read instead of an image.
-export async function readReceiptText(
-  text: string,
-  cloudConsent: boolean,
-): Promise<Reading<RawReceipt>> {
-  const { json, source, ms } = await generateJson(model(cloudConsent), [
-    `${receiptPrompt()}\n\nReceipt text:\n${text.slice(0, 6000)}`,
-  ])
-  return { fields: pickStrings(json, RAW_RECEIPT_FIELDS), source, ms }
-}
-
-// A PDF receipt is read by rules from its text layer; only a layout the rules
-// do not know goes to the model.
-export async function readReceiptPdf(
-  data: ArrayBuffer,
-  cloudConsent: boolean,
-): Promise<Reading<RawReceipt>> {
-  const started = performance.now()
-  const text = await pdfText(data)
-  const fields = parsePdfReceiptText(text)
-  if (fields) {
-    return {
-      fields,
-      source: 'Rules',
-      ms: Math.round(performance.now() - started),
-    }
-  }
-  return readReceiptText(text, cloudConsent)
 }

@@ -2341,9 +2341,6 @@ button.mic[aria-pressed='true'] {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--dk-s2) var(--dk-s3);
-  margin-top: var(--dk-s3);
-  padding-top: var(--dk-s3);
-  border-top: var(--dk-bw-hair) solid var(--dk-line);
 }
 .sheet-send .hint,
 .sheet-send .error {

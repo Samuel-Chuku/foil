@@ -29,14 +29,16 @@ export function SetupCard() {
         Getting started
       </h3>
       <p>
-        The desk works beside WhatsApp Web. It reads a chat only when you click
-        one of its buttons, and it never sends anything for you.
+        The desk works beside WhatsApp Web. It reads a chat only when you pick
+        something from it, and it never sends anything for you.
       </p>
       <ol>
         <li>
-          Open a customer&apos;s chat in WhatsApp Web. Under a receipt
-          you&apos;ll find <strong>Verify payment</strong>, and under a voice
-          note <strong>Read voice note</strong>.
+          Open a customer&apos;s chat in WhatsApp Web and click the desk&apos;s
+          floating button, bottom right: it verifies a payment, captures the
+          order, reads a voice note you have played, or drafts a reply. When you
+          type a reply, the <strong>Rewrite</strong> button above the message
+          box rewords it or puts it in another language.
         </li>
         <li>
           On the <strong>Money</strong> tab, connect the Gmail account your bank

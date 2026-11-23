@@ -79,5 +79,3 @@ export function useSpeech() {
 
   return { voices: info, speak, stop, speaking }
 }
-
-export type SpeechApi = ReturnType<typeof useSpeech>

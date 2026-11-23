@@ -25,8 +25,9 @@ import { market } from '../config/market'
 const byNameKey = (chat: OpenChat | null) =>
   chat?.phone.startsWith('name:') ? chat.contactName : null
 
-// The chat arrives from WhatsApp Web only when the vendor clicks one of the
-// desk's buttons there, and drafts go back to that tab's message box.
+// The chat arrives from WhatsApp Web only when the vendor picks something
+// from the floating desk or the writing button, and drafts go back to that
+// tab's message box.
 export default function ExtensionApp() {
   const ledger = useLedger()
   const device = useDevice()

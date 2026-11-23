@@ -18,7 +18,7 @@ const CSS = `
   --ground: rgb(239 237 229 / 0.9); --ink: #1b1c18; --ink2: #4a4c44;
   --line: rgb(27 28 24 / 0.16); --accent: #e4703a; --hover: rgb(27 28 24 / 0.07);
   position: fixed; z-index: 2147483000;
-  font: 14px/1.4 'Schibsted Grotesk Variable', 'Helvetica Neue', Arial, sans-serif;
+  font: 14px/1.4 'Schibsted Grotesk Variable', system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--ink);
 }
 @media (prefers-color-scheme: dark) {
@@ -63,8 +63,8 @@ export function mountComposeHelper(opts: {
   host.setAttribute('data-vendor-desk', 'compose')
   const root = host.attachShadow({ mode: 'closed' })
   root.innerHTML = `<style>${CSS}</style><div class="wrap" hidden>
-    <div class="menu" role="menu" aria-label="Writing help" hidden></div>
-    <button class="chip" type="button" aria-haspopup="menu" aria-expanded="false">${SPARK}<span>Desk</span></button>
+    <div class="menu" role="group" aria-label="Writing help" hidden></div>
+    <button class="chip" type="button" aria-expanded="false">${SPARK}<span>Desk</span></button>
   </div>`
   document.body.append(host)
   const wrap = root.querySelector<HTMLElement>('.wrap')!
@@ -99,7 +99,6 @@ export function mountComposeHelper(opts: {
     const button = (label: string, p: ComposePick, where: Where[]) => {
       const b = document.createElement('button')
       b.type = 'button'
-      b.setAttribute('role', 'menuitem')
       const text = document.createElement('span')
       text.textContent = label
       b.append(text, whereMarks(where))

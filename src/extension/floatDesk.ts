@@ -85,7 +85,7 @@ const CSS = `
   --ink: #1b1c18; --ink2: #4a4c44; --line: rgb(27 28 24 / 0.16);
   --accent: #e4703a; --hover: rgb(27 28 24 / 0.07);
   position: fixed; z-index: 2147483000;
-  font: 14px/1.4 'Schibsted Grotesk Variable', 'Helvetica Neue', Arial, sans-serif;
+  font: 14px/1.4 'Schibsted Grotesk Variable', system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--ink);
 }
 @media (prefers-color-scheme: dark) {
@@ -174,8 +174,8 @@ export function mountFloatDesk(opts: {
   root.innerHTML = `<style>${CSS}</style>
   <div class="wrap">
     <div class="toast" role="status" hidden></div>
-    <div class="menu" role="menu" aria-label="Payment desk" hidden></div>
-    <button class="launch" type="button" aria-haspopup="menu" aria-expanded="false" title="Payment desk (drag to move)">
+    <div class="menu" role="group" aria-label="Payment desk" hidden></div>
+    <button class="launch" type="button" aria-expanded="false" title="Payment desk (drag to move)">
       <span class="mark"></span>
     </button>
   </div>`
@@ -219,7 +219,6 @@ export function mountFloatDesk(opts: {
     const li = document.createElement('li')
     const b = document.createElement('button')
     b.type = 'button'
-    b.setAttribute('role', 'menuitem')
     b.innerHTML = `${ICONS[icon]}<span></span>`
     const text = b.querySelector('span')!
     text.textContent = label

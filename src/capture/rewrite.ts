@@ -88,6 +88,22 @@ export function rewriteStyles(m: Market): RewriteStyle[] {
   ]
 }
 
+// Markers stand in for names and numbers sent to the cloud (see protect).
+// They are only mentioned when the text has some: told about markers it
+// does not see, a model makes them up.
+const MARKED = /⟦\d+⟧/
+const MARKERS =
+  ' A marker such as ⟦1⟧ stands for a name or number: copy each one exactly where it belongs, and add no other brackets.'
+
+// Any marker a model added on its own, with nothing behind it, is dropped.
+export function unmark(text: string): string {
+  return text
+    .replace(/⟦\d*⟧?|⟧/g, '')
+    .replace(/ +([,.!?])/g, '$1')
+    .replace(/ {2,}/g, ' ')
+    .trim()
+}
+
 export function rewritePrompt(
   text: string,
   style: RewriteStyle,
@@ -96,7 +112,7 @@ export function rewritePrompt(
 ): string {
   return [
     `Rewrite this WhatsApp message that a small ${m.city} shop is about to send a customer. ${style.instruction}`,
-    'Keep every amount, number, date, time, name, place and promise exactly as written, and add nothing new: no facts, prices, fees or promises. A marker such as ⟦1⟧ stands for a name or number: copy each one exactly where it belongs, and add no other brackets.',
+    `Keep every amount, number, date, time, name, place and promise exactly as written, and add nothing new: no facts, prices, fees or promises.${MARKED.test(text) ? MARKERS : ''}`,
     ...(keep.length
       ? [`These numbers must appear exactly as written: ${keep.join(', ')}.`]
       : []),
@@ -108,8 +124,10 @@ export function rewritePrompt(
 // Every run of digits, with thousands separators taken out, so "₦18,500"
 // and "18500" count as the same number.
 export function numbersIn(text: string): string[] {
-  return (text.match(/\d[\d,.\s]*\d|\d/g) ?? [])
-    .map((n) => n.replace(/[,\s]/g, '').replace(/\.0+$/, ''))
+  // A comma or dot joins digits only as a separator ("18,500", "1.5"), so
+  // "₦9,500 2 pcs" stays two numbers.
+  return (text.match(/\d+(?:[,.]\d+)*/g) ?? [])
+    .map((n) => n.replace(/,/g, '').replace(/\.0+$/, ''))
     .filter(Boolean)
 }
 
@@ -200,7 +218,7 @@ export function readsAsEnglish(text: string): boolean {
 
 export function translatePrompt(lines: string[]): string {
   return [
-    "Put these WhatsApp messages from a shop's customer into plain English, one line for each message, in order. Keep amounts, numbers and sizes exactly, and copy each marker such as ⟦1⟧ as it is. Do not answer them; only say what they mean.",
+    `Put these WhatsApp messages from a shop's customer into plain English, one line for each message, in order. Keep amounts, numbers and sizes exactly. Do not answer them; only say what they mean.${lines.some((l) => MARKED.test(l)) ? MARKERS : ''}`,
     `Messages:\n${lines.map((l) => `- ${l}`).join('\n')}`,
   ].join('\n\n')
 }

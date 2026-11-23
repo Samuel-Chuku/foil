@@ -7,6 +7,8 @@ import {
   readsAsEnglish,
   rewritePrompt,
   rewriteStyles,
+  translatePrompt,
+  unmark,
 } from './rewrite'
 
 describe('rewrite styles', () => {
@@ -49,6 +51,7 @@ describe('rewrite styles', () => {
 describe('numbers survive a rewrite', () => {
   it('reads amounts with or without separators as the same number', () => {
     expect(numbersIn('₦18,500 for 2 items')).toEqual(['18500', '2'])
+    expect(numbersIn('₦9,500 2 pcs, ₦1,500.00')).toEqual(['9500', '2', '1500'])
   })
 
   it('finds a number the rewrite dropped or changed', () => {
@@ -84,5 +87,23 @@ describe('readsAsEnglish', () => {
   it('sends other languages to the cloud', () => {
     expect(readsAsEnglish('Ẹ jọ̀ọ́, èló ni aṣọ dúdú yìí?')).toBe(false)
     expect(readsAsEnglish('Nawa ne kudin wannan riga?')).toBe(false)
+  })
+})
+
+describe('markers', () => {
+  it('mentions markers only when the text has some', () => {
+    const style = rewriteStyles(MARKETS.ng)[0]!
+    expect(rewritePrompt('Good morning Ada', style, MARKETS.ng)).not.toContain(
+      '⟦',
+    )
+    expect(rewritePrompt('Good morning ⟦1⟧', style, MARKETS.ng)).toContain(
+      'A marker such as',
+    )
+    expect(translatePrompt(['Oya, I dey Ph'])).not.toContain('⟦')
+  })
+
+  it('drops markers a model made up', () => {
+    expect(unmark('Good morning ⟦1⟧! Paid.')).toBe('Good morning! Paid.')
+    expect(unmark('⟦1⟧ Hello.')).toBe('Hello.')
   })
 })

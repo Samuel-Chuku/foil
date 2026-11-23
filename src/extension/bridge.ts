@@ -37,9 +37,6 @@ export type FocusAsk = { kind: 'focus-ask' }
 export const isFocusAsk = (m: unknown): m is FocusAsk =>
   typeof m === 'object' && m !== null && (m as FocusAsk).kind === 'focus-ask'
 
-// Content script to the background: open the side panel on this tab.
-export type OpenPanel = { kind: 'open-panel' }
-
 // Panel to content script.
 export type ToChat =
   | { kind: 'insert-draft'; phone: string; text: string }
