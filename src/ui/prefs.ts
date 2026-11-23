@@ -31,6 +31,9 @@ export type Prefs = {
   // recommended values from Remote Config.
   sameBankWindowMin: number | null
   interbankWindowMin: number | null
+  // Whether the shop sells in drops. Null decides from the records: on once
+  // the shop has run a drop, so other shops never see drop tools.
+  drops: boolean | null
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -44,6 +47,7 @@ export const DEFAULT_PREFS: Prefs = {
   pidgin: true,
   sameBankWindowMin: null,
   interbankWindowMin: null,
+  drops: null,
 }
 
 // The ranges the sliders offer; stored values outside them are pulled in.
@@ -112,7 +116,14 @@ export function parsePrefs(raw: unknown): Prefs {
       r.interbankWindowMin,
       d.interbankWindowMin,
     ),
+    drops: typeof r.drops === 'boolean' ? r.drops : d.drops,
   }
+}
+
+// Whether drop tools show: the vendor's choice, or else whether the shop has
+// ever run a drop.
+export function usesDrops(p: Pick<Prefs, 'drops'>, dropsRun: number) {
+  return p.drops ?? dropsRun > 0
 }
 
 // What the reply settings ask of the model, as one sentence for the prompt.

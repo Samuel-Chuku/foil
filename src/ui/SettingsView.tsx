@@ -12,6 +12,7 @@ import {
   THEMES,
   TONES,
   prefsStore,
+  usesDrops,
   type Prefs,
 } from './prefs'
 
@@ -135,7 +136,11 @@ async function downloadRecords() {
   URL.revokeObjectURL(url)
 }
 
-export function SettingsView(props: { device: DeviceApi }) {
+export function SettingsView(props: {
+  device: DeviceApi
+  // Drops the shop has run, so the drops switch shows what is in force.
+  dropsRun: number
+}) {
   const p = useSyncExternalStore(prefsStore.subscribe, prefsStore.get)
   const set = prefsStore.set
   const recommended = verifyFor(appConfig().verify)
@@ -197,6 +202,20 @@ export function SettingsView(props: { device: DeviceApi }) {
           onChange={(sectionColours) => set({ sectionColours })}
           hint="Payment, orders, replies, money and shop each keep their own shade. Lime always means money your bank confirmed."
         />
+      </section>
+
+      <section className="card" data-tone="shop" aria-labelledby="shop-h">
+        <h3 id="shop-h">Your shop</h3>
+        <Switch
+          label="I sell in drops"
+          checked={usesDrops(p, props.dropsRun)}
+          onChange={(drops) => set({ drops })}
+          hint="Timed status sales of one-of-a-kind pieces. On, you set a drop up on the Shop tab and watch it live on Today. Off, drop tools stay out of the way."
+        />
+        <p className="hint">
+          Deliveries show on Today only when your Shop rules say you deliver and
+          a paid order is waiting to go out.
+        </p>
       </section>
 
       <section className="card" data-tone="reply" aria-labelledby="replies-h">

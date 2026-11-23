@@ -11,9 +11,13 @@ type NewItem = { photo: ProductPhoto; price: string }
 // A drop: one-of-a-kind items posted on status, held for the first to ask
 // while they pay, then passed down the line. Everything shown here is worked
 // out from the orders and the clock.
+// The card shows one side at a time: setting a drop up (on the Shop tab)
+// or the drop that is running (on Today, where its holds need watching).
 export function DropCard(props: {
   ledger: LedgerApi
   clock: (ms: number) => string
+  side: 'setup' | 'live'
+  onStarted?: () => void
 }) {
   const { ledger, clock } = props
   const data = ledger.data
@@ -72,12 +76,12 @@ export function DropCard(props: {
     await ledger.startDrop(drop, products)
     setItems([])
     setName('')
-    setNote(
-      'The drop is live. Replies to your status are matched to these photos.',
-    )
+    setNote(null)
+    props.onStarted?.()
   }
 
   if (!data) return null
+  if ((props.side === 'live') !== (live !== null)) return null
 
   if (!live) {
     return (
@@ -246,46 +250,49 @@ export function DropCard(props: {
           </li>
         ))}
       </ol>
-      <form
-        className="hold-edit"
-        onSubmit={(e) => {
-          e.preventDefault()
-          const holdMin = Number.parseInt(newHold ?? '', 10)
-          if (!holdMin || holdMin < 1) return
-          void ledger
-            .updateDrop({ ...live, holdMin })
-            .then(() => setNewHold(null))
-        }}
-      >
-        <label>
-          Hold for payment (minutes){' '}
-          <input
-            inputMode="numeric"
-            value={newHold ?? String(live.holdMin)}
-            onChange={(e) => setNewHold(e.target.value)}
-          />
-        </label>{' '}
-        {newHold !== null && newHold !== String(live.holdMin) && (
-          <button type="submit" className="quiet">
-            Save
-          </button>
-        )}
-      </form>
-      <p className="hint">
-        A new hold time applies to every hold in this drop, including the
-        current one.
-      </p>
-      <button
-        type="button"
-        className="quiet"
-        onClick={() => void ledger.endDrop(live)}
-      >
-        End the drop
-      </button>
-      <p className="hint">
-        Customers who ask while an item is held are told their place in line;
-        nobody is told who else asked.
-      </p>
+      <details className="drop-manage">
+        <summary>Change the hold time or end the drop</summary>
+        <form
+          className="hold-edit"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const holdMin = Number.parseInt(newHold ?? '', 10)
+            if (!holdMin || holdMin < 1) return
+            void ledger
+              .updateDrop({ ...live, holdMin })
+              .then(() => setNewHold(null))
+          }}
+        >
+          <label>
+            Hold for payment (minutes){' '}
+            <input
+              inputMode="numeric"
+              value={newHold ?? String(live.holdMin)}
+              onChange={(e) => setNewHold(e.target.value)}
+            />
+          </label>{' '}
+          {newHold !== null && newHold !== String(live.holdMin) && (
+            <button type="submit" className="quiet">
+              Save
+            </button>
+          )}
+        </form>
+        <p className="hint">
+          A new hold time applies to every hold in this drop, including the
+          current one.
+        </p>
+        <button
+          type="button"
+          className="quiet"
+          onClick={() => void ledger.endDrop(live)}
+        >
+          End the drop
+        </button>
+        <p className="hint">
+          Customers who ask while an item is held are told their place in line;
+          nobody is told who else asked.
+        </p>
+      </details>
     </details>
   )
 }

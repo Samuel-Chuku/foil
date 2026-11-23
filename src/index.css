@@ -2007,12 +2007,14 @@ p.meta:has(.badge) {
     transform: none;
   }
 }
-.read-fields {
+.read-fields,
+.drop-manage {
   margin-top: var(--dk-s3);
   padding-top: var(--dk-s2);
   border-top: var(--dk-bw-hair) solid var(--dk-line);
 }
-.read-fields > summary {
+.read-fields > summary,
+.drop-manage > summary {
   font-size: var(--dk-text-small);
   font-weight: 600;
   color: var(--dk-ink-2);

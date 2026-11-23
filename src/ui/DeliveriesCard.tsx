@@ -36,61 +36,56 @@ export function DeliveriesCard(props: {
   const { data } = props.ledger
   const groups = data ? deliveryGroups(data.orders, data.credits) : []
   const count = groups.reduce((n, g) => n + g.orders.length, 0)
+  // Nothing to send is not news; the card appears when an order is ready,
+  // folded to one line so a busy day does not bury the rest of Today.
+  if (!data || count === 0) return null
+  const out = groups.reduce(
+    (n, g) => n + g.orders.filter((x) => x.order.delivery === 'out').length,
+    0,
+  )
   return (
-    <section
-      className="card deliveries"
-      data-tone="order"
-      aria-labelledby="deliveries-h"
-    >
-      <h3 id="deliveries-h">Deliveries</h3>
-      {!data ? (
-        <p>Loading…</p>
-      ) : count === 0 ? (
-        <p className="empty">No paid orders waiting to go out.</p>
-      ) : (
-        <>
-          <p className="hint">
-            {count} paid order{count === 1 ? '' : 's'} to send or on the way,
-            grouped by where they go.
-          </p>
-          {groups.map((g) => (
-            <div key={g.label} className="delivery-group">
-              <h4>
-                {g.label} <span className="hint">({g.orders.length})</span>
-              </h4>
-              <ul>
-                {g.orders.map(({ order: o, owedKobo }) => (
-                  <li key={o.id}>
-                    <p>
-                      <strong>Order {o.code}</strong> ·{' '}
-                      {props.onOpen && o.customerId ? (
-                        <button
-                          type="button"
-                          className="link"
-                          onClick={() => props.onOpen?.(o.customerId!)}
-                        >
-                          {props.customerName(o.customerId)}
-                        </button>
-                      ) : (
-                        props.customerName(o.customerId)
-                      )}{' '}
-                      · {o.items.map((i) => `${i.qty} x ${i.name}`).join(', ')}
-                      {o.delivery === 'out' && ' · out for delivery'}
-                      {owedKobo > 0 && ` · ${formatMoney(owedKobo)} still owed`}
-                    </p>
-                    <DeliverySteps
-                      order={o}
-                      onSet={(state) =>
-                        void props.ledger.setDelivery(o.id, state)
-                      }
-                    />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </>
-      )}
-    </section>
+    <details className="card shop-rules deliveries" data-tone="order">
+      <summary>
+        <h3>Deliveries</h3>
+        <span className="hint">
+          {count - out} to send
+          {out > 0 && `, ${out} on the way`}, grouped by area
+        </span>
+      </summary>
+      {groups.map((g) => (
+        <div key={g.label} className="delivery-group">
+          <h4>
+            {g.label} <span className="hint">({g.orders.length})</span>
+          </h4>
+          <ul>
+            {g.orders.map(({ order: o, owedKobo }) => (
+              <li key={o.id}>
+                <p>
+                  <strong>Order {o.code}</strong> ·{' '}
+                  {props.onOpen && o.customerId ? (
+                    <button
+                      type="button"
+                      className="link"
+                      onClick={() => props.onOpen?.(o.customerId!)}
+                    >
+                      {props.customerName(o.customerId)}
+                    </button>
+                  ) : (
+                    props.customerName(o.customerId)
+                  )}{' '}
+                  · {o.items.map((i) => `${i.qty} x ${i.name}`).join(', ')}
+                  {o.delivery === 'out' && ' · out for delivery'}
+                  {owedKobo > 0 && ` · ${formatMoney(owedKobo)} still owed`}
+                </p>
+                <DeliverySteps
+                  order={o}
+                  onSet={(state) => void props.ledger.setDelivery(o.id, state)}
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </details>
   )
 }

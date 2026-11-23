@@ -3,6 +3,7 @@ import {
   useEffectEvent,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react'
 import { draftRequest, writeCloudDraft, writeDraft } from '../ai/draft'
@@ -112,7 +113,7 @@ import { ReceiptCard } from './ReceiptCard'
 import { ReceiptLookCard } from './ReceiptLookCard'
 import { useBrand } from './useBrand'
 import { PanelTabs, TabPanel, type TabId } from './PanelTabs'
-import { prefs, replyManner } from './prefs'
+import { prefs, prefsStore, replyManner, usesDrops } from './prefs'
 import { SettingsView } from './SettingsView'
 import { receiptFor } from '../capture/customerReceipt'
 import { TrendsCard } from './TrendsCard'
@@ -335,6 +336,7 @@ export function Panel(props: {
   const brand = useBrand()
   const [tab, setTab] = useState<TabId>('chat')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const userPrefs = useSyncExternalStore(prefsStore.subscribe, prefsStore.get)
   // A click in WhatsApp, or opening another chat, brings the chat's tab
   // forward.
   const openPhone = props.chat?.phone ?? null
@@ -352,6 +354,7 @@ export function Panel(props: {
     }
   }
   const { data, config } = ledger
+  const drops = usesDrops(userPrefs, data?.drops.length ?? 0)
   const [work, setWork] = useState<Record<string, Work>>({})
   const [appBank, setAppBank] = useState('')
   const [bankApp, setBankApp] = useState<Step<BankAppResult> | null>(null)
@@ -1460,7 +1463,9 @@ export function Panel(props: {
         )}
       </header>
 
-      {settingsOpen && <SettingsView device={device} />}
+      {settingsOpen && (
+        <SettingsView device={device} dropsRun={data?.drops.length ?? 0} />
+      )}
 
       {/* Hidden rather than unmounted, so work in progress survives a visit
           to Settings. */}
@@ -2109,24 +2114,15 @@ export function Panel(props: {
             )}
           </section>
 
-          <DropCard ledger={ledger} clock={clock} />
+          {drops && <DropCard ledger={ledger} clock={clock} side="live" />}
 
-          <DeliveriesCard
-            ledger={ledger}
-            customerName={customerName}
-            onOpen={host.openChat}
-          />
-
-          <BooksCard ledger={ledger} today={today} lagos={lagos} />
-
-          <TrendsCard
-            ledger={ledger}
-            today={today}
-            lagos={lagos}
-            online={online}
-            ask={approval.ask}
-            badge={(r) => <Badge source={r.source} ms={r.ms} />}
-          />
+          {shop.rules.methods.length > 0 && (
+            <DeliveriesCard
+              ledger={ledger}
+              customerName={customerName}
+              onOpen={host.openChat}
+            />
+          )}
         </TabPanel>
 
         <TabPanel id="money" current={tab}>
@@ -2218,6 +2214,16 @@ export function Panel(props: {
               app.
             </p>
           </section>
+          <BooksCard ledger={ledger} today={today} lagos={lagos} />
+
+          <TrendsCard
+            ledger={ledger}
+            today={today}
+            lagos={lagos}
+            online={online}
+            ask={approval.ask}
+            badge={(r) => <Badge source={r.source} ms={r.ms} />}
+          />
         </TabPanel>
 
         <TabPanel id="shop" current={tab}>
@@ -2230,6 +2236,15 @@ export function Panel(props: {
           <ReceiptLookCard brand={brand} shopName={shop.rules.shopName} />
 
           <StockCard ledger={ledger} device={device} />
+
+          {drops && (
+            <DropCard
+              ledger={ledger}
+              clock={clock}
+              side="setup"
+              onStarted={() => setTab('today')}
+            />
+          )}
         </TabPanel>
 
         <AskCard

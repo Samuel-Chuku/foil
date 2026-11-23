@@ -4,6 +4,7 @@ import {
   parsePrefs,
   replyManner,
   resolvedTheme,
+  usesDrops,
   withWindows,
 } from './prefs'
 
@@ -60,5 +61,14 @@ describe('replyManner', () => {
       tone: expect.stringContaining('formal'),
       length: expect.stringContaining('five sentences'),
     })
+  })
+})
+
+describe('usesDrops', () => {
+  it('shows drop tools only to a shop that runs drops, unless set', () => {
+    expect(usesDrops({ drops: null }, 0)).toBe(false)
+    expect(usesDrops({ drops: null }, 2)).toBe(true)
+    expect(usesDrops({ drops: true }, 0)).toBe(true)
+    expect(usesDrops({ drops: false }, 2)).toBe(false)
   })
 })
