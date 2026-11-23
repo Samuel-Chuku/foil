@@ -11,13 +11,25 @@ export type FromChat = {
   chat: OpenChat
   // What the vendor picked: a receipt to verify, the order to capture, a
   // voice note to read, or a reply to draft.
-  action: 'verify' | 'capture' | 'voice' | 'draft'
+  action: 'verify' | 'capture' | 'voice' | 'draft' | 'translate'
   messageId?: string
 }
 
 // Content script to panel: the vendor switched to this chat. `chat` carries
 // no messages.
 export type Opened = { kind: 'opened'; chat: OpenChat }
+
+// Content script to the panel: reword what the vendor typed. `chat` names
+// the chat only; its messages are not sent.
+export type Rewrite = {
+  kind: 'rewrite'
+  chat: OpenChat
+  style: string
+  text: string
+}
+
+export const isRewrite = (m: unknown): m is Rewrite =>
+  typeof m === 'object' && m !== null && (m as Rewrite).kind === 'rewrite'
 
 // Content script to the panel: the vendor picked "Ask the desk".
 export type FocusAsk = { kind: 'focus-ask' }
@@ -31,6 +43,10 @@ export type OpenPanel = { kind: 'open-panel' }
 // Panel to content script.
 export type ToChat =
   | { kind: 'insert-draft'; phone: string; text: string }
+  // Swap the box's text for a rewrite, only if it still holds `from`.
+  | { kind: 'replace-draft'; phone: string; from: string; text: string }
+  // The rewrite choices this shop's market offers, for the box's AI button.
+  | { kind: 'desk-styles'; styles: { id: string; label: string }[] }
   // The vendor clicked a panel button that needs the open chat's messages.
   | { kind: 'read-chat' }
 

@@ -2462,3 +2462,78 @@ button.mic[aria-pressed='true'] {
   font-size: var(--dk-text-meta);
   color: var(--dk-ink-2);
 }
+
+/* ---------- Writing help on the message box (demo) ---------- */
+
+.compose-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--dk-s2);
+}
+.compose-help {
+  position: relative;
+}
+.compose-help-chip {
+  min-height: var(--dk-h-small);
+  padding: 0 var(--dk-s3) 0 var(--dk-s2);
+  border-color: var(--dk-line);
+  box-shadow: none;
+  font-weight: 600;
+}
+.compose-help-chip .icon {
+  color: var(--dk-accent);
+}
+.compose-help-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--dk-s2));
+  width: 240px;
+  max-height: 60vh;
+  overflow: auto;
+  padding: 6px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--dk-surface) 90%, transparent);
+  border: var(--dk-bw) solid var(--dk-line);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.2);
+  z-index: 4;
+}
+.compose-help-menu p {
+  margin: 4px 8px 6px;
+  font-size: var(--dk-text-meta);
+  color: var(--dk-ink-2);
+}
+.compose-help-menu button {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  font-size: var(--dk-text-body);
+}
+.compose-help-menu button:hover {
+  background: color-mix(in srgb, var(--dk-ink) 7%, transparent);
+}
+.compose-help-menu button:active {
+  transform: none;
+}
+.compose-help-menu small {
+  display: block;
+  font-weight: 400;
+  font-size: var(--dk-text-meta);
+  color: var(--dk-ink-2);
+}
+.rewrite-result,
+.translation {
+  margin-top: var(--dk-s3);
+  padding-top: var(--dk-s3);
+  border-top: var(--dk-bw-hair) solid var(--dk-line);
+}
+.translation p {
+  white-space: pre-line;
+}

@@ -27,6 +27,7 @@ import { rememberMarket, RAIL_NAME } from '../ui/marketChoice'
 import { DemoIntro } from './DemoIntro'
 import type { AlertResult } from '../verify/alerts'
 import { SourceBadge } from '../ui/SourceBadge'
+import { DemoCompose } from './DemoCompose'
 import { DemoFloat } from './DemoFloat'
 
 // The hosted demo: simulated chat and inbox panes stand in for WhatsApp Web
@@ -176,6 +177,14 @@ export default function DemoApp() {
   const chat = chats.find((c) => c.phone === openPhone) ?? null
   const host: PanelHost = {
     insertDraft: (phone, text) => setDrafts((d) => ({ ...d, [phone]: text })),
+    replaceDraft: async (phone, from, to) => {
+      if ((drafts[phone] ?? '').trim() !== from.trim()) {
+        throw new Error(
+          'The message box changed since you asked. Try again on what is there now.',
+        )
+      }
+      setDrafts((d) => ({ ...d, [phone]: to }))
+    },
     // The sample day's clock: mid-afternoon, then later once time passes.
     now: () => SAMPLE_DAY_MS + (later ? 16 * 60 + 10 : 15 * 60 + 30) * 60_000,
     openChat: (key) => {
@@ -387,7 +396,13 @@ export default function DemoApp() {
                 </ol>
                 <DemoFloat chat={chat} onRequest={setRequest} />
                 <div className="compose">
-                  <label htmlFor="compose">Message</label>
+                  <div className="compose-head">
+                    <label htmlFor="compose">Message</label>
+                    <DemoCompose
+                      text={drafts[chat.phone] ?? ''}
+                      onRequest={setRequest}
+                    />
+                  </div>
                   <textarea
                     id="compose"
                     rows={3}

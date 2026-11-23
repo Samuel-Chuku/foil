@@ -56,6 +56,12 @@ export function DemoFloat(props: {
       request: () => ({ action: 'draft', nonce: nonce() }),
     },
     {
+      icon: 'globe',
+      label: 'Say it in English',
+      sub: 'Their latest messages',
+      request: () => ({ action: 'translate', nonce: nonce() }),
+    },
+    {
       icon: 'spark',
       label: 'Ask the desk',
       sub: 'About orders, stock or money',

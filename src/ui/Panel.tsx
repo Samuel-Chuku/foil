@@ -122,6 +122,19 @@ import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
 import { Icon } from './icons'
 import { SourceBadge } from './SourceBadge'
+import {
+  lostNumbers,
+  protect,
+  readsAsEnglish,
+  rewritePrompt,
+  rewriteStyles,
+  translatePrompt,
+} from '../capture/rewrite'
+import {
+  inCloud as writeInCloud,
+  onDevice as writeOnDevice,
+  writingRequest,
+} from '../ai/rewrite'
 import { GoogleResult } from './GoogleResult'
 import { useGoogle } from './useGoogle'
 import { dailyTable, ordersTable } from '../google/sheet'
@@ -171,6 +184,18 @@ type Work = {
     form: OrderForm
   }>
   draft?: Step<Reading<string>>
+  // The vendor's own text, reworded in place in the message box.
+  rewrite?: Step<{
+    reading: Reading<string>
+    label: string
+    from: string
+    to: string
+    // Numbers in what they typed that the rewrite still lost after a retry.
+    lost: string[]
+    undone?: boolean
+  }>
+  // The customer's latest messages in plain English.
+  translate?: Step<Reading<string>>
   voice?: VoiceStep
   // What each voice note said, by message id, for the reply draft.
   heard?: Record<string, VoiceNote>
@@ -512,6 +537,8 @@ export function Panel(props: {
     if (r.action === 'verify') void verify(r.messageId)
     else if (r.action === 'voice') void readVoice(r.messageId)
     else if (r.action === 'draft') void draft()
+    else if (r.action === 'rewrite') void rewrite(r.style, r.text)
+    else if (r.action === 'translate') void translate()
     else if (r.action === 'ask') {
       setSettingsOpen(false)
       const q = document.getElementById('ask-q')
@@ -1132,6 +1159,142 @@ export function Panel(props: {
         </button>
       </>
     )
+  }
+
+  // Rewords what the vendor typed, then swaps it into the box only if the
+  // box still holds exactly that. English and Pidgin are written on this
+  // computer; other languages go to the cloud after approval, with names and
+  // long numbers swapped out and put back afterwards.
+  async function rewrite(styleId: string, text: string) {
+    const phone = props.chat?.phone
+    if (!phone) return
+    const style = rewriteStyles(market()).find((x) => x.id === styleId)
+    if (!style) return
+    patch(phone, { rewrite: { status: 'running', note: `${style.label}…` } })
+    try {
+      let reading: Reading<string>
+      if (style.onDevice) {
+        await device.ready()
+        reading = await writeOnDevice(
+          rewritePrompt(text, style, market()),
+          device.consent,
+        )
+        // A number the model dropped is asked for once more by name.
+        const missing = lostNumbers(text, reading.fields)
+        if (missing.length) {
+          const again = await writeOnDevice(
+            rewritePrompt(text, style, market(), missing),
+            device.consent,
+          )
+          reading = { ...again, ms: reading.ms + again.ms }
+        }
+      } else {
+        const names = [
+          props.chat?.contactName ?? '',
+          customerName(customerId),
+        ].filter((n) => n && n !== 'Customer')
+        const safe = protect(text, names)
+        const approved = await approval.ask(
+          writingRequest(
+            'Rewrite your reply',
+            `Writing in ${style.language ?? 'this language'} is done by the cloud model, because the model on this computer cannot write it yet. Only your typed reply goes, with names and long numbers swapped out; they are put back when it returns.`,
+            rewritePrompt(safe.text, style, market()),
+            safe.replaced,
+          ),
+        )
+        if (!approved) {
+          patch(phone, { rewrite: undefined })
+          return
+        }
+        const r = await writeInCloud(approved)
+        reading = { ...r, fields: safe.restore(r.fields) }
+      }
+      const problem = draftProblem(reading.fields)
+      if (problem) throw new Error(`${problem} Your text was left as it is.`)
+      await host.replaceDraft(phone, text, reading.fields)
+      patch(phone, {
+        rewrite: {
+          status: 'done',
+          value: {
+            reading,
+            label: style.label,
+            from: text,
+            to: reading.fields,
+            lost: lostNumbers(text, reading.fields),
+          },
+        },
+      })
+    } catch (error) {
+      patch(phone, { rewrite: { status: 'error', message: errorText(error) } })
+    }
+  }
+
+  async function undoRewrite() {
+    const phone = props.chat?.phone
+    const r = current.rewrite
+    if (!phone || r?.status !== 'done') return
+    try {
+      await host.replaceDraft(phone, r.value.to, r.value.from)
+      patch(phone, {
+        rewrite: { status: 'done', value: { ...r.value, undone: true } },
+      })
+    } catch (error) {
+      patch(phone, { rewrite: { status: 'error', message: errorText(error) } })
+    }
+  }
+
+  // The customer's latest messages, since the vendor last wrote, in English.
+  async function translate() {
+    const chat = await readOpenChat()
+    if (!chat) return
+    const phone = chat.phone
+    const lastVendor = chat.messages.map((m) => m.from).lastIndexOf('vendor')
+    const lines = chat.messages
+      .slice(lastVendor + 1)
+      .filter((m) => m.from === 'customer' && m.text)
+      .slice(-4)
+      .map((m) => m.text!)
+    if (lines.length === 0) {
+      patch(phone, {
+        translate: {
+          status: 'error',
+          message: 'They have not written anything since your last message.',
+        },
+      })
+      return
+    }
+    patch(phone, { translate: { status: 'running', note: 'Reading…' } })
+    try {
+      let reading: Reading<string>
+      if (lines.every(readsAsEnglish)) {
+        await device.ready()
+        reading = await writeOnDevice(translatePrompt(lines), device.consent)
+      } else {
+        const safe = protect(lines.join('\n'), [
+          chat.contactName,
+          customerName(customerKey(phone)),
+        ])
+        const approved = await approval.ask(
+          writingRequest(
+            'Say it in English',
+            'Their messages look like a language the model on this computer cannot read yet, so the cloud model puts them into English. Only these messages go, with names and long numbers swapped out.',
+            translatePrompt(safe.text.split('\n')),
+            safe.replaced,
+          ),
+        )
+        if (!approved) {
+          patch(phone, { translate: undefined })
+          return
+        }
+        const r = await writeInCloud(approved)
+        reading = { ...r, fields: safe.restore(r.fields) }
+      }
+      patch(phone, { translate: { status: 'done', value: reading } })
+    } catch (error) {
+      patch(phone, {
+        translate: { status: 'error', message: errorText(error) },
+      })
+    }
   }
 
   async function draft() {
@@ -2109,6 +2272,71 @@ export function Panel(props: {
                     </p>
                   </>
                 )}
+                {current.rewrite?.status === 'running' && (
+                  <p aria-live="polite">{current.rewrite.note}</p>
+                )}
+                {current.rewrite?.status === 'error' && (
+                  <p className="error" role="alert">
+                    {current.rewrite.message}
+                  </p>
+                )}
+                {current.rewrite?.status === 'done' && (
+                  <div className="rewrite-result" aria-live="polite">
+                    <Badge
+                      source={current.rewrite.value.reading.source}
+                      ms={current.rewrite.value.reading.ms}
+                    />
+                    <p>
+                      {current.rewrite.value.undone
+                        ? 'Your own words are back in the message box.'
+                        : `Reworded: ${current.rewrite.value.label}. It is in the message box, not sent.`}
+                    </p>
+                    {!current.rewrite.value.undone &&
+                      current.rewrite.value.lost.length > 0 && (
+                        <p className="error" role="alert">
+                          The rewrite left out{' '}
+                          {current.rewrite.value.lost.join(', ')}. Check it
+                          before you send, or put back what you wrote.
+                        </p>
+                      )}
+                    {!current.rewrite.value.undone && (
+                      <button
+                        type="button"
+                        className="quiet"
+                        onClick={() => void undoRewrite()}
+                      >
+                        Put back what I wrote
+                      </button>
+                    )}
+                  </div>
+                )}
+                {current.translate?.status === 'running' && (
+                  <p aria-live="polite">{current.translate.note}</p>
+                )}
+                {current.translate?.status === 'error' && (
+                  <p className="error" role="alert">
+                    {current.translate.message}
+                  </p>
+                )}
+                {current.translate?.status === 'done' && (
+                  <div className="translation" aria-live="polite">
+                    <h4>What they said, in English</h4>
+                    <p>{current.translate.value.fields}</p>
+                    <Badge
+                      source={current.translate.value.source}
+                      ms={current.translate.value.ms}
+                    />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="quiet"
+                  disabled={device.busy}
+                  onClick={() => void translate()}
+                >
+                  <Icon name="globe" />
+                  Say their messages in English
+                </button>
               </section>
             </>
           )}

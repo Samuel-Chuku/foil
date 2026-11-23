@@ -32,6 +32,9 @@ export type PanelHost = {
   // Places text in the chat's message box. It is never sent. Rejects when
   // that chat is no longer the one open.
   insertDraft(phone: string, text: string): void | Promise<void>
+  // Swaps the message box's text for a rewrite, only if it still holds
+  // exactly `from`, so nothing the vendor typed since is lost. Never sends.
+  replaceDraft(phone: string, from: string, to: string): Promise<void>
   // The time now, in Lagos wall-clock milliseconds. The demo runs its own
   // clock on the sample day.
   now(): number
@@ -55,5 +58,9 @@ export type PanelRequest =
   | { action: 'capture'; nonce: number }
   | { action: 'voice'; messageId: string; nonce: number }
   | { action: 'draft'; nonce: number }
+  // Reword what the vendor typed in the message box.
+  | { action: 'rewrite'; style: string; text: string; nonce: number }
+  // Put the customer's latest messages into English.
+  | { action: 'translate'; nonce: number }
   // The vendor wants to ask the desk something: its question box is focused.
   | { action: 'ask'; nonce: number }

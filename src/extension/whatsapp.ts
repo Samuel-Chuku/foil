@@ -1,5 +1,6 @@
 import type { ChatMessage, OpenChat } from '../ui/host'
-import type { DraftReply, FromChat, Opened, ToChat } from './bridge'
+import type { DraftReply, FromChat, Opened, Rewrite, ToChat } from './bridge'
+import { mountComposeHelper } from './composeHelper'
 import { mountFloatDesk, type FloatAction, type FloatChat } from './floatDesk'
 import { phoneFromText, sentByVendor, timeFrom } from './waParse'
 
@@ -331,7 +332,9 @@ const float = mountFloatDesk({
           ? 'Opening the voice note in the desk…'
           : a.kind === 'draft'
             ? 'Writing a reply in the desk…'
-            : 'Reading the order in the desk…',
+            : a.kind === 'translate'
+              ? 'Putting their messages into English in the desk…'
+              : 'Reading the order in the desk…',
     )
     void send(a.kind, 'messageId' in a ? a.messageId : undefined)
   },
@@ -391,8 +394,89 @@ chrome.runtime.onMessage.addListener((message, _sender, reply) => {
     void readChat().then(reply, () => reply(null))
     return true
   }
+  if (m?.kind === 'desk-styles') {
+    styles = m.styles
+    return
+  }
+  if (m?.kind === 'replace-draft') {
+    void replaceDraft(m).then(reply)
+    return true
+  }
   if (m?.kind !== 'insert-draft') return
   void insertDraft(m).then(reply)
   // Keeps the channel open for the answer above.
   return true
 })
+
+// Swaps the box's text for a rewrite, only if the vendor has not changed it
+// since asking. Never presses send.
+async function replaceDraft(
+  m: Extract<ToChat, { kind: 'replace-draft' }>,
+): Promise<DraftReply> {
+  if (chatKey() !== m.phone) {
+    return {
+      ok: false,
+      reason: 'That chat is no longer open in WhatsApp. Open it and try again.',
+    }
+  }
+  const box = composeBox()
+  if (!box) return { ok: false, reason: 'The message box was not found.' }
+  if (box.innerText.trim() !== m.from.trim()) {
+    return {
+      ok: false,
+      reason:
+        'The message box changed since you asked, so it was left as it is. Try again on what is there now.',
+    }
+  }
+  box.focus()
+  document.execCommand('selectAll')
+  document.execCommand('insertText', false, m.text)
+  for (let i = 0; i < 10 && box.innerText.trim() !== m.text.trim(); i++) {
+    await new Promise((r) => setTimeout(r, 50))
+  }
+  return box.innerText.trim()
+    ? { ok: true }
+    : { ok: false, reason: 'WhatsApp did not accept the rewrite.' }
+}
+
+// The rewrite choices for the message box's AI button: the shop's market
+// tells the tab once the panel is open; Lagos until then.
+let styles: { id: string; label: string }[] = [
+  { id: 'friendlier', label: 'Friendlier' },
+  { id: 'formal', label: 'More formal' },
+  { id: 'shorter', label: 'Shorter' },
+  { id: 'spelling', label: 'Fix spelling' },
+  { id: 'pidgin', label: 'In Pidgin' },
+  { id: 'english', label: 'In English' },
+  { id: 'yoruba', label: 'In Yoruba' },
+  { id: 'igbo', label: 'In Igbo' },
+  { id: 'hausa', label: 'In Hausa' },
+]
+
+mountComposeHelper({
+  box: composeBox,
+  styles: () => styles,
+  onPick: (pick) => {
+    chrome.runtime.sendMessage({ kind: 'open-panel' }).catch(() => undefined)
+    if (pick.kind === 'draft') {
+      toast('Writing a reply in the desk…')
+      void send('draft')
+      return
+    }
+    toast('Rewriting in the desk…')
+    void deliverRewrite(pick.style, pick.text)
+  },
+})
+
+// Only which chat it is goes with a rewrite: the vendor's own text, never
+// the customer's messages.
+async function deliverRewrite(style: string, text: string) {
+  const { name } = chatHeader()
+  const chat: OpenChat = { phone: chatKey(), contactName: name, messages: [] }
+  try {
+    const message: Rewrite = { kind: 'rewrite', chat, style, text }
+    await deliver(message)
+  } catch (e) {
+    toast(problem(e))
+  }
+}

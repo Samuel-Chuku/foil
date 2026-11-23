@@ -12,12 +12,15 @@ import {
   isFocusAsk,
   isFromChat,
   isOpened,
+  isRewrite,
   type DraftReply,
   type ToChat,
 } from './bridge'
 import { GmailCard } from './GmailCard'
 import { useGmail } from './useGmail'
 import { forgetGoogle, sheetsCalendarToken } from './googleConnect'
+import { rewriteStyles } from '../capture/rewrite'
+import { market } from '../config/market'
 
 const byNameKey = (chat: OpenChat | null) =>
   chat?.phone.startsWith('name:') ? chat.contactName : null
@@ -64,6 +67,16 @@ export default function ExtensionApp() {
     (name: string, phone: string) => void remember(name, phone),
   )
 
+  // The WhatsApp tab's AI button offers this market's rewrite choices.
+  useEffect(() => {
+    if (tabId === null) return
+    const message: ToChat = {
+      kind: 'desk-styles',
+      styles: rewriteStyles(market()).map(({ id, label }) => ({ id, label })),
+    }
+    chrome.tabs.sendMessage(tabId, message).catch(() => undefined)
+  }, [tabId])
+
   useEffect(() => {
     const listen = (
       message: unknown,
@@ -86,6 +99,20 @@ export default function ExtensionApp() {
         setTabId(tab)
         return
       }
+      if (isRewrite(message)) {
+        reply(true)
+        setChat((current) =>
+          current?.phone === message.chat.phone ? current : message.chat,
+        )
+        setTabId(sender.tab.id)
+        setRequest({
+          action: 'rewrite',
+          style: message.style,
+          text: message.text,
+          nonce: Date.now(),
+        })
+        return
+      }
       if (!isFromChat(message)) return
       // Tells the WhatsApp tab the request arrived, so it stops resending.
       reply(true)
@@ -101,7 +128,15 @@ export default function ExtensionApp() {
       setRequest(
         (a === 'verify' || a === 'voice') && message.messageId
           ? { action: a, messageId: message.messageId, nonce }
-          : { action: a === 'draft' ? 'draft' : 'capture', nonce },
+          : {
+              action:
+                a === 'draft'
+                  ? 'draft'
+                  : a === 'translate'
+                    ? 'translate'
+                    : 'capture',
+              nonce,
+            },
       )
     }
     chrome.runtime.onMessage.addListener(listen)
@@ -127,6 +162,23 @@ export default function ExtensionApp() {
       const message: ToChat = {
         kind: 'insert-draft',
         phone: phone === shown?.phone ? chat.phone : phone,
+        text,
+      }
+      const reply = (await chrome.tabs.sendMessage(tabId, message)) as
+        DraftReply | undefined
+      if (!reply) {
+        throw new Error('WhatsApp Web did not answer. Reload it and try again.')
+      }
+      if (!reply.ok) throw new Error(reply.reason)
+    },
+    replaceDraft: async (phone, from, text) => {
+      if (tabId === null || !chat) {
+        throw new Error('Open the chat in WhatsApp Web first.')
+      }
+      const message: ToChat = {
+        kind: 'replace-draft',
+        phone: phone === shown?.phone ? chat.phone : phone,
+        from,
         text,
       }
       const reply = (await chrome.tabs.sendMessage(tabId, message)) as

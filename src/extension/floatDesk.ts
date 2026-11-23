@@ -9,6 +9,7 @@ export type FloatAction =
   | { kind: 'voice'; messageId: string }
   | { kind: 'capture' }
   | { kind: 'draft' }
+  | { kind: 'translate' }
   | { kind: 'ask' }
   | { kind: 'open' }
 
@@ -37,6 +38,9 @@ const ICONS = {
   ),
   spark: svg(
     '<path d="M12 3.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5Z"/>',
+  ),
+  globe: svg(
+    '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 3.5 5.4 3.5 8.5s-1 5.9-3.5 8.5c-2.5-2.6-3.5-5.4-3.5-8.5s1-5.9 3.5-8.5Z"/>',
   ),
   panel: svg(
     '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M14.5 4.5v15"/>',
@@ -124,8 +128,9 @@ function savedPos(): Pos {
   } catch {
     // First use, or the page blocks storage.
   }
-  // Clear of WhatsApp's message box and send button.
-  return { right: 24, bottom: 96 }
+  // Clear of WhatsApp's message box, its send button and the box's own AI
+  // button just above it.
+  return { right: 24, bottom: 150 }
 }
 
 export function mountFloatDesk(opts: {
@@ -244,6 +249,11 @@ export function mountFloatDesk(opts: {
       list.append(
         item('reply', 'Draft a reply', 'Placed in the box, never sent', {
           kind: 'draft',
+        }),
+      )
+      list.append(
+        item('globe', 'Say it in English', 'Their latest messages', {
+          kind: 'translate',
         }),
       )
     } else {
