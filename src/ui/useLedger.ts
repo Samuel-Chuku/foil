@@ -28,6 +28,7 @@ import {
   type RawHistoryRow,
 } from '../verify/history'
 import type { Credit } from '../verify/types'
+import { prefs, withWindows } from './prefs'
 
 export type BooksSync =
   | { state: 'idle' }
@@ -47,8 +48,9 @@ export type LedgerData = {
   chats: ChatNote[]
 }
 
-// Fixed for the session: Remote Config is applied before the first render.
-const verifyConfig = () => verifyFor(appConfig().verify)
+// Remote Config is applied before the first render; the vendor's own
+// matching windows, from Settings, are laid over it on every read.
+const verifyConfig = () => withWindows(verifyFor(appConfig().verify), prefs())
 
 // Read straight from IndexedDB, so a step that waited seconds on the model
 // decides against the records as they are now.

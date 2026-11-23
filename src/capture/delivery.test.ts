@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { balanceKobo, newOrder } from '../ledger/ledger'
 import type { Order } from '../ledger/types'
 import type { Credit } from '../verify/types'
-import { deliveryFacts, describePlan, planDelivery } from './delivery'
+import {
+  deliveryFacts,
+  describePlan,
+  planDelivery,
+  planFromChat,
+} from './delivery'
 import { EMPTY_RULES, type ShopRules } from './shopRules'
 
 const rules: ShopRules = {
@@ -217,5 +222,54 @@ describe('delivery in drafts and balances', () => {
       ]),
     ).toBe(0)
     expect(balanceKobo({ ...paid, deliveryPlan: null }, [credit])).toBe(0)
+  })
+})
+
+describe('planFromChat', () => {
+  const shop: ShopRules = { ...rules, homeState: 'Lagos' }
+  const parks: ShopRules = {
+    ...shop,
+    parks: [
+      { state: 'Abuja', park: 'Jabi', feeKobo: 600_000 },
+      { state: 'Abuja', park: 'Utako', feeKobo: 600_000 },
+    ],
+  }
+
+  it('quotes a state whose parks share a price and asks which park', () => {
+    const said =
+      "I'm in Abuja. Can you send it to me here? How much will it cost?"
+    const plan = planFromChat(said, parks, said)
+    expect(plan).toMatchObject({
+      method: 'nationwide',
+      state: 'Abuja',
+      park: '',
+    })
+    const [fact] = deliveryFacts(plan, parks, 1_600_000)
+    expect(fact).toContain('₦6,000')
+    expect(fact).toContain('Jabi or Utako')
+    expect(fact).toContain('₦22,000')
+  })
+
+  it('says the fee will be confirmed for a state with no park price', () => {
+    const said = 'Oya. I dey for Ph, Rumuokoro side. Una fit send am come?'
+    const plan = planFromChat(said, shop, said)
+    expect(plan).toMatchObject({ method: 'nationwide', state: 'Rivers' })
+    expect(deliveryFacts(plan, shop, 950_000)[0]).toContain(
+      'no set price for Rivers',
+    )
+  })
+
+  it("uses the shop's rider fee for a listed Lagos area", () => {
+    const said = 'Can you deliver to Yaba?'
+    expect(planFromChat(said, shop, said)).toMatchObject({
+      method: 'own-rider',
+      area: 'Yaba',
+      feeKobo: 150_000,
+    })
+  })
+
+  it('plans nothing when no place is named', () => {
+    const said = 'How much is the black abaya?'
+    expect(planFromChat(said, shop, said)).toBeNull()
   })
 })

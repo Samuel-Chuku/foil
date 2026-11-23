@@ -81,7 +81,7 @@ export function DropCard(props: {
 
   if (!live) {
     return (
-      <details className="card shop-rules drop">
+      <details className="card shop-rules drop" data-tone="shop">
         <summary>
           <h3>Drop</h3>
           <span className="hint">
@@ -182,7 +182,7 @@ export function DropCard(props: {
   ).length
 
   return (
-    <details className="card shop-rules drop" open>
+    <details className="card shop-rules drop" data-tone="shop" open>
       <summary>
         <h3>Drop: {live.name}</h3>
         <span className="hint">

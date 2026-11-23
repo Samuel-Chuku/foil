@@ -65,7 +65,7 @@ export function TrendsCard(props: {
 
   const quiet = t !== null && t.current.orders === 0 && t.moneyInKobo === 0
   return (
-    <details className="card shop-rules trends">
+    <details className="card shop-rules trends" data-tone="money">
       <summary>
         <h3>Your business over time</h3>
         <span className="hint">

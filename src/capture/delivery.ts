@@ -121,6 +121,33 @@ export function planDelivery(
   return plan
 }
 
+const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase())
+
+// Before an order is captured, the place the customer named is enough to
+// plan delivery by the shop's rules, so a draft is never left to guess a
+// park or a fee. `said` is the customer's own lines only.
+export function planFromChat(
+  said: string,
+  rules: ShopRules,
+  chat: string,
+): DeliveryPlan | null {
+  const place = placeIn(said)
+  if (!place) return null
+  return planDelivery(
+    {
+      address: '',
+      area: titleCase(place.said),
+      deliveryChoice: '',
+      state: place.state,
+      park: '',
+      payOnDelivery: false,
+      pickup: false,
+    },
+    rules,
+    chat,
+  )
+}
+
 // The shop's set price for a plan, if it has one: an area fee for its own
 // rider, or a park price. Couriers and the customer's rider have none.
 export function ruleFee(
@@ -205,6 +232,13 @@ export function deliveryFacts(
         (p) => sameState(p.state, plan.state) || same(p.state, plan.state),
       )
       if (!plan.park && parks.length > 1) {
+        const fees = new Set(parks.map((p) => p.feeKobo))
+        if (fees.size === 1 && plan.paidTo !== 'rider') {
+          const fee = parks[0]!.feeKobo
+          return [
+            `Delivery to ${plan.state} costs ${formatMoney(fee)}, sent to a park. Ask which park they want: ${parks.map((p) => p.park).join(' or ')}.${breakdown(fee)}`,
+          ]
+        }
         return [
           `Delivery to ${plan.state} goes to a park. Ask which park they want: ${parks.map((p) => `${p.park} (${formatMoney(p.feeKobo)})`).join(', ')}.`,
         ]

@@ -95,7 +95,7 @@ export function QueueCard(props: {
   const sections = [...new Set(entries.map((e) => e.section))] as Section[]
 
   return (
-    <section className="card queue" aria-labelledby="queue-h">
+    <section className="card queue" data-tone="ask" aria-labelledby="queue-h">
       <h3 id="queue-h">Who needs you</h3>
       {entries.length === 0 ? (
         <p className="empty">

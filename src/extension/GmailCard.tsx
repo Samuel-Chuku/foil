@@ -36,7 +36,7 @@ export function GmailCard(props: {
 
   if (!gmailClientId()) {
     return (
-      <section className="card" aria-labelledby="gmail-h">
+      <section className="card" data-tone="pay" aria-labelledby="gmail-h">
         <h3 id="gmail-h">Bank alert emails</h3>
         <p className="error">
           Gmail reading is not set up in this build. Add the Gmail client ID to
@@ -47,7 +47,7 @@ export function GmailCard(props: {
   }
 
   return (
-    <section className="card" aria-labelledby="gmail-h">
+    <section className="card" data-tone="pay" aria-labelledby="gmail-h">
       <h3 id="gmail-h">Bank alert emails</h3>
       <p className="hint">
         The desk reads your bank alerts from Gmail every 45 seconds while this

@@ -76,8 +76,8 @@ strong {
   outline-offset: var(--dk-focus-offset);
 }
 ::selection {
-  background: var(--dk-ink);
-  color: var(--dk-on-ink);
+  background: var(--dk-accent-soft);
+  color: var(--dk-ink);
 }
 pre {
   white-space: pre-wrap;
@@ -170,6 +170,7 @@ button.primary,
 .card > button:first-of-type:not(.quiet):not(.link) {
   background: var(--dk-ink);
   color: var(--dk-on-ink);
+  box-shadow: 2px 2px 0 0 var(--dk-accent);
 }
 button.primary:hover,
 .card > button:first-of-type:not(.quiet):not(.link):hover {
@@ -228,7 +229,9 @@ textarea {
   border-radius: var(--dk-r-control);
   min-width: 0;
 }
-input:not([type='checkbox']):not([type='radio']):not([type='file']),
+input:not([type='checkbox']):not([type='radio']):not([type='file']):not(
+    [type='range']
+  ),
 select {
   min-height: var(--dk-h-control);
   padding: 0 var(--dk-s3);
@@ -600,9 +603,19 @@ p.meta:has(.badge) {
   background: var(--dk-ground);
   border: var(--dk-bw-hair) solid var(--dk-line);
 }
+/* Who said it reads from shape and fill together: the customer's bubbles sit
+   left on the ground with a square bottom-left corner; the vendor's sit right
+   in the accent's soft shade, with a square bottom-right corner. */
+.messages li.customer,
+.messages li:not(.vendor) {
+  border-bottom-left-radius: var(--dk-r-tag);
+}
 .messages li.vendor {
   align-self: flex-end;
-  background: var(--dk-sunk);
+  background: var(--dk-accent-soft);
+  border-color: color-mix(in oklab, var(--dk-accent) 45%, transparent);
+  border-bottom-right-radius: var(--dk-r-tag);
+  border-bottom-left-radius: var(--dk-r-control);
 }
 .messages p {
   margin: 0;
@@ -717,6 +730,7 @@ p.meta:has(.badge) {
 /* ---------- Panel shell ---------- */
 
 .panel {
+  zoom: var(--dk-zoom);
   border-left: var(--dk-bw-hair) solid var(--dk-line);
   padding: var(--dk-s4);
   overflow-y: auto;
@@ -811,9 +825,27 @@ p.meta:has(.badge) {
   background: color-mix(in srgb, var(--dk-ink) 6%, transparent);
   color: var(--dk-ink);
 }
+.panel-tabs [role='tab']::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--dk-r-round);
+  background: var(--tone-deep, var(--dk-ink-3));
+}
 .panel-tabs [role='tab'][aria-selected='true'] {
+  background: var(--tone, var(--dk-ink));
+  color: var(--dk-ink);
+  box-shadow: inset 0 0 0 var(--dk-bw-hair)
+    color-mix(in oklab, var(--tone-deep, var(--dk-ink)) 40%, transparent);
+}
+:root[data-tones='off'] .panel-tabs [role='tab'][aria-selected='true'] {
   background: var(--dk-ink);
   color: var(--dk-on-ink);
+  box-shadow: none;
+}
+:root[data-tones='off'] .panel-tabs [role='tab']::before {
+  display: none;
 }
 .panel-tabs [role='tab']:active {
   transform: none;
@@ -826,7 +858,8 @@ p.meta:has(.badge) {
   margin-left: var(--dk-s1);
   padding: 0 var(--dk-s1);
   border-radius: var(--dk-r-round);
-  border: var(--dk-bw-hair) solid currentColor;
+  background: var(--dk-accent);
+  color: var(--dk-on-accent);
   font-size: var(--dk-text-micro);
   font-weight: 600;
 }
@@ -841,6 +874,51 @@ p.meta:has(.badge) {
 }
 .card h3 {
   margin: 0 0 var(--dk-s3);
+}
+
+/* Section colour: each card is washed in its section's pastel, and its title
+   carries a small chip of the deep shade. Off in Settings, cards go plain. */
+[data-tone='pay'] {
+  --tone: var(--dk-tone-pay);
+  --tone-deep: var(--dk-tone-pay-deep);
+}
+[data-tone='order'] {
+  --tone: var(--dk-tone-order);
+  --tone-deep: var(--dk-tone-order-deep);
+}
+[data-tone='reply'] {
+  --tone: var(--dk-tone-reply);
+  --tone-deep: var(--dk-tone-reply-deep);
+}
+[data-tone='ask'] {
+  --tone: var(--dk-tone-ask);
+  --tone-deep: var(--dk-tone-ask-deep);
+}
+[data-tone='money'] {
+  --tone: var(--dk-tone-money);
+  --tone-deep: var(--dk-tone-money-deep);
+}
+[data-tone='shop'] {
+  --tone: var(--dk-tone-shop);
+  --tone-deep: var(--dk-tone-shop-deep);
+}
+:root:not([data-tones='off']) .card[data-tone] {
+  background: color-mix(
+    in oklab,
+    var(--tone) var(--dk-tone-wash),
+    var(--dk-surface)
+  );
+  border-color: color-mix(in oklab, var(--tone-deep) 28%, transparent);
+}
+:root:not([data-tones='off']) .card[data-tone] h3::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--dk-s2);
+  border-radius: 3px;
+  background: var(--tone-deep);
+  vertical-align: 0;
 }
 .card > details > summary h3,
 .shop-rules summary h3 {
@@ -1972,4 +2050,229 @@ p.meta:has(.badge) {
 }
 .delivery-group h4 .hint {
   font-size: inherit;
+}
+
+/* ---------- Panel title and Settings ---------- */
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dk-s2);
+}
+/* The desk's mark: a small key in the vendor's accent. */
+.panel-title h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--dk-s2);
+}
+.panel-title h2::before {
+  content: '';
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--dk-r-tag);
+  background: var(--dk-accent);
+  box-shadow: 2px 2px 0 0 var(--dk-ink);
+}
+.settings-title {
+  margin: var(--dk-s2) 0 0;
+  font-size: var(--dk-text-head);
+}
+.setting {
+  border: none;
+  padding: 0;
+  margin: 0 0 var(--dk-s4);
+  min-width: 0;
+}
+.setting:last-child {
+  margin-bottom: 0;
+}
+.setting legend,
+.setting-head label {
+  padding: 0;
+  margin-bottom: var(--dk-s2);
+  font-size: var(--dk-text-small);
+  font-weight: 600;
+}
+.setting-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.setting-head output {
+  font-size: var(--dk-text-meta);
+  color: var(--dk-ink-2);
+}
+.setting .hint {
+  margin: var(--dk-s1) 0 0;
+}
+
+/* Segmented choice: radios drawn as one track, like the tabs. */
+.segmented {
+  display: flex;
+  gap: var(--dk-s1);
+  padding: var(--dk-s1);
+  border-radius: var(--dk-r-control);
+  background: color-mix(in oklab, var(--dk-ink) 7%, transparent);
+}
+.segmented label {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+}
+.segmented input,
+.swatches input,
+.switch input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.segmented span {
+  display: grid;
+  place-items: center;
+  min-height: 28px;
+  padding: 0 var(--dk-s2);
+  border-radius: 8px;
+  font-size: var(--dk-text-small);
+  font-weight: 600;
+  color: var(--dk-ink-2);
+  white-space: nowrap;
+}
+.segmented label:hover span {
+  color: var(--dk-ink);
+}
+.segmented input:checked + span {
+  background: var(--dk-surface);
+  color: var(--dk-ink);
+  box-shadow:
+    inset 0 0 0 var(--dk-bw) var(--dk-ink),
+    2px 2px 0 0 var(--dk-ink);
+}
+.segmented input:focus-visible + span,
+.swatches input:focus-visible + span,
+.switch input:focus-visible + span::before {
+  outline: var(--dk-focus);
+  outline-offset: var(--dk-focus-offset);
+}
+
+/* Accent swatches: a chip of each colour, the chosen one keyed. */
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--dk-s2);
+}
+.swatches label {
+  position: relative;
+}
+.swatches span {
+  display: flex;
+  align-items: center;
+  gap: var(--dk-s2);
+  min-height: var(--dk-h-control);
+  padding: 0 var(--dk-s3);
+  border-radius: var(--dk-r-control);
+  border: var(--dk-bw-hair) solid var(--dk-line);
+  background: var(--dk-surface);
+  font-size: var(--dk-text-small);
+  font-weight: 600;
+}
+.swatches span::before {
+  content: '';
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--dk-r-tag);
+  background: var(--swatch);
+}
+.swatches input:checked + span {
+  border: var(--dk-bw) solid var(--dk-ink);
+  box-shadow: 2px 2px 0 0 var(--swatch);
+}
+[data-accent-swatch='ember'] {
+  --swatch: #e4703a;
+}
+[data-accent-swatch='butter'] {
+  --swatch: #e8bd3a;
+}
+[data-accent-swatch='iris'] {
+  --swatch: #9582e3;
+}
+[data-accent-swatch='sea'] {
+  --swatch: #3f9b8a;
+}
+
+/* Switch: a checkbox drawn as a sliding key. */
+.switch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--dk-s3);
+  font-size: var(--dk-text-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+.switch span {
+  display: flex;
+  align-items: center;
+  gap: var(--dk-s3);
+}
+.switch span::before {
+  content: '';
+  flex: none;
+  width: 36px;
+  height: 20px;
+  border-radius: var(--dk-r-round);
+  border: var(--dk-bw) solid var(--dk-ink);
+  background:
+    radial-gradient(circle at 9px 50%, var(--dk-ink) 5px, transparent 5.5px),
+    var(--dk-surface);
+  transition: background var(--dk-fast);
+}
+.switch input:checked + span::before {
+  background:
+    radial-gradient(circle at 25px 50%, var(--dk-ink) 5px, transparent 5.5px),
+    var(--dk-accent);
+}
+
+/* Range: a thin ink track with a keyed thumb. */
+input[type='range'] {
+  width: 100%;
+  min-height: 0;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  accent-color: var(--dk-accent);
+  appearance: none;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--dk-r-round);
+  background: color-mix(in oklab, var(--dk-ink) 22%, transparent);
+}
+input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  border-radius: var(--dk-r-round);
+  border: var(--dk-bw) solid var(--dk-ink);
+  background: var(--dk-accent);
+  box-shadow: 2px 2px 0 0 var(--dk-ink);
+  cursor: pointer;
+}
+input[type='range']:focus-visible {
+  outline: var(--dk-focus);
+  outline-offset: var(--dk-focus-offset);
+}
+
+/* A narrow panel keeps the tab labels whole; the selected tab's colour still
+   says which section is open. */
+@container panel (max-width: 380px) {
+  .panel-tabs [role='tab']::before {
+    display: none;
+  }
 }

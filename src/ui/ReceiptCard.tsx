@@ -74,7 +74,11 @@ export function ReceiptCard(props: {
   }
 
   return (
-    <section className="card receipt" aria-labelledby="receipt-h">
+    <section
+      className="card receipt"
+      data-tone="pay"
+      aria-labelledby="receipt-h"
+    >
       <h3 id="receipt-h">Receipt for the customer</h3>
       <p className="hint">
         {receiptTitle(receipt)}: {formatMoney(receipt.paidKobo)}

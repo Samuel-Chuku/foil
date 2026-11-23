@@ -46,7 +46,11 @@ export function MoneyPulseCard(props: { ledger: LedgerApi; now: number }) {
 
   if (!data) {
     return (
-      <section className="card pulse" aria-labelledby="pulse-h">
+      <section
+        className="card pulse"
+        data-tone="money"
+        aria-labelledby="pulse-h"
+      >
         <h3 id="pulse-h">Money today</h3>
         <p className="empty">Loading your bank alerts…</p>
       </section>
@@ -82,7 +86,7 @@ export function MoneyPulseCard(props: { ledger: LedgerApi; now: number }) {
   }
 
   return (
-    <section className="card pulse" aria-labelledby="pulse-h">
+    <section className="card pulse" data-tone="money" aria-labelledby="pulse-h">
       <div className="pulse-head">
         <h3 id="pulse-h">Money today</h3>
         <p className="pulse-live" role="status">

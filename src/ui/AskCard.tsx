@@ -203,7 +203,7 @@ export function AskCard(props: {
   }
 
   return (
-    <section className="card ask-desk" aria-labelledby="ask-h">
+    <section className="card ask-desk" data-tone="ask" aria-labelledby="ask-h">
       <h3 id="ask-h">Ask the desk</h3>
       {turns.length === 0 && (
         <p className="hint">

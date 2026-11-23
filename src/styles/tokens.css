@@ -59,6 +59,36 @@
   --dk-chart-out: var(--dk-ink-2);
   --dk-chart-grid: rgb(27 28 24 / 0.12);
 
+  /*
+   * Colour. One accent the vendor picks in Settings, and a soft pastel per
+   * section so the eye finds Payment, Order, Reply and the rest at a glance.
+   * Neither ever means money: only lime does. Pastels are fills behind ink;
+   * the deep shades are for small marks (chips, dots), never body text.
+   */
+  --dk-accent: #e4703a;
+  --dk-accent-soft: #f2d6c4;
+  --dk-accent-deep: #9c3f14;
+  /* Text on the accent: every accent is light enough for ink (4.5:1 up). */
+  --dk-on-accent: #1b1c18;
+
+  --dk-tone-pay: #c9d9e6;
+  --dk-tone-pay-deep: #3c6688;
+  --dk-tone-order: #ecd6b8;
+  --dk-tone-order-deep: #a35d22;
+  --dk-tone-reply: #dcd3ee;
+  --dk-tone-reply-deep: #5e4b9c;
+  --dk-tone-ask: #efe2a6;
+  --dk-tone-ask-deep: #8a6d0c;
+  --dk-tone-money: #c8e2d8;
+  --dk-tone-money-deep: #2c7262;
+  --dk-tone-shop: #ebcfc7;
+  --dk-tone-shop-deep: #9b4b3f;
+  /* How strongly a section's pastel washes its card. */
+  --dk-tone-wash: 34%;
+
+  /* The vendor's text size, as a zoom on the panel (Settings). */
+  --dk-zoom: 1;
+
   /* Type. Bundled with the build, so the panel never fetches a font. */
   --dk-font-ui:
     'Schibsted Grotesk Variable', 'Helvetica Neue', Arial, sans-serif;
@@ -106,26 +136,72 @@
   --dk-fresh: 2400ms ease-out;
 }
 
-/* The night ledger: the same system drawn for a dark browser. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --dk-ground: #141512;
-    --dk-surface: #1c1d19;
-    --dk-sunk: #10110e;
-    --dk-ink: #eceae0;
-    --dk-ink-2: #b9b8ae;
-    --dk-ink-3: #8f8e85;
-    --dk-on-ink: #141512;
-    --dk-line: rgb(236 234 224 / 0.14);
-    --dk-on-landed: #141512;
-    --dk-key-colour: #5e5d55;
-    --dk-dot: rgb(236 234 224 / 0.3);
-    --dk-hatch: repeating-linear-gradient(
-      135deg,
-      rgb(236 234 224 / 0.34) 0 1px,
-      transparent 1px 6px
-    );
-    --dk-chart-grid: rgb(236 234 224 / 0.12);
-  }
+/* Accents the vendor can choose (Settings → Appearance). */
+:root[data-accent='butter'] {
+  --dk-accent: #e8bd3a;
+  --dk-accent-soft: #f2e4b0;
+  --dk-accent-deep: #7a5c00;
+}
+:root[data-accent='iris'] {
+  --dk-accent: #9582e3;
+  --dk-accent-soft: #ddd6f2;
+  --dk-accent-deep: #4f3aa6;
+}
+:root[data-accent='sea'] {
+  --dk-accent: #3f9b8a;
+  --dk-accent-soft: #cbe5de;
+  --dk-accent-deep: #1f6457;
+}
+
+/* Compact density: the same grid, one step tighter. */
+:root[data-density='compact'] {
+  --dk-s3: 8px;
+  --dk-s4: 12px;
+  --dk-s5: 16px;
+  --dk-h-control: 32px;
+  --dk-h-small: 24px;
+}
+
+/*
+ * The night ledger: the same system drawn dark. Chosen in Settings, or
+ * following the browser when the vendor leaves it on System (applyPrefs.ts
+ * resolves that to this attribute).
+ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --dk-ground: #141512;
+  --dk-surface: #1c1d19;
+  --dk-sunk: #10110e;
+  --dk-ink: #eceae0;
+  --dk-ink-2: #b9b8ae;
+  --dk-ink-3: #a19f96;
+  --dk-on-ink: #141512;
+  --dk-line: rgb(236 234 224 / 0.14);
+  --dk-on-landed: #141512;
+  --dk-key-colour: #5e5d55;
+  --dk-dot: rgb(236 234 224 / 0.3);
+  --dk-hatch: repeating-linear-gradient(
+    135deg,
+    rgb(236 234 224 / 0.34) 0 1px,
+    transparent 1px 6px
+  );
+  --dk-chart-grid: rgb(236 234 224 / 0.12);
+
+  /* At night the pastels swap roles: deep shades wash the cards, and the
+     light pastels become the small marks. */
+  --dk-accent-soft: color-mix(in oklab, var(--dk-accent) 26%, #1c1d19);
+  --dk-accent-deep: color-mix(in oklab, var(--dk-accent) 70%, #ffffff);
+  --dk-tone-pay-deep: #9fc0dc;
+  --dk-tone-pay: #3c6688;
+  --dk-tone-order-deep: #e5b98a;
+  --dk-tone-order: #8a4d1b;
+  --dk-tone-reply-deep: #c3b6ea;
+  --dk-tone-reply: #5e4b9c;
+  --dk-tone-ask-deep: #e8d27a;
+  --dk-tone-ask: #6f570a;
+  --dk-tone-money-deep: #9fd6c4;
+  --dk-tone-money: #256152;
+  --dk-tone-shop-deep: #e3aea2;
+  --dk-tone-shop: #9b4b3f;
+  --dk-tone-wash: 18%;
 }

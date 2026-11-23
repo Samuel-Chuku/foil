@@ -37,7 +37,11 @@ export function DeliveriesCard(props: {
   const groups = data ? deliveryGroups(data.orders, data.credits) : []
   const count = groups.reduce((n, g) => n + g.orders.length, 0)
   return (
-    <section className="card deliveries" aria-labelledby="deliveries-h">
+    <section
+      className="card deliveries"
+      data-tone="order"
+      aria-labelledby="deliveries-h"
+    >
       <h3 id="deliveries-h">Deliveries</h3>
       {!data ? (
         <p>Loading…</p>

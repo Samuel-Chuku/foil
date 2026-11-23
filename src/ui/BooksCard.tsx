@@ -30,7 +30,7 @@ export function BooksCard(props: {
   const books = data ? dayBooks(day, data, config, props.lagos.day) : null
   const empty = books && books.orders === 0 && books.moneyInKobo === 0
   return (
-    <details className="card shop-rules books">
+    <details className="card shop-rules books" data-tone="money">
       <summary>
         <h3>Books for the day</h3>
         <span className="hint">

@@ -94,28 +94,38 @@ const PIDGIN_STYLE =
 
 // How a shop in each market writes. Lagos follows the customer between
 // English and Pidgin; Mumbai writes English; São Paulo writes Portuguese.
-function replyStyle(chat: string, m: Market): string {
+function replyStyle(chat: string, m: Market, pidgin: boolean): string {
   if (m.id === 'in') {
     return 'Reply in friendly, plain English, the way a Mumbai shop writes to customers on WhatsApp. If the customer writes "ji" or a common Hindi word, you may answer as politely, but write in English.'
   }
   if (m.id === 'br') {
     return 'Reply in natural Brazilian Portuguese, short and friendly, the way a São Paulo shop writes to customers on WhatsApp. Write amounts like R$ 150,00.'
   }
-  return writesPidgin(chat)
+  return pidgin && writesPidgin(chat)
     ? PIDGIN_STYLE
     : 'Reply in the same language the customer uses.'
+}
+
+// How the vendor likes replies written, from Settings.
+export type Manner = { tone: string; length: string; pidgin: boolean }
+
+const DEFAULT_MANNER: Manner = {
+  tone: 'Be warm and plain.',
+  length: 'one short WhatsApp reply of one to three sentences',
+  pidgin: true,
 }
 
 export function draftPrompt(
   facts: DraftFacts,
   chat: string,
   m: Market = market(),
+  manner: Manner = DEFAULT_MANNER,
 ): string {
   const items = facts.items.map((i) => `${i.qty} x ${i.name}`).join(', ')
-  const style = replyStyle(chat, m)
+  const style = replyStyle(chat, m, manner.pidgin)
   return `You run a small ${m.city} shop and are replying to a customer on WhatsApp.
 Facts to convey: ${[...(facts.complaint ? [COMPLAINT] : []), paymentLine(facts), ...(facts.stock ?? []), ...(facts.followUp ?? []), ...(facts.extra ?? []).map(extraLine)].join(' ')}${items ? `\nOrder: ${items}.` : ''}${facts.delivery?.length ? `\nDelivery: ${facts.delivery.join(' ')}` : ''}${facts.rules?.length ? `\nShop rules, for your reference only. If the customer asks about anything these cover, such as a delivery fee, answer from them; otherwise leave them out, and never mention "shop rules" by name:\n${facts.rules.join('\n')}` : ''}
-Write one short WhatsApp reply of one to three sentences that conveys the facts and answers any question in the customer's latest messages. ${style} Be warm and plain. Never use words a ${m.city} shop would not, such as "Ahoy", "Salamat" or "Eekoo", never join words with a slash such as "brother/sister", and never leave a placeholder in brackets. Do not add facts, prices, fees, hours or promises that are not given here, and do not say you will check or confirm anything these facts already answer. Output only the reply text.
+Write ${manner.length} that conveys the facts and answers any question in the customer's latest messages. ${style} ${manner.tone} Never use words a ${m.city} shop would not, such as "Ahoy", "Salamat" or "Eekoo", never join words with a slash such as "brother/sister", and never leave a placeholder in brackets. Do not add facts, prices, fees, hours or promises that are not given here, and do not say you will check or confirm anything these facts already answer. Output only the reply text.
 
 Chat:
 ${chat}`

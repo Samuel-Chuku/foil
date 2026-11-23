@@ -166,7 +166,7 @@ export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
   }
 
   return (
-    <details className="card shop-rules">
+    <details className="card shop-rules" data-tone="shop">
       <summary>
         <h3>Stock</h3>
         <span className="hint">

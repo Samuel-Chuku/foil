@@ -2,11 +2,12 @@ import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 
 export type TabId = 'chat' | 'today' | 'money' | 'shop'
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'chat', label: 'This chat' },
-  { id: 'today', label: 'Today' },
-  { id: 'money', label: 'Money' },
-  { id: 'shop', label: 'Shop' },
+// Each tab wears the colour of the section it opens.
+const TABS: { id: TabId; label: string; tone: string }[] = [
+  { id: 'chat', label: 'This chat', tone: 'pay' },
+  { id: 'today', label: 'Today', tone: 'order' },
+  { id: 'money', label: 'Money', tone: 'money' },
+  { id: 'shop', label: 'Shop', tone: 'shop' },
 ]
 
 // The panel's sections as tabs, following the ARIA tabs pattern: arrow keys
@@ -48,6 +49,7 @@ export function PanelTabs(props: {
             }}
             type="button"
             role="tab"
+            data-tone={t.tone}
             id={`tab-${t.id}`}
             aria-selected={selected}
             aria-controls={`tabpanel-${t.id}`}

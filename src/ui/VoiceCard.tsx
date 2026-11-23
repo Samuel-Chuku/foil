@@ -19,7 +19,7 @@ export function VoiceCard(props: {
 }) {
   const { step } = props
   return (
-    <section className="card voice" aria-labelledby="voice-h">
+    <section className="card voice" data-tone="reply" aria-labelledby="voice-h">
       <h3 id="voice-h">Voice note</h3>
       {step.status === 'running' && <p aria-live="polite">{step.note}</p>}
       {step.status === 'error' && (

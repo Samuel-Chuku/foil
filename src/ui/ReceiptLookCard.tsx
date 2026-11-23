@@ -87,7 +87,7 @@ export function ReceiptLookCard(props: { brand: BrandApi; shopName: string }) {
 
   const fontId = look.font.kind === 'builtin' ? look.font.id : 'file'
   return (
-    <details className="card shop-rules receipt-look">
+    <details className="card shop-rules receipt-look" data-tone="shop">
       <summary>
         <h3>Receipt look</h3>
         <span className="hint">

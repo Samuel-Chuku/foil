@@ -194,7 +194,7 @@ export function ShopRulesCard(props: {
   ].filter(Boolean)
 
   return (
-    <details className="card shop-rules">
+    <details className="card shop-rules" data-tone="shop">
       <summary>
         <h3>Shop rules</h3>
         <span className="hint">
