@@ -1,13 +1,14 @@
 import { useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { Icon, type IconName } from './icons'
 
 export type TabId = 'chat' | 'today' | 'money' | 'shop'
 
 // Each tab wears the colour of the section it opens.
-const TABS: { id: TabId; label: string; tone: string }[] = [
-  { id: 'chat', label: 'This chat', tone: 'pay' },
-  { id: 'today', label: 'Today', tone: 'order' },
-  { id: 'money', label: 'Money', tone: 'money' },
-  { id: 'shop', label: 'Shop', tone: 'shop' },
+const TABS: { id: TabId; label: string; tone: string; icon: IconName }[] = [
+  { id: 'chat', label: 'This chat', tone: 'pay', icon: 'chat' },
+  { id: 'today', label: 'Today', tone: 'order', icon: 'today' },
+  { id: 'money', label: 'Money', tone: 'money', icon: 'money' },
+  { id: 'shop', label: 'Shop', tone: 'shop', icon: 'shop' },
 ]
 
 // The panel's sections as tabs, following the ARIA tabs pattern: arrow keys
@@ -57,6 +58,7 @@ export function PanelTabs(props: {
             onClick={() => props.onChange(t.id)}
             onKeyDown={(e) => move(e, i)}
           >
+            <Icon name={t.icon} />
             {t.label}
             {count > 0 && (
               <span className="tab-count" aria-label={`, ${count} waiting`}>

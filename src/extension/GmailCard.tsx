@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { gmailClientId } from './gmailAuth'
 import type { AccountStatus, GmailApi } from './useGmail'
+import { Icon } from '../ui/icons'
 
 const clock = (ms: number) =>
   new Date(ms).toLocaleTimeString('en-NG', {
@@ -37,7 +38,10 @@ export function GmailCard(props: {
   if (!gmailClientId()) {
     return (
       <section className="card" data-tone="pay" aria-labelledby="gmail-h">
-        <h3 id="gmail-h">Bank alert emails</h3>
+        <h3 id="gmail-h">
+          <Icon name="money" />
+          Bank alert emails
+        </h3>
         <p className="error">
           Gmail reading is not set up in this build. Add the Gmail client ID to
           the extension&apos;s settings and build it again.
@@ -48,7 +52,10 @@ export function GmailCard(props: {
 
   return (
     <section className="card" data-tone="pay" aria-labelledby="gmail-h">
-      <h3 id="gmail-h">Bank alert emails</h3>
+      <h3 id="gmail-h">
+        <Icon name="money" />
+        Bank alert emails
+      </h3>
       <p className="hint">
         The desk reads your bank alerts from Gmail every 45 seconds while this
         panel is open, and checks waiting orders as money lands. It can only

@@ -11,17 +11,22 @@ import {
   mergeRead,
   METHOD_LABEL,
   homeOf,
+  SELLS,
   type DeliveryMethod,
+  type Sells,
   type ShopRules,
 } from '../capture/shopRules'
 import { STATES, type State } from '../capture/places'
 import { parseMoney } from '../verify/money'
 import { fileToImage } from './bankApp'
+import { Segmented } from './controls'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { ShopRulesApi } from './useShopRules'
+import { Icon } from './icons'
 
 type Form = {
   shopName: string
+  sells: Sells
   homeState: ShopRules['homeState']
   methods: DeliveryMethod[]
   areas: { area: string; fee: string }[]
@@ -35,10 +40,17 @@ type Form = {
   fromFile: string[]
 }
 
+const SELLS_LABEL: Record<Sells, string> = {
+  goods: 'Goods',
+  services: 'Services',
+  digital: 'Digital',
+}
+
 const naira = (kobo: number) => String(kobo / 100)
 
 const toForm = (r: ShopRules): Form => ({
   shopName: r.shopName,
+  sells: r.sells,
   homeState: r.homeState,
   methods: r.methods,
   areas: r.areaFees.map((f) => ({ area: f.area, fee: naira(f.feeKobo) })),
@@ -58,6 +70,7 @@ const toForm = (r: ShopRules): Form => ({
 
 const fromForm = (f: Form): ShopRules => ({
   shopName: f.shopName.trim(),
+  sells: f.sells,
   homeState: f.homeState,
   methods: f.methods,
   areaFees: f.areas.flatMap((x) => {
@@ -107,6 +120,9 @@ export function ShopRulesCard(props: {
   const [note, setNote] = useState<string | null>(null)
   const [reading, setReading] = useState<string | null>(null)
   const f = form ?? toForm(shop.rules)
+  // Whether the delivery options are open: the shop delivers, or the vendor
+  // has just said it does and is choosing how.
+  const [deliverChosen, setDeliverChosen] = useState<boolean | null>(null)
   const edit = (next: Partial<Form>, field?: string) => {
     setNote(null)
     setForm({
@@ -184,11 +200,14 @@ export function ShopRulesCard(props: {
   }
 
   const uses = (m: DeliveryMethod) => f.methods.includes(m)
+  const delivers = deliverChosen ?? f.methods.some((m) => m !== 'pickup')
   // What the address says when the vendor has not chosen a state.
   const inferred = homeOf({ ...fromForm(f), homeState: '' })
   const r = shop.rules
   const summary = [
-    r.methods.length > 0 && `${r.methods.length} delivery options`,
+    r.methods.some((m) => m !== 'pickup') && 'delivery fees',
+    r.methods.includes('pickup') &&
+      (r.sells === 'services' ? 'where customers come' : 'pickup'),
     r.refundTerms && 'refund terms',
     r.policies && 'your policies',
   ].filter(Boolean)
@@ -196,7 +215,10 @@ export function ShopRulesCard(props: {
   return (
     <details className="card shop-rules" data-tone="shop">
       <summary>
-        <h3>Shop rules</h3>
+        <h3>
+          <Icon name="shop" />
+          Shop rules
+        </h3>
         <span className="hint">
           {summary.length > 0
             ? `Drafts use: ${summary.join(', ')}.`
@@ -216,6 +238,7 @@ export function ShopRulesCard(props: {
           // Saving is the vendor's check of everything read from files.
           void shop.save({ ...fromForm(f), fromFile: [] }).then(() => {
             setForm(null)
+            setDeliverChosen(null)
             setNote('Saved. New drafts will use these rules.')
           })
         }}
@@ -252,200 +275,258 @@ export function ShopRulesCard(props: {
             onChange={(e) => edit({ shopName: e.target.value })}
           />
         </label>
+        <Segmented
+          legend="1. What do you sell?"
+          options={SELLS}
+          value={f.sells}
+          onChange={(sells) => edit({ sells })}
+          label={(v) => SELLS_LABEL[v]}
+        />
         <fieldset>
-          <legend>1. How do you deliver?</legend>
-          <p className="hint">
-            Tick all that apply, or leave them all unticked if you don&apos;t
-            deliver, for example for services or digital goods.
-          </p>
-          <Checked field="methods" form={f} />
-          <label>
-            Where is your shop?{' '}
-            <select
-              value={f.homeState}
-              onChange={(e) =>
-                edit({ homeState: e.target.value as State | '' })
-              }
-            >
-              <option value="">
-                {inferred
-                  ? `Not chosen (looks like ${inferred === 'FCT' ? 'Abuja' : inferred}, from your address)`
-                  : 'Not chosen'}
-              </option>
-              {STATES.map((st) => (
-                <option key={st} value={st}>
-                  {st === 'FCT' ? 'Abuja (FCT)' : st}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="hint">
-            A customer in any other state is offered your nationwide option.
-          </p>
-          {DELIVERY_METHODS.map((m) => (
-            <label key={m} className="check">
-              <input
-                type="checkbox"
-                checked={uses(m)}
-                onChange={(e) =>
+          <legend>2. How do customers get their order?</legend>
+          <p className="hint">Tick what applies, or neither.</p>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={delivers}
+              onChange={(e) => {
+                setDeliverChosen(e.target.checked)
+                if (!e.target.checked) {
                   edit(
-                    {
-                      methods: e.target.checked
-                        ? [...f.methods, m]
-                        : f.methods.filter((x) => x !== m),
-                    },
+                    { methods: f.methods.filter((m) => m === 'pickup') },
                     'methods',
                   )
                 }
-              />{' '}
-              {METHOD_LABEL[m]}
-            </label>
-          ))}
-          {uses('own-rider') && (
+              }}
+            />{' '}
+            {f.sells === 'services'
+              ? 'I go to them, or send what they ordered'
+              : 'I deliver: my rider, a courier or a park'}
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={uses('pickup')}
+              onChange={(e) =>
+                edit(
+                  {
+                    methods: e.target.checked
+                      ? [...f.methods, 'pickup']
+                      : f.methods.filter((x) => x !== 'pickup'),
+                  },
+                  'methods',
+                )
+              }
+            />{' '}
+            {f.sells === 'services'
+              ? 'They come to me'
+              : 'They collect from my shop'}
+          </label>
+          {!delivers && !uses('pickup') && (
+            <p className="hint">
+              Nothing to deliver or collect: replies never mention delivery, and
+              Today shows no deliveries.
+            </p>
+          )}
+          <Checked field="methods" form={f} />
+          {delivers && (
             <div className="sub">
+              <label>
+                Where is your shop?{' '}
+                <select
+                  value={f.homeState}
+                  onChange={(e) =>
+                    edit({ homeState: e.target.value as State | '' })
+                  }
+                >
+                  <option value="">
+                    {inferred
+                      ? `Not chosen (looks like ${inferred === 'FCT' ? 'Abuja' : inferred}, from your address)`
+                      : 'Not chosen'}
+                  </option>
+                  {STATES.map((st) => (
+                    <option key={st} value={st}>
+                      {st === 'FCT' ? 'Abuja (FCT)' : st}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <p className="hint">
-                Fees by area <Checked field="areaFees" form={f} />
+                A customer in any other state is offered your nationwide option.
               </p>
-              {f.areas.map((x, n) => (
-                <div key={n} className="fee-row">
-                  <label>
-                    Area
-                    <input
-                      value={x.area}
-                      onChange={(e) =>
-                        edit(
-                          {
-                            areas: f.areas.map((y, k) =>
-                              k === n ? { ...y, area: e.target.value } : y,
-                            ),
-                          },
-                          'areaFees',
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    Fee ({market().currency.symbol})
-                    <input
-                      inputMode="decimal"
-                      value={x.fee}
-                      onChange={(e) =>
-                        edit(
-                          {
-                            areas: f.areas.map((y, k) =>
-                              k === n ? { ...y, fee: e.target.value } : y,
-                            ),
-                          },
-                          'areaFees',
-                        )
-                      }
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className="link"
-                    onClick={() =>
+              {DELIVERY_METHODS.filter((m) => m !== 'pickup').map((m) => (
+                <label key={m} className="check">
+                  <input
+                    type="checkbox"
+                    checked={uses(m)}
+                    onChange={(e) =>
                       edit(
-                        { areas: f.areas.filter((_, k) => k !== n) },
-                        'areaFees',
+                        {
+                          methods: e.target.checked
+                            ? [...f.methods, m]
+                            : f.methods.filter((x) => x !== m),
+                        },
+                        'methods',
                       )
                     }
-                  >
-                    Remove
-                  </button>
-                </div>
+                  />{' '}
+                  {METHOD_LABEL[m]}
+                </label>
               ))}
-              <button
-                type="button"
-                className="quiet"
-                onClick={() =>
-                  edit({ areas: [...f.areas, { area: '', fee: '' }] })
-                }
-              >
-                Add an area
-              </button>
-              <label>
-                Fee for other areas ({market().currency.symbol}, empty if you
-                quote each time) <Checked field="otherAreasFeeKobo" form={f} />
-                <input
-                  inputMode="decimal"
-                  value={f.otherFee}
-                  onChange={(e) =>
-                    edit({ otherFee: e.target.value }, 'otherAreasFeeKobo')
-                  }
-                />
-              </label>
-            </div>
-          )}
-          {uses('nationwide') && (
-            <div className="sub">
-              <p className="hint">
-                States, parks and prices <Checked field="parks" form={f} />
-              </p>
-              {f.parks.map((x, n) => (
-                <div key={n} className="park-row">
-                  {(
-                    [
-                      ['state', 'State'],
-                      ['park', 'Park'],
-                      ['fee', `Fee (${market().currency.symbol})`],
-                    ] as const
-                  ).map(([k, label]) => (
-                    <label key={k}>
-                      {label}
-                      <input
-                        inputMode={k === 'fee' ? 'decimal' : undefined}
-                        value={x[k]}
-                        onChange={(e) =>
+              {uses('own-rider') && (
+                <details className="sub fee-details">
+                  <summary>
+                    Fees by area ({f.areas.length}){' '}
+                    <Checked field="areaFees" form={f} />
+                  </summary>
+
+                  {f.areas.map((x, n) => (
+                    <div key={n} className="fee-row">
+                      <label>
+                        Area
+                        <input
+                          value={x.area}
+                          onChange={(e) =>
+                            edit(
+                              {
+                                areas: f.areas.map((y, k) =>
+                                  k === n ? { ...y, area: e.target.value } : y,
+                                ),
+                              },
+                              'areaFees',
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        Fee ({market().currency.symbol})
+                        <input
+                          inputMode="decimal"
+                          value={x.fee}
+                          onChange={(e) =>
+                            edit(
+                              {
+                                areas: f.areas.map((y, k) =>
+                                  k === n ? { ...y, fee: e.target.value } : y,
+                                ),
+                              },
+                              'areaFees',
+                            )
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() =>
                           edit(
-                            {
-                              parks: f.parks.map((y, j) =>
-                                j === n ? { ...y, [k]: e.target.value } : y,
-                              ),
-                            },
-                            'parks',
+                            { areas: f.areas.filter((_, k) => k !== n) },
+                            'areaFees',
                           )
                         }
-                      />
-                    </label>
+                      >
+                        Remove
+                      </button>
+                    </div>
                   ))}
                   <button
                     type="button"
-                    className="link"
+                    className="quiet"
                     onClick={() =>
-                      edit(
-                        { parks: f.parks.filter((_, j) => j !== n) },
-                        'parks',
-                      )
+                      edit({ areas: [...f.areas, { area: '', fee: '' }] })
                     }
                   >
-                    Remove
+                    Add an area
                   </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                className="quiet"
-                onClick={() =>
-                  edit({
-                    parks: [...f.parks, { state: '', park: '', fee: '' }],
-                  })
-                }
-              >
-                Add a state or park
-              </button>
+                  <label>
+                    Fee for other areas ({market().currency.symbol}, empty if
+                    you quote each time){' '}
+                    <Checked field="otherAreasFeeKobo" form={f} />
+                    <input
+                      inputMode="decimal"
+                      value={f.otherFee}
+                      onChange={(e) =>
+                        edit({ otherFee: e.target.value }, 'otherAreasFeeKobo')
+                      }
+                    />
+                  </label>
+                </details>
+              )}
+              {uses('nationwide') && (
+                <details className="sub fee-details">
+                  <summary>
+                    States, parks and prices ({f.parks.length}){' '}
+                    <Checked field="parks" form={f} />
+                  </summary>
+
+                  {f.parks.map((x, n) => (
+                    <div key={n} className="park-row">
+                      {(
+                        [
+                          ['state', 'State'],
+                          ['park', 'Park'],
+                          ['fee', `Fee (${market().currency.symbol})`],
+                        ] as const
+                      ).map(([k, label]) => (
+                        <label key={k}>
+                          {label}
+                          <input
+                            inputMode={k === 'fee' ? 'decimal' : undefined}
+                            value={x[k]}
+                            onChange={(e) =>
+                              edit(
+                                {
+                                  parks: f.parks.map((y, j) =>
+                                    j === n ? { ...y, [k]: e.target.value } : y,
+                                  ),
+                                },
+                                'parks',
+                              )
+                            }
+                          />
+                        </label>
+                      ))}
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() =>
+                          edit(
+                            { parks: f.parks.filter((_, j) => j !== n) },
+                            'parks',
+                          )
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="quiet"
+                    onClick={() =>
+                      edit({
+                        parks: [...f.parks, { state: '', park: '', fee: '' }],
+                      })
+                    }
+                  >
+                    Add a state or park
+                  </button>
+                </details>
+              )}
+              {(uses('courier') || uses('customer-rider')) && (
+                <p className="hint">
+                  Courier and customer-rider prices are agreed in each chat, so
+                  there is nothing to fill in here.
+                </p>
+              )}
             </div>
-          )}
-          {(uses('courier') || uses('customer-rider')) && (
-            <p className="hint">
-              Courier and customer-rider prices are agreed in each chat, so
-              there is nothing to fill in here.
-            </p>
           )}
         </fieldset>
         {uses('pickup') && (
           <fieldset>
-            <legend>2. Pickup</legend>
+            <legend>
+              {f.sells === 'services' ? 'Where customers come' : 'Pickup'}
+            </legend>
             <label>
               Address <Checked field="pickupAddress" form={f} />
               <input
@@ -468,8 +549,7 @@ export function ShopRulesCard(props: {
           </fieldset>
         )}
         <label>
-          {uses('pickup') ? '3.' : '2.'} Refunds and exchanges{' '}
-          <Checked field="refundTerms" form={f} />
+          3. Refunds and exchanges <Checked field="refundTerms" form={f} />
           <input
             value={f.refundTerms}
             placeholder="Exchanges within 3 days with the tag on"
@@ -479,7 +559,7 @@ export function ShopRulesCard(props: {
           />
         </label>
         <fieldset>
-          <legend>{uses('pickup') ? '4.' : '3.'} Everything else</legend>
+          <legend>4. Everything else</legend>
           <label className="file">
             Add files: PDF, text or screenshots{' '}
             <input
@@ -521,6 +601,7 @@ export function ShopRulesCard(props: {
             className="quiet"
             onClick={() => {
               setForm(null)
+              setDeliverChosen(null)
               setNote(null)
             }}
           >

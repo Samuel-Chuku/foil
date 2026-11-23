@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Reading } from '../ai/run'
 import type { VoiceNote } from '../capture/voice'
+import { Icon } from './icons'
 
 export type VoiceStep =
   | { status: 'running'; note: string }
@@ -20,7 +21,10 @@ export function VoiceCard(props: {
   const { step } = props
   return (
     <section className="card voice" data-tone="reply" aria-labelledby="voice-h">
-      <h3 id="voice-h">Voice note</h3>
+      <h3 id="voice-h">
+        <Icon name="mic" />
+        Voice note
+      </h3>
       {step.status === 'running' && <p aria-live="polite">{step.note}</p>}
       {step.status === 'error' && (
         <p className="error" role="alert">

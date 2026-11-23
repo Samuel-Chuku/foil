@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Icon } from '../ui/icons'
 
 const KEY = 'setup-seen'
 
@@ -23,7 +24,10 @@ export function SetupCard() {
   }
   return (
     <section className="card setup" data-tone="ask" aria-labelledby="setup-h">
-      <h3 id="setup-h">Getting started</h3>
+      <h3 id="setup-h">
+        <Icon name="spark" />
+        Getting started
+      </h3>
       <p>
         The desk works beside WhatsApp Web. It reads a chat only when you click
         one of its buttons, and it never sends anything for you.

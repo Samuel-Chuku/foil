@@ -10,6 +10,7 @@ import type { CustomerReceipt } from '../capture/customerReceipt'
 import { readFont, readLogo } from './brandFiles'
 import type { BrandApi } from './useBrand'
 import { useReceiptPicture } from './useReceiptPicture'
+import { Icon } from './icons'
 
 // A made-up receipt, so the vendor can see their look before any sale.
 const preview = (shop: string): CustomerReceipt => ({
@@ -89,7 +90,10 @@ export function ReceiptLookCard(props: { brand: BrandApi; shopName: string }) {
   return (
     <details className="card shop-rules receipt-look" data-tone="shop">
       <summary>
-        <h3>Receipt look</h3>
+        <h3>
+          <Icon name="tag" />
+          Receipt look
+        </h3>
         <span className="hint">
           {isPlain(saved)
             ? 'Optional: your logo, colour and font on receipts.'

@@ -66,6 +66,12 @@ describe('shop rules', () => {
     expect(rulesForDraft(EMPTY_RULES, 'hi')).toEqual([])
   })
 
+  it('tells drafts when the shop sells services, not goods', () => {
+    expect(rulesForDraft({ ...EMPTY_RULES, sells: 'services' }, 'hi')).toEqual([
+      'The shop sells services, not goods.',
+    ])
+  })
+
   it('brings back rules saved by the first version', () => {
     const old = {
       deliveryFees: [{ area: 'Yaba', feeKobo: 150_000 }],

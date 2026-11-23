@@ -10,6 +10,7 @@ import type { Order } from '../ledger/types'
 import { formatMoney } from '../verify/money'
 import { Chart } from './Chart'
 import type { LedgerApi } from './useLedger'
+import { Icon } from './icons'
 
 export type Lagos = { day: (o: Order) => string; hour: (o: Order) => number }
 
@@ -67,7 +68,10 @@ export function TrendsCard(props: {
   return (
     <details className="card shop-rules trends" data-tone="money">
       <summary>
-        <h3>Your business over time</h3>
+        <h3>
+          <Icon name="chart" />
+          Your business over time
+        </h3>
         <span className="hint">
           {!t
             ? 'Loading…'

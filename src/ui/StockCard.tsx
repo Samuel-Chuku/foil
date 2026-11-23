@@ -6,6 +6,7 @@ import { parseMoney } from '../verify/money'
 import { photoFromFile } from './photos'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
+import { Icon } from './icons'
 
 type Row = {
   id: string | null
@@ -168,7 +169,10 @@ export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
   return (
     <details className="card shop-rules" data-tone="shop">
       <summary>
-        <h3>Stock</h3>
+        <h3>
+          <Icon name="box" />
+          Stock
+        </h3>
         <span className="hint">
           {products.length === 0
             ? 'No products yet. Drafts will not quote prices or stock.'

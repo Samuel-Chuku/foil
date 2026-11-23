@@ -1,4 +1,5 @@
-import { useId, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useState, useSyncExternalStore } from 'react'
+import { Segmented, Slider, Switch } from './controls'
 import { appConfig } from '../config/active'
 import { verifyFor } from '../config/marketBanks'
 import { market } from '../config/market'
@@ -15,99 +16,13 @@ import {
   usesDrops,
   type Prefs,
 } from './prefs'
+import { Icon } from './icons'
 
 const ACCENT_NAME: Record<Prefs['accent'], string> = {
   ember: 'Ember',
   butter: 'Butter',
   iris: 'Iris',
   sea: 'Sea glass',
-}
-
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
-
-// A row of choices drawn as one segmented control, built on radio inputs so
-// arrow keys and screen readers treat it as one choice.
-function Segmented<T extends string>(props: {
-  legend: string
-  options: readonly T[]
-  value: T
-  onChange: (v: T) => void
-  label?: (v: T) => ReactNode
-}) {
-  const name = useId()
-  return (
-    <fieldset className="setting">
-      <legend>{props.legend}</legend>
-      <div className="segmented">
-        {props.options.map((o) => (
-          <label key={o}>
-            <input
-              type="radio"
-              name={name}
-              value={o}
-              checked={props.value === o}
-              onChange={() => props.onChange(o)}
-            />
-            <span>{props.label ? props.label(o) : cap(o)}</span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  )
-}
-
-function Slider(props: {
-  label: string
-  value: number
-  range: { min: number; max: number; step: number }
-  unit: string
-  onChange: (v: number) => void
-  hint?: ReactNode
-}) {
-  const id = useId()
-  return (
-    <div className="setting">
-      <div className="setting-head">
-        <label htmlFor={id}>{props.label}</label>
-        <output htmlFor={id} className="num">
-          {props.value}
-          {props.unit}
-        </output>
-      </div>
-      <input
-        id={id}
-        type="range"
-        min={props.range.min}
-        max={props.range.max}
-        step={props.range.step}
-        value={props.value}
-        onChange={(e) => props.onChange(Number(e.target.value))}
-      />
-      {props.hint && <p className="hint">{props.hint}</p>}
-    </div>
-  )
-}
-
-function Switch(props: {
-  label: string
-  checked: boolean
-  onChange: (v: boolean) => void
-  hint?: ReactNode
-}) {
-  return (
-    <div className="setting">
-      <label className="switch">
-        <input
-          type="checkbox"
-          role="switch"
-          checked={props.checked}
-          onChange={(e) => props.onChange(e.target.checked)}
-        />
-        <span>{props.label}</span>
-      </label>
-      {props.hint && <p className="hint">{props.hint}</p>}
-    </div>
-  )
 }
 
 const RECORDS: StoreName[] = [
@@ -158,13 +73,18 @@ export function SettingsView(props: {
       </p>
 
       <section className="card" data-tone="ask" aria-labelledby="look-h">
-        <h3 id="look-h">Appearance</h3>
+        <h3 id="look-h">
+          <Icon name="settings" />
+          Appearance
+        </h3>
         <Segmented
           legend="Theme"
           options={THEMES}
           value={p.theme}
           onChange={(theme) => set({ theme })}
-          label={(t) => (t === 'system' ? 'Match browser' : cap(t))}
+          label={(t) =>
+            ({ system: 'Match browser', light: 'Light', dark: 'Dark' })[t]
+          }
         />
         <fieldset className="setting">
           <legend>Accent</legend>
@@ -205,7 +125,10 @@ export function SettingsView(props: {
       </section>
 
       <section className="card" data-tone="shop" aria-labelledby="shop-h">
-        <h3 id="shop-h">Your shop</h3>
+        <h3 id="shop-h">
+          <Icon name="shop" />
+          Your shop
+        </h3>
         <Switch
           label="I sell in drops"
           checked={usesDrops(p, props.dropsRun)}
@@ -219,7 +142,10 @@ export function SettingsView(props: {
       </section>
 
       <section className="card" data-tone="reply" aria-labelledby="replies-h">
-        <h3 id="replies-h">Replies</h3>
+        <h3 id="replies-h">
+          <Icon name="reply" />
+          Replies
+        </h3>
         <Segmented
           legend="Tone"
           options={TONES}
@@ -244,7 +170,10 @@ export function SettingsView(props: {
       </section>
 
       <section className="card" data-tone="pay" aria-labelledby="match-h">
-        <h3 id="match-h">Matching payments</h3>
+        <h3 id="match-h">
+          <Icon name="receipt" />
+          Matching payments
+        </h3>
         <Slider
           label="Same-bank transfers land within"
           value={p.sameBankWindowMin ?? recommended.sameBankWindowMin}
@@ -275,7 +204,10 @@ export function SettingsView(props: {
       </section>
 
       <section className="card" aria-labelledby="ai-h">
-        <h3 id="ai-h">AI on this computer</h3>
+        <h3 id="ai-h">
+          <Icon name="device" />
+          AI on this computer
+        </h3>
         <p className="hint">
           {device.state === 'available'
             ? 'The model on this computer is ready, so receipts, orders and replies are read here.'
@@ -292,7 +224,10 @@ export function SettingsView(props: {
       </section>
 
       <section className="card" aria-labelledby="data-h">
-        <h3 id="data-h">Your records</h3>
+        <h3 id="data-h">
+          <Icon name="book" />
+          Your records
+        </h3>
         <p className="hint">
           Orders, customers and alerts live in this browser. Keep a copy as a
           file; it never leaves this computer.

@@ -39,6 +39,7 @@ import { Chart } from './Chart'
 import type { Lagos } from './TrendsCard'
 import type { LedgerApi } from './useLedger'
 import { useVoiceAsk } from './useVoiceAsk'
+import { Icon } from './icons'
 
 // The week to today against the week before, for "how did this week go?".
 const SPAN = 7
@@ -289,7 +290,10 @@ export function AskCard(props: {
 
   return (
     <section className="card ask-desk" data-tone="ask" aria-labelledby="ask-h">
-      <h3 id="ask-h">Ask the desk</h3>
+      <h3 id="ask-h">
+        <Icon name="spark" />
+        Ask the desk
+      </h3>
       {turns.length === 0 && (
         <p className="hint">
           {onDevice
@@ -308,6 +312,12 @@ export function AskCard(props: {
                     <ol className="ask-steps" aria-label="What the desk did">
                       {t.answer.steps.map((st, n) => (
                         <li key={n} data-source={st.source}>
+                          <Icon
+                            name={
+                              st.source === 'On device' ? 'device' : 'cloud'
+                            }
+                            size={13}
+                          />
                           {st.label}
                         </li>
                       ))}
@@ -416,7 +426,10 @@ export function AskCard(props: {
                 voice.state.status === 'listening' ? voice.stop : voice.start
               }
             >
-              {voice.state.status === 'listening' ? '■ Stop' : '● Speak'}
+              <Icon
+                name={voice.state.status === 'listening' ? 'stop' : 'mic'}
+              />
+              {voice.state.status === 'listening' ? 'Stop' : 'Speak'}
             </button>
           )}
           {voice.mode === 'device-download' && (

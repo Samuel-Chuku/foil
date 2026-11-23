@@ -9,6 +9,7 @@ import {
 import { formatMoney } from '../verify/money'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
+import { Icon } from './icons'
 
 const LABEL_TEXT = {
   order: 'Order',
@@ -96,7 +97,10 @@ export function QueueCard(props: {
 
   return (
     <section className="card queue" data-tone="ask" aria-labelledby="queue-h">
-      <h3 id="queue-h">Who needs you</h3>
+      <h3 id="queue-h">
+        <Icon name="bell" />
+        Who needs you
+      </h3>
       {entries.length === 0 ? (
         <p className="empty">
           Nobody is waiting. Chats appear here once you open them with the desk,

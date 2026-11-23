@@ -120,6 +120,8 @@ import { TrendsCard } from './TrendsCard'
 import type { ShopRulesApi } from './useShopRules'
 import { NeedsConsent, type DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
+import { Icon } from './icons'
+import { SourceBadge } from './SourceBadge'
 
 type Step<T> =
   | { status: 'running'; note: string }
@@ -224,10 +226,7 @@ function errorText(error: unknown): string {
 function Badge(props: { source: Reading<unknown>['source']; ms: number }) {
   return (
     <p className="meta">
-      <span className="badge" data-source={props.source}>
-        {props.source}
-      </span>{' '}
-      {(props.ms / 1000).toFixed(1)} s
+      <SourceBadge source={props.source} /> {(props.ms / 1000).toFixed(1)} s
     </p>
   )
 }
@@ -1449,7 +1448,8 @@ export function Panel(props: {
             aria-expanded={settingsOpen}
             onClick={() => setSettingsOpen((o) => !o)}
           >
-            {settingsOpen ? 'Close settings' : 'Settings'}
+            <Icon name={settingsOpen ? 'back' : 'settings'} />
+            {settingsOpen ? 'Back to the desk' : 'Settings'}
           </button>
         </div>
         <DeviceStatus device={device} />
@@ -1477,7 +1477,10 @@ export function Panel(props: {
             aria-label="Now paid"
             aria-live="polite"
           >
-            <h3>Now paid</h3>
+            <h3>
+              <Icon name="check" />
+              Now paid
+            </h3>
             <ul>
               {ledger.justPaid.map((id) => {
                 const o = data.orders.find((x) => x.id === id)
@@ -1526,7 +1529,10 @@ export function Panel(props: {
               </p>
 
               <section className="card" data-tone="pay" aria-labelledby="pay-h">
-                <h3 id="pay-h">Payment</h3>
+                <h3 id="pay-h">
+                  <Icon name="receipt" />
+                  Payment
+                </h3>
                 {!hasReceipt && (
                   <p className="empty">
                     {chat?.messages.length === 0
@@ -1676,7 +1682,10 @@ export function Panel(props: {
                 data-tone="order"
                 aria-labelledby="order-h"
               >
-                <h3 id="order-h">Order</h3>
+                <h3 id="order-h">
+                  <Icon name="bag" />
+                  Order
+                </h3>
                 {order && (
                   <div className="saved">
                     <p>
@@ -1826,12 +1835,9 @@ export function Panel(props: {
                         </legend>
                         {item.pickedBy && (
                           <p className="hint">
-                            <span className="badge" data-source={item.pickedBy}>
-                              {item.pickedBy}
-                            </span>{' '}
-                            Their picture was close to a few of your photos; the
-                            model picked this one. Tap another below if it is
-                            wrong.
+                            <SourceBadge source={item.pickedBy} /> Their picture
+                            was close to a few of your photos; the model picked
+                            this one. Tap another below if it is wrong.
                           </p>
                         )}
                         {item.choices && (!item.productId || item.pickedBy) && (
@@ -2021,7 +2027,10 @@ export function Panel(props: {
                 data-tone="reply"
                 aria-labelledby="draft-h"
               >
-                <h3 id="draft-h">Reply</h3>
+                <h3 id="draft-h">
+                  <Icon name="reply" />
+                  Reply
+                </h3>
                 {d?.status !== 'running' && (
                   <button
                     type="button"
@@ -2061,6 +2070,7 @@ export function Panel(props: {
 
           <section className="card" data-tone="order" aria-labelledby="today-h">
             <h3 id="today-h">
+              <Icon name="bag" />
               {searching ? 'Find an order' : "Today's orders"}
             </h3>
             <label className="visually-hidden" htmlFor="order-search">
@@ -2131,7 +2141,10 @@ export function Panel(props: {
           {props.inbox}
 
           <section className="card" data-tone="pay" aria-labelledby="app-h">
-            <h3 id="app-h">Bank app screenshot</h3>
+            <h3 id="app-h">
+              <Icon name="money" />
+              Bank app screenshot
+            </h3>
             <p className="hint">
               When an alert email is missing, add a screenshot of today&apos;s
               history from your bank app. It is read on this computer, and only
@@ -2189,7 +2202,10 @@ export function Panel(props: {
           </section>
 
           <section className="card" data-tone="money" aria-labelledby="extra-h">
-            <h3 id="extra-h">Money not tied to an order</h3>
+            <h3 id="extra-h">
+              <Icon name="money" />
+              Money not tied to an order
+            </h3>
             {extraRows.length === 0 ? (
               <p className="empty">
                 {data?.credits.length

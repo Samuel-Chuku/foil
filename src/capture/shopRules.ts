@@ -23,12 +23,17 @@ export const METHOD_LABEL: Record<DeliveryMethod, string> = {
   nationwide: 'Nationwide, to a park in another state',
 }
 
+// What the shop sells, which decides what the desk asks about delivery.
+export const SELLS = ['goods', 'services', 'digital'] as const
+export type Sells = (typeof SELLS)[number]
+
 export type AreaFee = { area: string; feeKobo: number }
 export type ParkFee = { state: string; park: string; feeKobo: number }
 
 export type ShopRules = {
   // The name customers know the shop by, printed on receipts.
   shopName: string
+  sells: Sells
   // The state the shop is in. Any other state a customer names means a park
   // delivery. Empty when the vendor has not chosen; see homeOf.
   homeState: State | ''
@@ -51,6 +56,7 @@ export type ShopRules = {
 
 export const EMPTY_RULES: ShopRules = {
   shopName: '',
+  sells: 'goods',
   homeState: '',
   methods: [],
   areaFees: [],
@@ -92,6 +98,7 @@ export function normaliseRules(raw: unknown): ShopRules {
   )
   return {
     shopName: text(r.shopName),
+    sells: SELLS.includes(r.sells as Sells) ? (r.sells as Sells) : 'goods',
     homeState: STATES.includes(r.homeState as State)
       ? (r.homeState as State)
       : '',
@@ -329,7 +336,7 @@ export function deliveryOptions(rules: ShopRules): string[] {
       lines.push('The customer may send their own rider to collect.')
     if (m === 'pickup')
       lines.push(
-        `Pickup from the shop${rules.pickupAddress ? ` at ${rules.pickupAddress}` : ''}${rules.pickupHours ? `, ${rules.pickupHours}` : ''}.`,
+        `${rules.sells === 'services' ? 'Customers come to the shop' : 'Pickup from the shop'}${rules.pickupAddress ? ` at ${rules.pickupAddress}` : ''}${rules.pickupHours ? `, ${rules.pickupHours}` : ''}.`,
       )
     if (m === 'nationwide')
       lines.push(
@@ -344,6 +351,16 @@ export function deliveryOptions(rules: ShopRules): string[] {
             : ''
         }.`,
       )
+  }
+  // A shop that sells services or digital goods is said so plainly, so a
+  // draft never offers a delivery the shop does not make. Empty rules for
+  // goods say nothing: they are more likely unfilled than "no delivery".
+  if (rules.sells !== 'goods') {
+    lines.unshift(
+      rules.sells === 'services'
+        ? 'The shop sells services, not goods.'
+        : 'The shop sells digital goods, sent online.',
+    )
   }
   return lines
 }

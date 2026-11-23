@@ -5,6 +5,7 @@ import type { Drop, Product, ProductPhoto } from '../ledger/types'
 import { formatMoney, parseMoney } from '../verify/money'
 import { photoFromFile } from './photos'
 import type { LedgerApi } from './useLedger'
+import { Icon } from './icons'
 
 type NewItem = { photo: ProductPhoto; price: string }
 
@@ -87,7 +88,10 @@ export function DropCard(props: {
     return (
       <details className="card shop-rules drop" data-tone="shop">
         <summary>
-          <h3>Drop</h3>
+          <h3>
+            <Icon name="tag" />
+            Drop
+          </h3>
           <span className="hint">
             No drop running. Start one before posting one-of-a-kind pieces on
             your status.
@@ -188,7 +192,10 @@ export function DropCard(props: {
   return (
     <details className="card shop-rules drop" data-tone="shop" open>
       <summary>
-        <h3>Drop: {live.name}</h3>
+        <h3>
+          <Icon name="tag" />
+          Drop: {live.name}
+        </h3>
         <span className="hint">
           {sold} of {pieces.length} paid · holds last {live.holdMin} min
         </span>

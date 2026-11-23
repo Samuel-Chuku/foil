@@ -355,23 +355,14 @@ div.error::before {
   color: var(--dk-ink);
   white-space: nowrap;
 }
-.badge::before {
-  content: '□';
-}
 .badge[data-source='On device'] {
   background: var(--dk-ink);
   color: var(--dk-on-ink);
 }
-.badge[data-source='On device']::before {
-  content: '■';
-}
-/* Rules, not a model: no source glyph, a quiet sunk tag. */
+/* Rules, not a model: a quiet sunk tag. */
 .badge[data-source='Rules'] {
   background: var(--dk-sunk);
   border-color: var(--dk-ink-2);
-}
-.badge[data-source='Rules']::before {
-  content: none;
 }
 p.meta:has(.badge) {
   display: flex;
@@ -825,13 +816,13 @@ p.meta:has(.badge) {
   background: color-mix(in srgb, var(--dk-ink) 6%, transparent);
   color: var(--dk-ink);
 }
-.panel-tabs [role='tab']::before {
-  content: '';
+.panel-tabs [role='tab'] .icon {
   flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: var(--dk-r-round);
-  background: var(--tone-deep, var(--dk-ink-3));
+  margin-right: -2px;
+  color: var(--tone-deep, var(--dk-ink-3));
+}
+.panel-tabs [role='tab'][aria-selected='true'] .icon {
+  color: var(--dk-ink);
 }
 .panel-tabs [role='tab'][aria-selected='true'] {
   background: var(--tone, var(--dk-ink));
@@ -844,8 +835,8 @@ p.meta:has(.badge) {
   color: var(--dk-on-ink);
   box-shadow: none;
 }
-:root[data-tones='off'] .panel-tabs [role='tab']::before {
-  display: none;
+:root[data-tones='off'] .panel-tabs [role='tab'] .icon {
+  color: currentColor;
 }
 .panel-tabs [role='tab']:active {
   transform: none;
@@ -910,15 +901,17 @@ p.meta:has(.badge) {
   );
   border-color: color-mix(in oklab, var(--tone-deep) 28%, transparent);
 }
-:root:not([data-tones='off']) .card[data-tone] h3::before {
-  content: '';
-  display: inline-block;
-  width: 10px;
-  height: 10px;
+/* Each card's title carries its icon, in the deep shade of its section. */
+.card h3 .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
   margin-right: var(--dk-s2);
-  border-radius: 3px;
-  background: var(--tone-deep);
-  vertical-align: 0;
+  vertical-align: -2px;
+  color: var(--tone-deep, var(--dk-ink-2));
+}
+:root[data-tones='off'] .card h3 .icon {
+  color: var(--dk-ink-2);
 }
 .card > details > summary h3,
 .shop-rules summary h3 {
@@ -2277,8 +2270,8 @@ input[type='range']:focus-visible {
 
 /* A narrow panel keeps the tab labels whole; the selected tab's colour still
    says which section is open. */
-@container panel (max-width: 380px) {
-  .panel-tabs [role='tab']::before {
+@container panel (max-width: 330px) {
+  .panel-tabs [role='tab'] .icon {
     display: none;
   }
 }
@@ -2301,15 +2294,11 @@ input[type='range']:focus-visible {
   font-size: var(--dk-text-meta);
   color: var(--dk-ink-2);
 }
-/* The glyph says who chose the step, matching the source badges. */
-.ask-steps li::before {
-  margin-right: var(--dk-s2);
-}
-.ask-steps li[data-source='On device']::before {
-  content: '■';
-}
-.ask-steps li[data-source='Cloud']::before {
-  content: '□';
+/* The icon says who chose the step, matching the source badges. */
+.ask-steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--dk-s2);
 }
 .ask-actions {
   display: flex;
@@ -2333,4 +2322,20 @@ button.mic[aria-pressed='true'] {
 .approval .may-return > summary {
   font-size: var(--dk-text-small);
   font-weight: 600;
+}
+
+/* Fee tables in the shop rules fold to one line each. */
+.fee-details {
+  margin: var(--dk-s2) 0 var(--dk-s2) var(--dk-s6);
+}
+.fee-details > summary {
+  font-size: var(--dk-text-small);
+  font-weight: 600;
+  color: var(--dk-ink-2);
+}
+.shop-rules fieldset {
+  border: var(--dk-bw-hair) solid var(--dk-line);
+  border-radius: var(--dk-r-control);
+  padding: var(--dk-s3);
+  margin: var(--dk-s3) 0;
 }

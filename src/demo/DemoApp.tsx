@@ -26,6 +26,7 @@ import { appConfig } from '../config/active'
 import { rememberMarket, RAIL_NAME } from '../ui/marketChoice'
 import { DemoIntro } from './DemoIntro'
 import type { AlertResult } from '../verify/alerts'
+import { SourceBadge } from '../ui/SourceBadge'
 
 // The hosted demo: simulated chat and inbox panes stand in for WhatsApp Web
 // and Gmail, beside the same panel the extension shows.
@@ -470,10 +471,7 @@ export default function DemoApp() {
                       className="alert-result"
                       data-status={alerts[e.id]!.status}
                     >
-                      <span className="badge" data-source="Rules">
-                        Rules
-                      </span>{' '}
-                      {alertLine(alerts[e.id]!)}
+                      <SourceBadge source="Rules" /> {alertLine(alerts[e.id]!)}
                     </p>
                   )}
                   {openEmail === e.id && <pre>{e.body}</pre>}
@@ -507,12 +505,7 @@ export default function DemoApp() {
             )}
             {bankApp?.status === 'done' && (
               <p className="alert-result" aria-live="polite">
-                <span
-                  className="badge"
-                  data-source={bankApp.value.reading.source}
-                >
-                  {bankApp.value.reading.source}
-                </span>{' '}
+                <SourceBadge source={bankApp.value.reading.source} />{' '}
                 {(bankApp.value.reading.ms / 1000).toFixed(1)} s ·{' '}
                 {bankApp.value.reading.fields.length} rows read,{' '}
                 {bankApp.value.added.length === 0

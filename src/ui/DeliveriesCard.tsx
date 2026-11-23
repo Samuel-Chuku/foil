@@ -2,6 +2,7 @@ import { deliveryGroups, nextSteps } from '../capture/deliveries'
 import type { Order } from '../ledger/types'
 import { formatMoney } from '../verify/money'
 import type { LedgerApi } from './useLedger'
+import { Icon } from './icons'
 
 // The buttons that move one order along: out, delivered or collected.
 export function DeliverySteps(props: {
@@ -46,7 +47,10 @@ export function DeliveriesCard(props: {
   return (
     <details className="card shop-rules deliveries" data-tone="order">
       <summary>
-        <h3>Deliveries</h3>
+        <h3>
+          <Icon name="truck" />
+          Deliveries
+        </h3>
         <span className="hint">
           {count - out} to send
           {out > 0 && `, ${out} on the way`}, grouped by area

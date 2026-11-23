@@ -3,6 +3,7 @@ import { bookDays, dayBooks, type Tally } from '../ledger/dayBooks'
 import { formatMoney } from '../verify/money'
 import type { Lagos } from './TrendsCard'
 import type { LedgerApi } from './useLedger'
+import { Icon } from './icons'
 
 const tally = (t: Tally) =>
   t.count ? `${t.count} · ${formatMoney(t.kobo)}` : 'None'
@@ -32,7 +33,10 @@ export function BooksCard(props: {
   return (
     <details className="card shop-rules books" data-tone="money">
       <summary>
-        <h3>Books for the day</h3>
+        <h3>
+          <Icon name="book" />
+          Books for the day
+        </h3>
         <span className="hint">
           {!books
             ? 'Loading…'
