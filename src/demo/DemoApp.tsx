@@ -86,6 +86,22 @@ function alertLine(r: AlertResult): string {
   return 'Not a format the rules know yet.'
 }
 
+// A contact's initial on a solid disc, its colour fixed by the name so it
+// stays the same between visits.
+const AVATAR_TONES = ['pay', 'order', 'reply', 'ask', 'money', 'shop']
+function Avatar(props: { name: string }) {
+  const tone =
+    AVATAR_TONES[
+      [...props.name].reduce((n, ch) => n + ch.charCodeAt(0), 0) %
+        AVATAR_TONES.length
+    ]
+  return (
+    <span className="avatar" data-avatar={tone} aria-hidden="true">
+      {props.name.trim().charAt(0).toUpperCase() || '?'}
+    </span>
+  )
+}
+
 export default function DemoApp() {
   // The city is chosen before the page starts (see main.tsx); switching
   // reloads with that city's sample day.
@@ -175,6 +191,20 @@ export default function DemoApp() {
   const [round, setRound] = useState(0)
 
   const chat = chats.find((c) => c.phone === openPhone) ?? null
+  // The thread scrolls on its own; it opens at the newest message, as a
+  // messenger does, and follows new ones.
+  const thread = useRef<HTMLOListElement | null>(null)
+  const newest = chat?.messages.at(-1)?.id
+  useEffect(() => {
+    const list = thread.current
+    if (!list) return
+    // Pictures load after the first layout and push the newest message
+    // down, so each one that loads scrolls the thread again.
+    const end = () => (list.scrollTop = list.scrollHeight)
+    end()
+    list.addEventListener('load', end, true)
+    return () => list.removeEventListener('load', end, true)
+  }, [openPhone, newest])
   const host: PanelHost = {
     insertDraft: (phone, text) => setDrafts((d) => ({ ...d, [phone]: text })),
     replaceDraft: async (phone, from, to) => {
@@ -328,73 +358,95 @@ export default function DemoApp() {
         {view === 'chats' && (
           <div className="chats">
             <ul className="chat-list" aria-label="Chats">
-              {chats.map((c) => (
-                <li key={c.phone}>
-                  <button
-                    type="button"
-                    aria-current={c.phone === openPhone}
-                    onClick={() => setOpenPhone(c.phone)}
-                  >
-                    <strong>{c.contactName}</strong>
-                    <span>
-                      {c.messages.at(-1)?.text ??
-                        (c.messages.at(-1)?.image ? 'Photo' : '')}
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {chats.map((c) => {
+                const last = c.messages.at(-1)
+                return (
+                  <li key={c.phone}>
+                    <button
+                      type="button"
+                      aria-current={c.phone === openPhone}
+                      onClick={() => setOpenPhone(c.phone)}
+                    >
+                      <Avatar name={c.contactName} />
+                      <span className="chat-row">
+                        <strong>{c.contactName}</strong>
+                        <time>{last?.time}</time>
+                        <span className="preview">
+                          {last?.from === 'vendor' && 'You: '}
+                          {last?.text ?? (last?.image ? 'Photo' : '')}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
 
             {!chat ? (
-              <p className="empty">Choose a chat on the left.</p>
+              <div className="chat-none">
+                <p>
+                  <strong>Pick a customer&apos;s chat</strong>
+                  Each one is a sample conversation. Open one, then let the desk
+                  check its payment, take the order or draft a reply.
+                </p>
+              </div>
             ) : (
               <section
                 className="chat"
                 aria-label={`Chat with ${chat.contactName}`}
               >
                 <header>
-                  <strong>{chat.contactName}</strong> {chat.phone}
+                  <Avatar name={chat.contactName} />
+                  <span>
+                    <strong>{chat.contactName}</strong>
+                    <span className="phone">{chat.phone}</span>
+                  </span>
                 </header>
-                <ol className="messages">
-                  {chat.messages.map((m) => (
-                    <li key={m.id} className={m.from}>
-                      {m.quoted && (
-                        <div className="quote">
-                          <span>
-                            {m.quoted.status ? 'Your status' : 'Reply to'} ·
-                            Photo
-                          </span>
-                          <img src={m.quoted.src} alt="Your status photo" />
-                        </div>
-                      )}
-                      {m.image ? (
-                        <figure>
-                          <img
-                            src={m.image.src}
-                            alt="Payment receipt sent by the customer"
-                          />
-                          <button
-                            type="button"
-                            className="verify"
-                            onClick={() =>
-                              setRequest({
-                                action: 'verify',
-                                messageId: m.id,
-                                nonce: Date.now(),
-                              })
-                            }
-                          >
-                            Verify payment
-                          </button>
-                        </figure>
-                      ) : (
-                        <p>{m.text}</p>
-                      )}
-                      <time>{m.time}</time>
+                <div className="thread">
+                  <ol className="messages" ref={thread}>
+                    <li className="day" aria-hidden="true">
+                      Today
                     </li>
-                  ))}
-                </ol>
-                <DemoFloat chat={chat} onRequest={setRequest} />
+                    {chat.messages.map((m) => (
+                      <li key={m.id} className={m.from}>
+                        {m.quoted && (
+                          <div className="quote">
+                            <span>
+                              {m.quoted.status ? 'Your status' : 'Reply to'} ·
+                              Photo
+                            </span>
+                            <img src={m.quoted.src} alt="Your status photo" />
+                          </div>
+                        )}
+                        {m.image ? (
+                          <figure>
+                            <img
+                              src={m.image.src}
+                              alt="Payment receipt sent by the customer"
+                            />
+                            <button
+                              type="button"
+                              className="verify"
+                              onClick={() =>
+                                setRequest({
+                                  action: 'verify',
+                                  messageId: m.id,
+                                  nonce: Date.now(),
+                                })
+                              }
+                            >
+                              Verify payment
+                            </button>
+                          </figure>
+                        ) : (
+                          <p>{m.text}</p>
+                        )}
+                        <time>{m.time}</time>
+                      </li>
+                    ))}
+                  </ol>
+                  <DemoFloat chat={chat} onRequest={setRequest} />
+                </div>
                 <div className="compose">
                   <div className="compose-head">
                     <label htmlFor="compose">Message</label>
@@ -405,7 +457,7 @@ export default function DemoApp() {
                   </div>
                   <textarea
                     id="compose"
-                    rows={3}
+                    rows={2}
                     value={drafts[chat.phone] ?? ''}
                     onChange={(e) =>
                       setDrafts((d) => ({ ...d, [chat.phone]: e.target.value }))

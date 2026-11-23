@@ -54,9 +54,12 @@
     transparent 1px 6px
   );
 
-  /* Chart series. Money in is ink; money out is ink-2, dashed. */
-  --dk-chart-in: var(--dk-ink);
-  --dk-chart-out: var(--dk-ink-2);
+  /* Chart series. Money in is blue; money out is burnt orange and dashed,
+   so the two part by hue, line and label alike. Checked for colour-blind
+   separation and contrast on the surface (23 Nov). Never lime: a chart is
+   not the bank's confirmation. */
+  --dk-chart-in: #1f6aa5;
+  --dk-chart-out: #c2552b;
   --dk-chart-grid: rgb(27 28 24 / 0.12);
 
   /*
@@ -186,6 +189,8 @@
     transparent 1px 6px
   );
   --dk-chart-grid: rgb(236 234 224 / 0.12);
+  --dk-chart-in: #4a90d0;
+  --dk-chart-out: #d9703c;
 
   /* At night the pastels swap roles: deep shades wash the cards, and the
      light pastels become the small marks. */

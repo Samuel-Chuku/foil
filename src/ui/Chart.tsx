@@ -1,3 +1,4 @@
+import { useId, useState } from 'react'
 import { market } from '../config/market'
 import { chartValue, sumOf, type ChartSpec } from '../ledger/charts'
 
@@ -113,10 +114,13 @@ function Columns(props: { spec: ChartSpec }) {
   )
 }
 
-// One 2px line per series with a marker on each day; markers are ringed in
-// the surface colour so crossing lines stay readable.
+// One 2px line per series, money in over a soft wash of its own colour.
+// Pointing at a day draws a guide and a label with every series' value
+// for it, so the chart can be read without the axis.
 function Lines(props: { spec: ChartSpec }) {
   const { spec } = props
+  const wash = useId()
+  const [at, setAt] = useState<number | null>(null)
   const max = niceMax(Math.max(0, ...spec.points.flatMap((p) => p.values)))
   const plotH = H - BOTTOM - TOP
   const n = spec.points.length
@@ -125,68 +129,109 @@ function Lines(props: { spec: ChartSpec }) {
   const x = (i: number) =>
     LEFT + 18 + (n === 1 ? (W - LEFT - 36) / 2 : i * step)
   const y = (v: number) => TOP + plotH - (v / max) * plotH
+  const line = (s: number) =>
+    spec.points.map((p, i) => `${x(i)},${y(p.values[s] ?? 0)}`).join(' ')
+  const point = at === null ? null : spec.points[at]
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" aria-hidden="true">
-      {[0, 0.5, 1].map((f) => (
-        <g key={f}>
-          <line
-            x1={LEFT}
-            x2={W}
-            y1={y(max * f)}
-            y2={y(max * f)}
-            className="grid"
-          />
-          <text
-            x={LEFT - 6}
-            y={y(max * f) + 3}
-            className="axis"
-            textAnchor="end"
-          >
-            {compact(spec.unit, max * f)}
-          </text>
-        </g>
-      ))}
-      {spec.series.map((_, s) => (
-        <polyline
-          key={s}
-          points={spec.points
-            .map((p, i) => `${x(i)},${y(p.values[s] ?? 0)}`)
-            .join(' ')}
-          className={`line series-${s + 1}`}
-        />
-      ))}
-      {spec.points.map((p, i) => (
-        <g key={i} className="mark">
-          <title>
-            {`${p.label}: ${p.values
-              .map((v, s) => `${spec.series[s]} ${chartValue(spec.unit, v)}`)
-              .join(', ')}`}
-          </title>
-          <rect
-            x={x(i) - step / 2}
-            y={TOP}
-            width={Math.max(step, 12)}
-            height={plotH}
-            className="hit"
-          />
-          {n <= 14 &&
-            p.values.map((v, s) => (
-              <circle
-                key={s}
-                cx={x(i)}
-                cy={y(v)}
-                r={3.5}
-                className={`dot series-${s + 1}`}
-              />
-            ))}
-          {i % every === 0 && (
-            <text x={x(i)} y={H - 4} className="axis" textAnchor="middle">
-              {p.label}
+    <div className="chart-plot" onMouseLeave={() => setAt(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" aria-hidden="true">
+        <defs>
+          <linearGradient id={wash} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" className="wash-top" />
+            <stop offset="100%" className="wash-bottom" />
+          </linearGradient>
+        </defs>
+        {[0, 0.5, 1].map((f) => (
+          <g key={f}>
+            <line
+              x1={LEFT}
+              x2={W}
+              y1={y(max * f)}
+              y2={y(max * f)}
+              className="grid"
+            />
+            <text
+              x={LEFT - 6}
+              y={y(max * f) + 3}
+              className="axis"
+              textAnchor="end"
+            >
+              {compact(spec.unit, max * f)}
             </text>
-          )}
-        </g>
-      ))}
-    </svg>
+          </g>
+        ))}
+        {n > 1 && (
+          <polygon
+            points={`${x(0)},${y(0)} ${line(0)} ${x(n - 1)},${y(0)}`}
+            fill={`url(#${wash})`}
+            className="area"
+          />
+        )}
+        {spec.series
+          .map((_, s) => s)
+          .reverse()
+          .map((s) => (
+            <polyline
+              key={s}
+              points={line(s)}
+              className={`line series-${s + 1}`}
+            />
+          ))}
+        {at !== null && (
+          <line
+            x1={x(at)}
+            x2={x(at)}
+            y1={TOP}
+            y2={TOP + plotH}
+            className="guide"
+          />
+        )}
+        {spec.points.map((p, i) => (
+          <g key={i} className="mark">
+            <rect
+              x={x(i) - step / 2}
+              y={TOP}
+              width={Math.max(step, 12)}
+              height={plotH}
+              className="hit"
+              onMouseEnter={() => setAt(i)}
+            />
+            {(n <= 14 || i === at || i === n - 1) &&
+              p.values.map((v, s) => (
+                <circle
+                  key={s}
+                  cx={x(i)}
+                  cy={y(v)}
+                  r={i === at ? 5 : i === n - 1 ? 4 : 3}
+                  className={`dot series-${s + 1}`}
+                />
+              ))}
+            {i % every === 0 && (
+              <text x={x(i)} y={H - 4} className="axis" textAnchor="middle">
+                {p.label}
+              </text>
+            )}
+          </g>
+        ))}
+      </svg>
+      {point && at !== null && (
+        <div
+          className="chart-tip"
+          style={{
+            left: `${(x(at) / W) * 100}%`,
+            transform: `translateX(${at > n / 2 ? 'calc(-100% - 8px)' : '8px'})`,
+          }}
+        >
+          <strong>{point.label}</strong>
+          {spec.series.map((name, s) => (
+            <span key={name}>
+              <i className={`key series-${s + 1}`} />
+              {name} <b>{chartValue(spec.unit, point.values[s] ?? 0)}</b>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -234,6 +279,16 @@ export function Chart(props: { spec: ChartSpec }) {
               {spec.series.map((s, i) => (
                 <li key={s}>
                   <span className={`swatch series-${i + 1}`} /> {s}
+                  {/* Lines run over time, so each series' total for the
+                      period reads beside its name. */}
+                  {spec.kind === 'lines' && (
+                    <b>
+                      {chartValue(
+                        spec.unit,
+                        spec.points.reduce((n, p) => n + (p.values[i] ?? 0), 0),
+                      )}
+                    </b>
+                  )}
                 </li>
               ))}
             </ul>
