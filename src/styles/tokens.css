@@ -1,0 +1,131 @@
+/*
+ * Desk tokens. The single source of every colour, size, radius, border,
+ * shadow, texture and timing in the interface.
+ *
+ * Never hardcode a value that exists here. Never add a token in a component
+ * file or in index.css: add it here, with a comment saying what it is for.
+ * Every dimension is a multiple of 4px.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Ground and surfaces: muted warm paper. Nothing in the interface is white. */
+  --dk-ground: #e6e4da;
+  --dk-surface: #efede5;
+  --dk-sunk: #dddbd0;
+
+  /* Ink. --dk-ink-3 is the lightest ink allowed for text (4.7:1 on ground). */
+  --dk-ink: #1b1c18;
+  --dk-ink-2: #4a4c44;
+  --dk-ink-3: #62645a;
+  --dk-on-ink: #efede5;
+
+  /* Lines. Hairlines divide; the strong line outlines anything structural. */
+  --dk-line: rgb(27 28 24 / 0.16);
+  --dk-line-strong: var(--dk-ink);
+
+  /*
+   * The one idea. LANDED: money the vendor's own bank has confirmed.
+   * A fill behind ink, never text, never a stroke, never a button.
+   * Ink on it is 12.8:1. As text on the ground it is 1.05:1, so it never is.
+   */
+  --dk-landed: #c4ee4f;
+  --dk-on-landed: #1b1c18;
+
+  /* The pressable key: a hard offset under anything that can be pressed. */
+  --dk-key-colour: var(--dk-ink);
+  --dk-key: 2px 2px 0 0 var(--dk-key-colour);
+
+  /* Focus ring: ink, offset from the element so it reads on any fill. */
+  --dk-focus: 2px solid var(--dk-ink);
+  --dk-focus-offset: 2px;
+
+  /* Behind the approval dialog. */
+  --dk-backdrop: rgb(20 21 18 / 0.55);
+
+  /* Textures for the money states, defined once. */
+  --dk-dot: rgb(27 28 24 / 0.32);
+  --dk-dither: radial-gradient(var(--dk-dot) 0.9px, transparent 1.2px) 0 0 / 4px
+    4px;
+  --dk-hatch: repeating-linear-gradient(
+    135deg,
+    rgb(27 28 24 / 0.38) 0 1px,
+    transparent 1px 6px
+  );
+
+  /* Chart series. Money in is ink; money out is ink-2, dashed. */
+  --dk-chart-in: var(--dk-ink);
+  --dk-chart-out: var(--dk-ink-2);
+  --dk-chart-grid: rgb(27 28 24 / 0.12);
+
+  /* Type. Bundled with the build, so the panel never fetches a font. */
+  --dk-font-ui:
+    'Schibsted Grotesk Variable', 'Helvetica Neue', Arial, sans-serif;
+  --dk-font-num:
+    'Martian Mono Variable', ui-monospace, 'DejaVu Sans Mono', monospace;
+  /* Martian Mono is wide; numbers run at this width so amounts fit tiles. */
+  --dk-num-stretch: 87.5%;
+
+  --dk-text-micro: 11px; /* mono caps labels only */
+  --dk-text-meta: 12px;
+  --dk-text-small: 13px;
+  --dk-text-body: 14px;
+  --dk-text-title: 16px;
+  --dk-text-head: 20px;
+  --dk-text-figure: 24px;
+  --dk-text-hero: 32px;
+  --dk-leading: 1.45;
+  --dk-tracking-caps: 0.08em;
+
+  /* Space: the 4px grid. */
+  --dk-s1: 4px;
+  --dk-s2: 8px;
+  --dk-s3: 12px;
+  --dk-s4: 16px;
+  --dk-s5: 20px;
+  --dk-s6: 24px;
+  --dk-s8: 32px;
+
+  /* Radius: large and calm. Tags are the only small corners. */
+  --dk-r-tag: 4px;
+  --dk-r-control: 12px;
+  --dk-r-card: 16px;
+  --dk-r-round: 999px;
+
+  /* Borders. */
+  --dk-bw-hair: 1px;
+  --dk-bw: 1.5px;
+
+  /* Control heights. */
+  --dk-h-control: 36px;
+  --dk-h-small: 28px;
+
+  /* Motion. Short and plain; nothing bounces. */
+  --dk-fast: 120ms ease-out;
+  --dk-fresh: 2400ms ease-out;
+}
+
+/* The night ledger: the same system drawn for a dark browser. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --dk-ground: #141512;
+    --dk-surface: #1c1d19;
+    --dk-sunk: #10110e;
+    --dk-ink: #eceae0;
+    --dk-ink-2: #b9b8ae;
+    --dk-ink-3: #8f8e85;
+    --dk-on-ink: #141512;
+    --dk-line: rgb(236 234 224 / 0.14);
+    --dk-on-landed: #141512;
+    --dk-key-colour: #5e5d55;
+    --dk-dot: rgb(236 234 224 / 0.3);
+    --dk-hatch: repeating-linear-gradient(
+      135deg,
+      rgb(236 234 224 / 0.34) 0 1px,
+      transparent 1px 6px
+    );
+    --dk-chart-grid: rgb(236 234 224 / 0.12);
+  }
+}

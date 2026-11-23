@@ -65,7 +65,7 @@ export function DemoIntro(props: {
       </p>
 
       <div className="actions">
-        <button type="button" onClick={props.onStart}>
+        <button type="button" className="primary" onClick={props.onStart}>
           Start with {props.first}&apos;s chat
         </button>
         <button type="button" className="quiet" onClick={props.onSkip}>

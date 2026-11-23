@@ -107,7 +107,12 @@ export function MoneyPulseCard(props: { ledger: LedgerApi; now: number }) {
                 ['out', 'Money out', pulse.today.out],
               ] as const
             ).map(([dir, label, s]) => (
-              <div key={dir} className="pulse-tile" data-dir={dir}>
+              <div
+                key={dir}
+                className="pulse-tile"
+                data-dir={dir}
+                data-landed={dir === 'in' && s.kobo > 0 ? '' : undefined}
+              >
                 <span className="pulse-label">
                   <span aria-hidden="true">{dir === 'in' ? '↓' : '↑'}</span>{' '}
                   {label}
@@ -153,6 +158,7 @@ export function MoneyPulseCard(props: { ledger: LedgerApi; now: number }) {
                 <li
                   key={c.id}
                   data-dir={c.direction}
+                  data-reversal={c.reversal ? '' : undefined}
                   className={!seen || seen.has(c.id) ? undefined : 'fresh'}
                 >
                   <span className="pulse-time">{time(c.at!.ms)}</span>

@@ -120,9 +120,10 @@ function Lines(props: { spec: ChartSpec }) {
   const max = niceMax(Math.max(0, ...spec.points.flatMap((p) => p.values)))
   const plotH = H - BOTTOM - TOP
   const n = spec.points.length
-  const step = (W - LEFT - 12) / Math.max(1, n - 1)
+  const step = (W - LEFT - 36) / Math.max(1, n - 1)
   const every = Math.ceil(n / 7)
-  const x = (i: number) => LEFT + 6 + (n === 1 ? (W - LEFT - 12) / 2 : i * step)
+  const x = (i: number) =>
+    LEFT + 18 + (n === 1 ? (W - LEFT - 36) / 2 : i * step)
   const y = (v: number) => TOP + plotH - (v / max) * plotH
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" aria-hidden="true">

@@ -95,6 +95,8 @@ import {
 } from '../capture/drop'
 import { lagosFromEpoch } from '../verify/time'
 import { MoneyPulseCard } from './MoneyPulseCard'
+import { MONEY_STATE } from './moneyState'
+import { ProofPair, StatePill } from './ProofPair'
 import { BooksCard } from './BooksCard'
 import { market } from '../config/market'
 import { REF_LABEL } from '../verify/sessionId'
@@ -242,7 +244,7 @@ function DeviceStatus(props: { device: DeviceApi }) {
     device.asking || (device.state === 'unavailable' && !device.consent)
   const canDownload = device.state === 'downloadable'
   return (
-    <div className="device">
+    <div className="device" data-state={device.state}>
       <p aria-live="polite">{line}</p>
       {device.waiting > 0 && (
         <p className="hint" aria-live="polite">
@@ -1381,6 +1383,20 @@ export function Panel(props: {
                 : [],
           }
         : null
+  // The two sides of the proof pair: what the receipt claims and the credit
+  // the bank confirmed, if any.
+  const proofReceipt =
+    (fromOrder ? order?.receipt : null) ??
+    (v?.status === 'done' ? v.value.receipt : null) ??
+    order?.receipt ??
+    null
+  const proofCreditId =
+    fromOrder && order?.payment.state === 'matched'
+      ? order.payment.creditId
+      : v?.status === 'done' && v.value.verdict.kind === 'matched'
+        ? v.value.verdict.creditId
+        : null
+  const proofCredit = data?.credits.find((c) => c.id === proofCreditId) ?? null
   // A shop that ticks no delivery option sells without delivery, so orders
   // carry no delivery line at all.
   const offersDelivery = shop.rules.methods.length > 0
@@ -1499,38 +1515,20 @@ export function Panel(props: {
                 </p>
               )}
               {v?.status === 'done' && (
-                <>
-                  <Badge
-                    source={v.value.reading.source}
-                    ms={v.value.reading.ms}
-                  />
-                  <dl className="fields">
-                    <dt>Amount</dt>
-                    <dd>
-                      {v.value.receipt.amountKobo === null
-                        ? 'Not read'
-                        : formatMoney(v.value.receipt.amountKobo)}
-                    </dd>
-                    <dt>Sender</dt>
-                    <dd>{v.value.receipt.sender || 'Not read'}</dd>
-                    <dt>Bank</dt>
-                    <dd>{bankName(v.value.receipt.senderBank)}</dd>
-                    <dt>
-                      {REF_LABEL[market().rail].replace(/^\w/, (c) =>
-                        c.toUpperCase(),
-                      )}
-                    </dt>
-                    <dd className="mono">
-                      {v.value.reading.fields.sessionId || 'Not printed'}
-                    </dd>
-                    <dt>Time</dt>
-                    <dd>{v.value.reading.fields.dateTime || 'Not read'}</dd>
-                  </dl>
-                </>
+                <Badge
+                  source={v.value.reading.source}
+                  ms={v.value.reading.ms}
+                />
               )}
               {shown && (
                 <div className="verdict" data-kind={shown.kind}>
-                  <strong>{PAYMENT_LABEL[shown.kind]}</strong>
+                  <ProofPair
+                    state={MONEY_STATE[shown.kind]}
+                    receipt={proofReceipt}
+                    credit={proofCredit}
+                    bankName={bankName}
+                  />
+                  <StatePill state={MONEY_STATE[shown.kind]} />
                   {paidWhileAway && (
                     <p>
                       <strong>
@@ -1589,6 +1587,33 @@ export function Panel(props: {
                       </p>
                     ))}
                 </div>
+              )}
+              {v?.status === 'done' && (
+                <details className="read-fields">
+                  <summary>Everything read from the receipt</summary>
+                  <dl className="fields">
+                    <dt>Amount</dt>
+                    <dd>
+                      {v.value.receipt.amountKobo === null
+                        ? 'Not read'
+                        : formatMoney(v.value.receipt.amountKobo)}
+                    </dd>
+                    <dt>Sender</dt>
+                    <dd>{v.value.receipt.sender || 'Not read'}</dd>
+                    <dt>Bank</dt>
+                    <dd>{bankName(v.value.receipt.senderBank)}</dd>
+                    <dt>
+                      {REF_LABEL[market().rail].replace(/^\w/, (c) =>
+                        c.toUpperCase(),
+                      )}
+                    </dt>
+                    <dd className="mono">
+                      {v.value.reading.fields.sessionId || 'Not printed'}
+                    </dd>
+                    <dt>Time</dt>
+                    <dd>{v.value.reading.fields.dateTime || 'Not read'}</dd>
+                  </dl>
+                </details>
               )}
               {chatRows.length > 0 && (
                 <div className="extra-here">
