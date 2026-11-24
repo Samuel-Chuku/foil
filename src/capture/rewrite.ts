@@ -46,45 +46,25 @@ const TONES: RewriteStyle[] = [
   },
 ]
 
-const lang = (
-  id: string,
-  label: string,
-  language: string,
-  onDevice: boolean,
-): RewriteStyle => ({
-  id,
-  label,
-  instruction: `Write it in ${language}, the way a shop texts a customer.`,
-  onDevice,
-  language,
-})
-
 // The languages a shop in each market switches between. Chrome's built-in
 // model writes English (and English-based Pidgin); the rest go to the cloud.
 export function rewriteStyles(m: Market): RewriteStyle[] {
-  // The device cannot write Portuguese, so São Paulo's tones run in the cloud.
-  const tones = TONES.map((t) => ({ ...t, onDevice: m.reply.onDevice }))
-  if (m.id === 'in') {
-    return [
-      ...tones,
-      lang('english', 'In English', 'plain English', true),
-      lang('hindi', 'In Hindi', 'Hindi, in Devanagari script', false),
-    ]
-  }
-  if (m.id === 'br') {
-    return [
-      ...tones.map((t) => ({ ...t, language: 'Brazilian Portuguese' })),
-      lang('portuguese', 'In Portuguese', 'Brazilian Portuguese', false),
-      lang('english', 'In English', 'plain English', true),
-    ]
-  }
+  // A market whose replies the device cannot write runs its tones in the
+  // cloud too, and names the language in the approval dialog.
+  const tones = TONES.map((t) => ({
+    ...t,
+    onDevice: m.reply.onDevice,
+    ...(!m.reply.onDevice && { language: m.reply.language }),
+  }))
   return [
     ...tones,
-    lang('pidgin', 'In Pidgin', 'natural Lagos Nigerian Pidgin', true),
-    lang('english', 'In English', 'plain Nigerian English', true),
-    lang('yoruba', 'In Yoruba', 'Yoruba, with correct tone marks', false),
-    lang('igbo', 'In Igbo', 'Igbo', false),
-    lang('hausa', 'In Hausa', 'Hausa', false),
+    ...m.rewriteInto.map(({ id, label, prompt, onDevice }): RewriteStyle => ({
+      id,
+      label,
+      instruction: `Write it in ${prompt}, the way a shop texts a customer.`,
+      onDevice,
+      language: prompt,
+    })),
   ]
 }
 

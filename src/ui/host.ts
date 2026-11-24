@@ -36,7 +36,7 @@ export type PanelHost = {
   // exactly `from`, so nothing the vendor typed since is lost. Never sends.
   // Only the demo has it: the extension rewrites on WhatsApp itself.
   replaceDraft?(phone: string, from: string, to: string): Promise<void>
-  // The time now, in Lagos wall-clock milliseconds. The demo runs its own
+  // The time now, in shop wall-clock milliseconds. The demo runs its own
   // clock on the sample day.
   now(): number
   // Opens a customer's chat, where the host can; the extension never drives

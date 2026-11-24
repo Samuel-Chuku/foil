@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { market } from '../config/market'
+import { deskActions, toPanelRequest } from '../ui/deskActions'
 import type { OpenChat, PanelRequest } from '../ui/host'
-import { Icon, type IconName } from '../ui/icons'
+import { Icon } from '../ui/icons'
 import { Where } from '../ui/Where'
 
 // The extension's floating desk, drawn in the demo's simulated WhatsApp so a
@@ -24,58 +26,16 @@ export function DemoFloat(props: {
     return () => document.removeEventListener('pointerdown', away)
   }, [open])
 
-  const receipts = props.chat.messages
-    .filter((m) => m.from === 'customer' && m.image)
-    .slice(-2)
-    .reverse()
-  const nonce = () => Date.now()
-  const items: {
-    icon: IconName
-    label: string
-    sub: string
-    where: ('device' | 'cloud')[]
-    request: () => PanelRequest
-  }[] = [
-    ...receipts.map((m) => ({
-      icon: 'receipt' as const,
-      label: 'Verify the payment',
-      sub: `Picture at ${m.time}`,
-      where: ['device' as const],
-      request: (): PanelRequest => ({
-        action: 'verify',
-        messageId: m.id,
-        nonce: nonce(),
-      }),
-    })),
+  const items = deskActions(
     {
-      icon: 'bag',
-      label: 'Capture the order',
-      sub: 'Items, delivery and amount',
-      where: ['device'],
-      request: () => ({ action: 'capture', nonce: nonce() }),
+      receipts: props.chat.messages
+        .filter((m) => m.from === 'customer' && m.image)
+        .map((m) => ({ id: m.id, time: m.time })),
+      // The sample chats carry no voice notes.
+      voiceNotes: [],
     },
-    {
-      icon: 'reply',
-      label: 'Draft a reply',
-      sub: 'Placed in the box, never sent',
-      where: ['device'],
-      request: () => ({ action: 'draft', nonce: nonce() }),
-    },
-    {
-      icon: 'globe',
-      label: 'Translate their messages',
-      sub: 'Their latest messages, into English',
-      where: ['device', 'cloud'],
-      request: () => ({ action: 'translate', nonce: nonce() }),
-    },
-    {
-      icon: 'spark',
-      label: 'Ask Foil',
-      sub: 'About orders, stock or money',
-      where: ['device', 'cloud'],
-      request: () => ({ action: 'ask', nonce: nonce() }),
-    },
-  ]
+    { replyOnDevice: market().reply.onDevice },
+  )
 
   return (
     <div
@@ -104,7 +64,7 @@ export function DemoFloat(props: {
                   type="button"
                   onClick={() => {
                     setOpen(false)
-                    props.onRequest(it.request())
+                    props.onRequest(toPanelRequest(it.action, Date.now()))
                   }}
                 >
                   <Icon name={it.icon} size={18} />

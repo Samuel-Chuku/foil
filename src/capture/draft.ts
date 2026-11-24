@@ -92,18 +92,12 @@ export function writesPidgin(chat: string): boolean {
 const PIDGIN_STYLE =
   'They write in Nigerian Pidgin, so reply in natural Lagos Pidgin, short and friendly, the way a Lagos trader texts. Examples of the style only, not of the facts: "E dey o, na ₦8,000." "I don see your money, thank you well well!" "Abeg send the money make I hold am for you." "We go send am today." "Sorry o, e don sell." "Only payment go secure am." Do not mix in any other language.'
 
-// How a shop in each market writes. Lagos follows the customer between
-// English and Pidgin; Mumbai writes English; São Paulo writes Portuguese.
+// How a shop in this market writes. Lagos follows the customer between
+// English and Pidgin, unless the vendor turned that off.
 function replyStyle(chat: string, m: Market, pidgin: boolean): string {
-  if (m.id === 'in') {
-    return 'Reply in friendly, plain English, the way a Mumbai shop writes to customers on WhatsApp. If the customer writes "ji" or a common Hindi word, you may answer as politely, but write in English.'
-  }
-  if (m.id === 'br') {
-    return 'Reply in natural Brazilian Portuguese, short and friendly, the way a São Paulo shop writes to customers on WhatsApp. Write amounts like R$ 150,00.'
-  }
-  return pidgin && writesPidgin(chat)
+  return m.reply.pidgin && pidgin && writesPidgin(chat)
     ? PIDGIN_STYLE
-    : 'Reply in the same language the customer uses.'
+    : m.reply.style
 }
 
 // How the vendor likes replies written, from Settings.

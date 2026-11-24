@@ -1,3 +1,4 @@
+import { market } from '../config/market'
 import type { Credit, VerifyConfig } from '../verify/types'
 import { formatMoney } from '../verify/money'
 import { creditDay, dayBooks } from './dayBooks'
@@ -25,7 +26,7 @@ export type Trends = {
   current: Period
   // The same number of days just before, for comparison.
   previous: Period
-  // Orders by the Lagos hour they came in, 0 to 23.
+  // Orders by the shop's hour they came in, 0 to 23.
   hours: number[]
   // Paid orders by how long they took from order to confirmed payment.
   payTimes: { label: string; count: number }[]
@@ -57,7 +58,8 @@ export function trends(
   span: number,
   data: { orders: Order[]; credits: Credit[]; settlements: Settlement[] },
   config: VerifyConfig,
-  lagos: { day: (o: Order) => string; hour: (o: Order) => number },
+  // The shop's day and hour an order came in (see ledger/clock).
+  clock: { day: (o: Order) => string; hour: (o: Order) => number },
 ): Trends {
   const firstDay = shiftDay(lastDay, 1 - span)
   const inSpan = (d: string | null, from: string, to: string) =>
@@ -68,7 +70,7 @@ export function trends(
   let refundsOwedKobo = 0
   for (let i = 0; i < span; i++) {
     const day = shiftDay(firstDay, i)
-    const b = dayBooks(day, data, config, lagos.day)
+    const b = dayBooks(day, data, config, clock.day)
     days.push({
       day,
       orders: b.orders,
@@ -92,7 +94,7 @@ export function trends(
     paidKobo: points.reduce((s, p) => s + p.paidKobo, 0),
   })
   const before = [...Array(span).keys()].map((i) => {
-    const b = dayBooks(shiftDay(firstDay, i - span), data, config, lagos.day)
+    const b = dayBooks(shiftDay(firstDay, i - span), data, config, clock.day)
     return {
       day: b.day,
       orders: b.orders,
@@ -103,11 +105,11 @@ export function trends(
   })
 
   const orders = data.orders.filter((o) =>
-    inSpan(lagos.day(o), firstDay, lastDay),
+    inSpan(clock.day(o), firstDay, lastDay),
   )
   const hours = Array<number>(24).fill(0)
   for (const o of orders) {
-    const h = lagos.hour(o)
+    const h = clock.hour(o)
     hours[h] = (hours[h] ?? 0) + 1
   }
 
@@ -179,7 +181,7 @@ export function trendsText(
     .sort((a, b) => b.count - a.count)
     .slice(0, 3)
   return [
-    `Trends for ${first} to ${last} (${t.days.length} days, Lagos):`,
+    `Trends for ${first} to ${last} (${t.days.length} days, ${market().city} time):`,
     `Orders: ${t.current.orders} (${change(t.current.orders, t.previous.orders)} on the ${t.days.length} days before). Worth ${formatMoney(t.current.orderedKobo)} (${change(t.current.orderedKobo, t.previous.orderedKobo)}). Fully paid ${formatMoney(t.current.paidKobo)} (${change(t.current.paidKobo, t.previous.paidKobo)}).`,
     `By day (orders, worth, paid, still open): ${t.days
       .map(

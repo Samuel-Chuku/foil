@@ -21,14 +21,14 @@ export type BankFlow = {
 }
 
 export type DayFlow = {
-  // "2026-11-21" in Lagos time, or null when the bank gave no date.
+  // "2026-11-21" in shop time, or null when the bank gave no date.
   day: string | null
   inKobo: number
   outKobo: number
   banks: BankFlow[]
 }
 
-// Credit times are Lagos wall-clock milliseconds, so the UTC date is the
+// Credit times are shop wall-clock milliseconds, so the UTC date is the
 // Lagos date.
 const dayOf = (c: Credit) =>
   c.at ? new Date(c.at.ms).toISOString().slice(0, 10) : null

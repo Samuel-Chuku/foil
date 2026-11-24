@@ -32,7 +32,7 @@ import {
 import { lookupPreview, type DeskData, type Proposal } from '../ledger/tools'
 import { trends, trendsText } from '../ledger/trends'
 import { Chart } from './Chart'
-import type { Lagos } from './TrendsCard'
+import { useShopClock } from './useShopClock'
 import type { LedgerApi } from './useLedger'
 import { allowMic, useVoiceAsk } from './useVoiceAsk'
 import { useSpeech } from './useSpeech'
@@ -88,9 +88,6 @@ function proposalLabel(p: Proposal): string {
 export function AskCard(props: {
   ledger: LedgerApi
   rules: ShopRules
-  today: string
-  lagos: Lagos
-  now: () => number
   online: boolean
   jobs: RunJob
   badge: (r: Reading<unknown>) => ReactNode
@@ -105,9 +102,9 @@ export function AskCard(props: {
   const { data, config } = props.ledger
   const bankName = (id: string | null) =>
     config.banks.find((b) => b.id === id)?.name ?? 'Bank not known'
-  const recent = data
-    ? trends(props.today, SPAN, data, config, props.lagos)
-    : null
+  const clock = useShopClock()
+  const today = clock.today()
+  const recent = data ? trends(today, SPAN, data, config, clock) : null
   const desk: DeskData | null =
     data && recent
       ? {
@@ -118,19 +115,15 @@ export function AskCard(props: {
           settlements: data.settlements,
           chats: data.chats,
           rules: props.rules,
-          books: booksText(
-            dayBooks(props.today, data, config, props.lagos.day),
-          ),
+          books: booksText(dayBooks(today, data, config, clock.day)),
           trends: trendsText(recent, bankName),
-          now: props.now(),
+          now: clock.real(),
         }
       : null
   const facts =
     data && recent
       ? businessText({
-          books: booksText(
-            dayBooks(props.today, data, config, props.lagos.day),
-          ),
+          books: booksText(dayBooks(today, data, config, clock.day)),
           trends: trendsText(recent, bankName),
           orders: data.orders,
           credits: data.credits,
@@ -139,7 +132,7 @@ export function AskCard(props: {
           settlements: data.settlements,
           chats: data.chats,
           rules: props.rules,
-          now: props.now(),
+          now: clock.real(),
         })
       : ''
 

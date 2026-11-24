@@ -4,23 +4,21 @@
 // adds nothing to WhatsApp's own markup. It never sends, scrolls or clicks
 // anything of WhatsApp's.
 
-export type FloatAction =
-  | { kind: 'verify'; messageId: string }
-  | { kind: 'voice'; messageId: string }
-  | { kind: 'capture' }
-  | { kind: 'draft' }
-  | { kind: 'translate' }
-  | { kind: 'ask' }
-  | { kind: 'open' }
+import {
+  deskActions,
+  whereSaid,
+  type DeskAction,
+  type DeskChat,
+  type Where,
+} from '../ui/deskActions'
+
+export type { Where }
+
+// The desk's actions (see ui/deskActions), plus opening the side panel.
+export type FloatAction = DeskAction | { kind: 'open' }
 
 // What the open chat offers, found on screen when the menu opens.
-export type FloatChat = {
-  name: string
-  receipts: { id: string; time: string }[]
-  // `played`: the note the vendor last pressed play on, whose sound the
-  // desk can read.
-  voiceNotes: { id: string; time: string; played?: boolean }[]
-}
+export type FloatChat = DeskChat & { name: string }
 
 // Icons as SVG markup, matching the panel's set (24px grid, 1.75 stroke).
 const svg = (d: string) =>
@@ -50,8 +48,6 @@ const ICONS = {
   close: svg('<path d="M6 6l12 12M18 6 6 18"/>'),
 }
 
-// Where each action runs: on this computer, in the cloud, or either.
-export type Where = 'device' | 'cloud'
 const mini = (d: string) =>
   `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
 const WHERE_ICON: Record<Where, string> = {
@@ -62,17 +58,13 @@ const WHERE_ICON: Record<Where, string> = {
     '<path d="M7.5 18.5h9.25a4.25 4.25 0 0 0 .4-8.48A5.75 5.75 0 0 0 6.1 11.3 3.6 3.6 0 0 0 7.5 18.5Z"/>',
   ),
 }
-const WHERE_SAID: Record<Where, string> = {
-  device: 'on this computer',
-  cloud: "in Google's cloud, after you approve",
-}
 
 // The icons that say where an action runs, with words for screen readers.
 export function whereMarks(where: Where[]): HTMLElement {
   const span = document.createElement('span')
   span.className = 'where'
   span.innerHTML = where.map((w) => WHERE_ICON[w]).join('')
-  const said = `Runs ${where.map((w) => WHERE_SAID[w]).join(' or ')}`
+  const said = whereSaid(where)
   span.setAttribute('role', 'img')
   span.setAttribute('aria-label', said)
   span.title = said
@@ -168,6 +160,8 @@ function savedPos(): Pos {
 
 export function mountFloatDesk(opts: {
   chat: () => FloatChat | null
+  // Whether this shop's market writes replies on this computer.
+  replyOnDevice: () => boolean
   onAction: (a: FloatAction) => void
 }) {
   const host = document.createElement('div')
@@ -249,92 +243,16 @@ export function mountFloatDesk(opts: {
     head.querySelector('.close')!.addEventListener('click', close)
     menu.append(head)
     const list = document.createElement('ul')
-    if (c) {
-      for (const r of c.receipts.slice(-2).reverse()) {
-        list.append(
-          item(
-            'receipt',
-            'Verify the payment',
-            `Picture at ${r.time || 'the end'}`,
-            {
-              kind: 'verify',
-              messageId: r.id,
-            },
-            ['device'],
-          ),
-        )
-      }
-      list.append(
-        item(
-          'bag',
-          'Capture the order',
-          'Items, delivery and amount',
-          {
-            kind: 'capture',
-          },
-          ['device'],
-        ),
-      )
-      // The note just played, which the desk can hear; else the newest,
-      // with a reminder to play it first.
-      const played = c.voiceNotes.find((v) => v.played)
-      const note = played ?? c.voiceNotes.at(-1)
-      if (note) {
-        list.append(
-          item(
-            'mic',
-            'Read the voice note',
-            played
-              ? `The one you played, from ${note.time || 'this chat'}`
-              : `Play it first. Newest is from ${note.time || 'this chat'}`,
-            {
-              kind: 'voice',
-              messageId: note.id,
-            },
-            ['cloud'],
-          ),
-        )
-      }
-      list.append(
-        item(
-          'reply',
-          'Draft a reply',
-          'Placed in the box, never sent',
-          {
-            kind: 'draft',
-          },
-          ['device'],
-        ),
-      )
-      list.append(
-        item(
-          'globe',
-          'Translate their messages',
-          'Their latest messages, into English',
-          {
-            kind: 'translate',
-          },
-          ['device', 'cloud'],
-        ),
-      )
-    } else {
+    if (!c) {
       const note = document.createElement('p')
       note.className = 'note'
       note.textContent =
         'Open a chat to verify a payment, capture an order or draft a reply.'
       menu.append(note)
     }
-    list.append(
-      item(
-        'spark',
-        'Ask Foil',
-        'About orders, stock or money',
-        {
-          kind: 'ask',
-        },
-        ['device', 'cloud'],
-      ),
-    )
+    for (const it of deskActions(c, { replyOnDevice: opts.replyOnDevice() })) {
+      list.append(item(it.icon, it.label, it.sub, it.action, it.where))
+    }
     menu.append(list)
     const sep = document.createElement('div')
     sep.className = 'sep'

@@ -13,6 +13,6 @@ export function shopWords(m: Market = market()) {
     shop: `a small ${m.city} shop that sells on WhatsApp and is paid by ${paidBy}`,
     city: m.city,
     money: `amounts written like ${formatMoney(1_850_000, m)}`,
-    language: m.id === 'br' ? 'Brazilian Portuguese' : 'English',
+    language: m.promptLanguage,
   }
 }

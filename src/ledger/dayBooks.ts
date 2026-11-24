@@ -1,3 +1,4 @@
+import { market } from '../config/market'
 import type { Credit, VerifyConfig } from '../verify/types'
 import { formatMoney } from '../verify/money'
 import { balanceKobo, dueKobo, paidKobo } from './ledger'
@@ -57,7 +58,7 @@ const add = (t: Tally, kobo: number) => {
   t.kobo += kobo
 }
 
-// Credit times are Lagos wall-clock milliseconds, so the UTC date is the
+// Credit times are shop wall-clock milliseconds, so the UTC date is the
 // Lagos date.
 export const creditDay = (c: Credit) =>
   c.at ? new Date(c.at.ms).toISOString().slice(0, 10) : null
@@ -184,7 +185,7 @@ const n = (t: Tally, what: string) =>
 // The books as the plain lines the vendor approves and the cloud reads.
 export function booksText(b: DayBooks): string {
   const lines = [
-    `Books for ${b.day} (Lagos):`,
+    `Books for ${b.day} (${market().city} time):`,
     `Orders: ${b.orders}${b.dropOrders ? ` (${b.dropOrders} from a status drop)` : ''}, worth ${formatMoney(b.orderedKobo)}${b.unpriced ? `; ${b.unpriced} still without a price` : ''}.`,
     `Fully paid: ${n(b.paid, 'order')}.`,
     `Paid in part: ${many(b.short.count, 'order')}, ${formatMoney(b.short.kobo)} still owed.`,

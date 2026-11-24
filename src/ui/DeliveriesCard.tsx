@@ -7,6 +7,7 @@ import { atTime, nextHour } from '../google/calendar'
 import { GoogleResult } from './GoogleResult'
 import type { GoogleStatus } from './useGoogle'
 import { Icon } from './icons'
+import { useShopClock } from './useShopClock'
 
 // The buttons that move one order along: out, delivered or collected.
 export function DeliverySteps(props: {
@@ -37,14 +38,14 @@ export function DeliveriesCard(props: {
   ledger: LedgerApi
   customerName: (id: string | null) => string
   onOpen?: (customerKey: string) => void
-  // Wall-clock now, for the default time of a run.
-  now: number
   onAddRun: (area: string, orders: Order[], startMs: number) => void
   runStatus: (area: string) => GoogleStatus | undefined
 }) {
   // The time typed for each area's run, until it is added.
   const [times, setTimes] = useState<Record<string, string>>({})
-  const defaultTime = new Date(nextHour(props.now)).toISOString().slice(11, 16)
+  // The shop clock's now, for the default time of a run.
+  const now = useShopClock().now()
+  const defaultTime = new Date(nextHour(now)).toISOString().slice(11, 16)
   const { data } = props.ledger
   const groups = data ? deliveryGroups(data.orders, data.credits) : []
   const count = groups.reduce((n, g) => n + g.orders.length, 0)
@@ -105,7 +106,7 @@ export function DeliveriesCard(props: {
               className="run-plan"
               onSubmit={(e) => {
                 e.preventDefault()
-                const at = atTime(props.now, times[g.label] ?? defaultTime)
+                const at = atTime(now, times[g.label] ?? defaultTime)
                 if (at === null) return
                 props.onAddRun(
                   g.label,

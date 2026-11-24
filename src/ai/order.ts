@@ -67,6 +67,16 @@ const model = privateModels({
   },
 })
 
+// Lagos customers name states by short forms and send goods by motor park.
+function outOfTownLines(): string {
+  const { state, shortForms, motorParks } = market().outOfTown
+  const short = shortForms
+    ? `, including short forms such as ${shortForms}`
+    : ''
+  const park = motorParks ? 'the motor park they chose in that state' : 'empty'
+  return `state: ${state}${short}\npark: ${park}\n`
+}
+
 const prompt =
   () => `Below is a WhatsApp chat between a ${market().city} shop ("You") and a customer. Copy the order the customer agreed to, exactly as written in the chat, or an empty string if absent. Never calculate or invent anything.
 items: each item ordered, with its quantity and its unit price as stated in the chat
@@ -76,7 +86,7 @@ address: the delivery address; empty if they will pick up
 landmark: a landmark near the address
 area: the area or neighbourhood of ${market().city}
 deliveryChoice: how the customer wants to receive it, in their words, such as pickup, sending their own rider, or a park
-${market().id === 'ng' ? 'state: the Nigerian state or city for delivery, as written, including short forms such as PH or Abj\npark: the motor park they chose in that state\n' : 'state: another city or state for delivery, if outside ' + market().city + '\npark: empty\n'}payOnDelivery: yes if they will pay the delivery fee to the rider on delivery, otherwise empty
+${outOfTownLines()}payOnDelivery: yes if they will pay the delivery fee to the rider on delivery, otherwise empty
 
 Chat:
 `

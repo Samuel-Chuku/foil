@@ -58,7 +58,7 @@ function voiceRequest(
 async function readVoiceNote(request: Approved): Promise<Reading<VoiceNote>> {
   const { text, source, ms } = await sendApproved(model(), request)
   // The street check knows Lagos streets only; elsewhere it stays quiet.
-  const streets = market().id === 'ng' ? LAGOS_STREETS : []
+  const streets = market().localVoice ? LAGOS_STREETS : []
   return {
     fields: pickVoice(JSON.parse(text) as unknown, streets),
     source,

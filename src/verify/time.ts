@@ -42,9 +42,10 @@ function findDate(s: string): [number, number, number] | null {
   return null
 }
 
-// Reads the date and time as written on a receipt or alert, in Lagos time.
+// Reads the date and time as written on a receipt or alert, in the shop's
+// local time.
 // A missing time gives day precision rather than a guessed midnight.
-export function parseLagosStamp(text: string): Stamp | null {
+export function parseShopStamp(text: string): Stamp | null {
   // Some bank emails arrive with junk markup inside the time ("10<:15:...>50").
   const s = text
     .toLowerCase()
@@ -72,7 +73,6 @@ export function parseLagosStamp(text: string): Stamp | null {
 
 // Gmail and other clocks give true time; the shop's local wall clock is a
 // fixed offset from UTC in every market here (none has daylight saving).
-// The name keeps the first market's.
-export function lagosFromEpoch(epochMs: number): number {
+export function shopTime(epochMs: number): number {
   return epochMs + market().utcOffsetMin * 60_000
 }

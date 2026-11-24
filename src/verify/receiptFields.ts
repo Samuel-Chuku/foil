@@ -1,7 +1,7 @@
 import { bankFromNipCode, bankFromText } from './banks'
 import { parseMoney } from './money'
 import { decodeSessionId } from './sessionId'
-import { parseLagosStamp } from './time'
+import { parseShopStamp } from './time'
 import type { Receipt, VerifyConfig } from './types'
 
 // What the model is asked to copy off a receipt. Every field is text exactly as
@@ -68,7 +68,7 @@ export function toReceipt(raw: RawReceipt, config: VerifyConfig): Receipt {
   const bank =
     bankFromText(config.banks, clean(raw.issuer)) ??
     (session.ok ? bankFromNipCode(config.banks, session.value.nipCode) : null)
-  let at = parseLagosStamp(clean(raw.dateTime))
+  let at = parseShopStamp(clean(raw.dateTime))
   // Some PDF receipts print every time as 00:00:00, which means "date only".
   if (at && at.precision === 'second' && at.ms % 86_400_000 === 0) {
     at = { ms: at.ms, precision: 'day' }

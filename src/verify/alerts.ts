@@ -1,7 +1,7 @@
 import { bankFromSender } from './banks'
 import { parseMoney } from './money'
 import { decodeSessionId } from './sessionId'
-import { parseLagosStamp } from './time'
+import { parseShopStamp } from './time'
 import type { Credit, LagosMs, VerifyConfig } from './types'
 
 export type AlertEmail = {
@@ -302,7 +302,7 @@ export function parseAlert(
       : { status: 'not-a-transfer', bank: bank.id }
   }
   const session = decodeSessionId(p.narration)
-  const written = p.time ? parseLagosStamp(p.time) : null
+  const written = p.time ? parseShopStamp(p.time) : null
   return {
     status: 'parsed',
     credit: {

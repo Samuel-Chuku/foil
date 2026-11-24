@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parseMoney } from './money'
 import { nameScore } from './names'
 import { decodeSessionId, sameSessionId } from './sessionId'
-import { parseLagosStamp } from './time'
+import { parseShopStamp } from './time'
 
 describe('parseMoney', () => {
   it.each([
@@ -83,9 +83,9 @@ describe('decodeSessionId', () => {
   })
 })
 
-describe('parseLagosStamp', () => {
+describe('parseShopStamp', () => {
   const iso = (text: string) => {
-    const s = parseLagosStamp(text)
+    const s = parseShopStamp(text)
     return s && [new Date(s.ms).toISOString().slice(0, 19), s.precision]
   }
   it.each([
@@ -98,6 +98,6 @@ describe('parseLagosStamp', () => {
   ])('%s', (text, at, precision) => expect(iso(text)).toEqual([at, precision]))
 
   it('rejects impossible dates', () => {
-    expect(parseLagosStamp('31/02/2026 10:00')).toBeNull()
+    expect(parseShopStamp('31/02/2026 10:00')).toBeNull()
   })
 })

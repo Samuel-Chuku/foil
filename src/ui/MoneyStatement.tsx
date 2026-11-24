@@ -2,7 +2,7 @@ import { moneyFlow } from '../ledger/flow'
 import { formatMoney } from '../verify/money'
 import type { LedgerApi } from './useLedger'
 
-// Lagos wall-clock times are stored as UTC fields.
+// Shop wall-clock times are stored as UTC fields.
 const time = (ms: number) => new Date(ms).toISOString().slice(11, 16)
 
 function dayTitle(day: string | null): string {

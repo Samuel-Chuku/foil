@@ -6,6 +6,7 @@ import { Chart } from './Chart'
 import { MoneyStatement } from './MoneyStatement'
 import { loadingLine, type LedgerApi } from './useLedger'
 import { Icon } from './icons'
+import { useShopClock } from './useShopClock'
 
 const SPANS = [7, 14, 30] as const
 type Span = (typeof SPANS)[number]
@@ -32,8 +33,10 @@ function changeText(s: Side, lastWeekDay: string): string {
   return `${s.change > 0 ? '▲' : '▼'} ${pct}% ${s.change > 0 ? 'more' : 'less'} than last ${lastWeekDay} by this time`
 }
 
-export function MoneyPulseCard(props: { ledger: LedgerApi; now: number }) {
+export function MoneyPulseCard(props: { ledger: LedgerApi }) {
   const { data, config } = props.ledger
+  // The shop clock's now, which the demo sets to its sample day.
+  const now = useShopClock().now()
   const [span, setSpan] = useState<Span>(7)
   const bankName = (id: string | null) =>
     config.banks.find((b) => b.id === id)?.name ?? 'Bank not known'
@@ -67,11 +70,11 @@ export function MoneyPulseCard(props: { ledger: LedgerApi; now: number }) {
     data.credits,
     data.orders,
     data.settlements,
-    props.now,
+    now,
     span,
   )
   const newest = pulse.latest[0]
-  const lastWeekDay = weekday(props.now - 7 * 86_400_000)
+  const lastWeekDay = weekday(now - 7 * 86_400_000)
   const nothing = data.credits.length === 0
 
   const spec: ChartSpec = {

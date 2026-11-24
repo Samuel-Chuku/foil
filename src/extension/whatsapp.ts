@@ -386,8 +386,18 @@ function openPanel(): boolean {
   }
 }
 
+// What the panel says while it works on each pick.
+const DOING: Record<Exclude<FloatAction['kind'], 'open' | 'ask'>, string> = {
+  verify: 'Checking this payment in Foil…',
+  voice: 'Opening the voice note in Foil…',
+  draft: 'Writing a reply in Foil…',
+  translate: 'Putting their messages into English in Foil…',
+  capture: 'Reading the order in Foil…',
+}
+
 const float = mountFloatDesk({
   chat: floatChat,
+  replyOnDevice: () => replyOnDevice,
   onAction: (a: FloatAction) => {
     // Opened at once, while Chrome still counts this as the vendor's click.
     if (!openPanel() || a.kind === 'open') return
@@ -395,17 +405,7 @@ const float = mountFloatDesk({
       void deliver({ kind: 'focus-ask' }).catch((e) => toast(problem(e)))
       return
     }
-    toast(
-      a.kind === 'verify'
-        ? 'Checking this payment in Foil…'
-        : a.kind === 'voice'
-          ? 'Opening the voice note in Foil…'
-          : a.kind === 'draft'
-            ? 'Writing a reply in Foil…'
-            : a.kind === 'translate'
-              ? 'Putting their messages into English in Foil…'
-              : 'Reading the order in Foil…',
-    )
+    toast(DOING[a.kind])
     void send(a.kind, 'messageId' in a ? a.messageId : undefined)
   },
 })
@@ -522,6 +522,9 @@ async function askWriter(ask: WriteAsk): Promise<WriteAnswer> {
   }
 }
 
+// Whether this shop's market drafts replies on this computer; Lagos does,
+// until the writer says otherwise.
+let replyOnDevice = true
 // The rewrite choices for this shop's market; Lagos until the writer says.
 let styles: StyleChoice[] = [
   { id: 'friendlier', label: 'Friendlier', onDevice: true },
@@ -536,7 +539,10 @@ let styles: StyleChoice[] = [
 ]
 async function refreshStyles() {
   const answer = await askWriter({ kind: 'desk-write', op: 'styles' })
-  if (answer.kind === 'styles') styles = answer.styles
+  if (answer.kind === 'styles') {
+    styles = answer.styles
+    replyOnDevice = answer.replyOnDevice
+  }
 }
 
 async function write(

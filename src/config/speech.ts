@@ -9,46 +9,10 @@ export function speechLangs(locale: string): string[] {
     : [locale]
 }
 
-// The languages the desk can answer in, per market. Chrome's built-in model
-// writes English and English-based Pidgin; the rest are written in the cloud.
-export type AnswerLanguage = {
-  id: string
-  label: string
-  // How prompts name it.
-  prompt: string
-  onDevice: boolean
-  // For choosing a voice to read it aloud.
-  voiceLang: string
-}
+// The languages the desk can answer in (see Market.answerIn).
+export type AnswerLanguage = Market['answerIn'][number]
 
-export function answerLanguages(m: Market): AnswerLanguage[] {
-  const l = (
-    id: string,
-    label: string,
-    prompt: string,
-    onDevice: boolean,
-    voiceLang: string,
-  ): AnswerLanguage => ({ id, label, prompt, onDevice, voiceLang })
-  if (m.id === 'in') {
-    return [
-      l('english', 'English', 'English', true, 'en-IN'),
-      l('hindi', 'Hindi', 'Hindi, in Devanagari script', false, 'hi-IN'),
-    ]
-  }
-  if (m.id === 'br') {
-    return [
-      l('portuguese', 'Portuguese', 'Brazilian Portuguese', false, 'pt-BR'),
-      l('english', 'English', 'English', true, 'en-US'),
-    ]
-  }
-  return [
-    l('english', 'English', 'English', true, 'en-NG'),
-    l('pidgin', 'Pidgin', 'natural Lagos Nigerian Pidgin', true, 'en-NG'),
-    l('yoruba', 'Yoruba', 'Yoruba, with correct tone marks', false, 'yo-NG'),
-    l('igbo', 'Igbo', 'Igbo', false, 'ig-NG'),
-    l('hausa', 'Hausa', 'Hausa', false, 'ha-NG'),
-  ]
-}
+export const answerLanguages = (m: Market): AnswerLanguage[] => m.answerIn
 
 // The language chosen in Settings, or the market's own when none is.
 export function answerLanguage(m: Market, id: string): AnswerLanguage {

@@ -1,5 +1,6 @@
 import type { WriteJob } from '../ai/rewrite'
 import type { CloudRequest } from '../cloud/approval'
+import type { ChatAction } from '../ui/deskActions'
 import type { OpenChat } from '../ui/host'
 
 // Messages between the WhatsApp Web content script and the side panel. The
@@ -11,9 +12,8 @@ import type { OpenChat } from '../ui/host'
 export type FromChat = {
   kind: 'chat'
   chat: OpenChat
-  // What the vendor picked: a receipt to verify, the order to capture, a
-  // voice note to read, or a reply to draft.
-  action: 'verify' | 'capture' | 'voice' | 'draft' | 'translate'
+  // What the vendor picked from the floating desk (see ui/deskActions).
+  action: ChatAction['kind']
   messageId?: string
 }
 
@@ -54,7 +54,9 @@ export type WriteAsk =
   | { kind: 'desk-write'; op: 'decline'; id: string }
 
 export type WriteAnswer =
-  | { kind: 'styles'; styles: StyleChoice[] }
+  // `replyOnDevice`: whether the shop's market drafts replies on this
+  // computer, for the floating desk's marks.
+  | { kind: 'styles'; styles: StyleChoice[]; replyOnDevice: boolean }
   | {
       kind: 'done'
       text: string

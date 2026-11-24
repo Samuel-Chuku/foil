@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig, loadEnv, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin, type UserConfig } from 'vite'
 
 // Chrome loads content scripts as classic scripts, which cannot import, so a
 // content script that shares a module with the panel would silently never
@@ -23,35 +23,57 @@ const selfContained: Plugin = {
   },
 }
 
+// The WhatsApp script shares the floating desk's actions with the panel
+// (ui/deskActions), so it is built on its own afterwards, in the
+// `content-script` mode, with every module it uses inlined into one file.
+const CONTENT_SCRIPT = 'content-script'
+
 // Builds the Chrome extension into dist-extension/. Load it unpacked from there.
-export default defineConfig(({ mode }) => ({
-  plugins: [react(), selfContained],
-  // With the App Check bridge configured, the extension gets real tokens
-  // and must not carry the development debug token.
-  define: loadEnv(mode, process.cwd()).VITE_APPCHECK_BRIDGE_URL
-    ? { 'import.meta.env.VITE_APPCHECK_DEBUG_TOKEN': '""' }
-    : {},
-  publicDir: 'src/extension/public',
-  build: {
-    outDir: 'dist-extension',
-    emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        sidepanel: 'src/extension/sidepanel.html',
-        writer: 'src/extension/writer.html',
-        mic: 'src/extension/mic.html',
-        background: 'src/extension/background.ts',
-        whatsapp: 'src/extension/whatsapp.ts',
-        whatsappMain: 'src/extension/whatsappMain.ts',
+export default defineConfig(({ mode }): UserConfig =>
+  mode === CONTENT_SCRIPT
+    ? {
+        plugins: [selfContained],
+        publicDir: false,
+        build: {
+          outDir: 'dist-extension',
+          emptyOutDir: false,
+          rollupOptions: {
+            input: { whatsapp: 'src/extension/whatsapp.ts' },
+            output: {
+              entryFileNames: '[name].js',
+              inlineDynamicImports: true,
+            },
+          },
+        },
+      }
+    : {
+        plugins: [react(), selfContained],
+        // With the App Check bridge configured, the extension gets real tokens
+        // and must not carry the development debug token.
+        define: loadEnv(mode, process.cwd()).VITE_APPCHECK_BRIDGE_URL
+          ? { 'import.meta.env.VITE_APPCHECK_DEBUG_TOKEN': '""' }
+          : {},
+        publicDir: 'src/extension/public',
+        build: {
+          outDir: 'dist-extension',
+          emptyOutDir: true,
+          rollupOptions: {
+            input: {
+              sidepanel: 'src/extension/sidepanel.html',
+              writer: 'src/extension/writer.html',
+              mic: 'src/extension/mic.html',
+              background: 'src/extension/background.ts',
+              whatsappMain: 'src/extension/whatsappMain.ts',
+            },
+            output: {
+              // The manifest names the service worker and the content scripts, so
+              // their files must not be hashed.
+              entryFileNames: (chunk) =>
+                ['background', ...CONTENT_SCRIPTS].includes(chunk.name)
+                  ? `${chunk.name}.js`
+                  : 'assets/[name]-[hash].js',
+            },
+          },
+        },
       },
-      output: {
-        // The manifest names the service worker and the content scripts, so
-        // their files must not be hashed.
-        entryFileNames: (chunk) =>
-          ['background', ...CONTENT_SCRIPTS].includes(chunk.name)
-            ? `${chunk.name}.js`
-            : 'assets/[name]-[hash].js',
-      },
-    },
-  },
-}))
+)

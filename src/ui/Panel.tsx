@@ -1,6 +1,7 @@
 import {
   useEffect,
   useEffectEvent,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -36,6 +37,8 @@ import { errorMessage } from '../cloud/errors'
 import { cloudErrorText } from '../cloud/send'
 import { useApproval } from './useApproval'
 import { useModelJobs } from './useModelJobs'
+import { ShopClockContext, useShopClock } from './useShopClock'
+import { shopClock } from '../ledger/clock'
 import { whenApproved } from '../ai/job'
 import { VoiceCard, type VoiceStep } from './VoiceCard'
 import type { Reading } from '../ai/run'
@@ -76,12 +79,7 @@ import type { RawReceipt } from '../verify/receiptFields'
 import { toReceipt } from '../verify/receiptFields'
 import type { Credit, Receipt } from '../verify/types'
 import type { OpenChat, PanelHost, PanelRequest } from './host'
-import {
-  fileToImage,
-  importBankApp,
-  lagosToday,
-  type BankAppResult,
-} from './bankApp'
+import { fileToImage, importBankApp, type BankAppResult } from './bankApp'
 import { DeliveryFields } from './DeliveryFields'
 import {
   fromDeliveryForm,
@@ -104,7 +102,6 @@ import {
   roleOf,
   unclaimedFacts,
 } from '../capture/drop'
-import { lagosFromEpoch } from '../verify/time'
 import { MoneyPulseCard } from './MoneyPulseCard'
 import { MONEY_STATE, STATE_WORDS } from './moneyState'
 import { ProofPair, StatePill } from './ProofPair'
@@ -390,7 +387,7 @@ function DeviceStatus(props: { device: DeviceApi }) {
   )
 }
 
-export function Panel(props: {
+type PanelProps = {
   chat: OpenChat | null
   request: PanelRequest | null
   ledger: LedgerApi
@@ -402,9 +399,24 @@ export function Panel(props: {
   // Whether the shop picks its market here (the extension) or the host has
   // its own switcher (the demo).
   pickMarket?: boolean
-}) {
+}
+
+// The panel runs on the host's clock, which the demo sets to its sample day;
+// every card inside reads it from here.
+export function Panel(props: PanelProps) {
+  const { host } = props
+  const clock = useMemo(() => shopClock(() => host.now()), [host])
+  return (
+    <ShopClockContext value={clock}>
+      <PanelBody {...props} />
+    </ShopClockContext>
+  )
+}
+
+function PanelBody(props: PanelProps) {
   const { chat, ledger, device, host, shop } = props
   const online = useOnline()
+  const clock = useShopClock()
   const approval = useApproval()
   const jobs = useModelJobs(device, approval.ask)
   const google = useGoogle(host, approval.ask)
@@ -457,29 +469,13 @@ export function Panel(props: {
     void noteChat(customerId, contactName, messages)
   }, [messages, customerId, contactName, noteChat])
   const current = chat ? (work[chat.phone] ?? {}) : {}
-  // Lagos is a fixed hour ahead of UTC.
-  const LAGOS_OFFSET_MS = market().utcOffsetMin * 60_000
-  // Holds run on the real clock; the demo shows its own sample-day clock, so
-  // times are shifted by the difference for display and for message times.
-  const clockShift = () => host.now() - lagosFromEpoch(Date.now())
-  // An order's Lagos day and hour, on the same shifted clock.
-  const lagos = {
-    day: (o: Order) =>
-      new Date(lagosFromEpoch(o.createdAt) + clockShift())
-        .toISOString()
-        .slice(0, 10),
-    hour: (o: Order) =>
-      new Date(lagosFromEpoch(o.createdAt) + clockShift()).getUTCHours(),
-  }
-  const today = new Date(host.now()).toISOString().slice(0, 10)
-  const todays = data?.orders.filter((o) => lagos.day(o) === today) ?? []
+  const today = clock.today()
+  const todays = data?.orders.filter((o) => clock.day(o) === today) ?? []
   const [orderQuery, setOrderQuery] = useState('')
   const searching = orderQuery.trim() !== ''
   const listed = searching
     ? findOrders(data?.orders ?? [], data?.customers ?? [], orderQuery)
     : todays
-  const clock = (ms: number) =>
-    new Date(lagosFromEpoch(ms) + clockShift()).toISOString().slice(11, 16)
 
   // Money that pays no order: the open list for the whole day, and the part
   // that belongs with this chat (this order's overpayment, the customer's own
@@ -686,11 +682,8 @@ export function Panel(props: {
         (p) => p.kind === 'sure' && p.product.dropId,
       )?.messageId
       const asked = chat.messages.find((m) => m.id === claimMessage)?.time
-      const askedLagos = asked ? messageTime(asked, host.now()) : null
-      const claimedAt =
-        askedLagos === null
-          ? undefined
-          : askedLagos - LAGOS_OFFSET_MS - clockShift()
+      const askedAt = asked ? messageTime(asked, host.now()) : null
+      const claimedAt = askedAt === null ? undefined : clock.toEpoch(askedAt)
       // Several replies about the same piece are one request for it.
       const seenPieces = new Set<string>()
       const onePerPiece = pictures.items.filter((p) => {
@@ -847,7 +840,7 @@ export function Panel(props: {
     patch(phone, {
       voice: { status: 'running', note: 'Waiting for your approval…' },
     })
-    const lagos = market().id === 'ng'
+    const local = market().localVoice
     const plan = planVoice(
       {
         ...audio,
@@ -858,11 +851,11 @@ export function Panel(props: {
       {
         // Lagos brings its Pidgin glossary, areas and well-known streets;
         // other markets use the shop's own delivery areas.
-        glossary: lagos ? appConfig().pidginGlossary : {},
-        areas: lagos
+        glossary: local ? appConfig().pidginGlossary : {},
+        areas: local
           ? placeNames('Lagos')
           : shop.rules.areaFees.map((f) => f.area),
-        streets: lagos ? LAGOS_STREETS : [],
+        streets: local ? LAGOS_STREETS : [],
         products: (data?.products ?? []).flatMap((p) =>
           p.name && !p.dropId ? [p.name] : [],
         ),
@@ -1111,7 +1104,7 @@ export function Panel(props: {
     try {
       const value = await importBankApp(
         await fileToImage(file),
-        { bank: appBank || null, day: lagosToday(Date.now()) },
+        { bank: appBank || null, day: clock.dayStart() },
         jobs,
         ledger,
       )
@@ -1667,10 +1660,10 @@ export function Panel(props: {
     return google.sendSheet(
       'sheet',
       [
-        ordersTable(data.orders, data.credits, lagos.day, customerName, {
+        ordersTable(data.orders, data.credits, clock.day, customerName, {
           names: sheetNames,
         }),
-        dailyTable(data.orders, data.credits, lagos.day),
+        dailyTable(data.orders, data.credits, clock.day),
       ],
       host.now(),
       shop.rules.shopName,
@@ -2530,8 +2523,8 @@ export function Panel(props: {
                       ) : (
                         customerName(o.customerId)
                       )}
-                      {searching && lagos.day(o) !== today && (
-                        <span className="hint"> · {lagos.day(o)}</span>
+                      {searching && clock.day(o) !== today && (
+                        <span className="hint"> · {clock.day(o)}</span>
                       )}
                     </span>
                     <span>
@@ -2546,14 +2539,13 @@ export function Panel(props: {
             )}
           </section>
 
-          {drops && <DropCard ledger={ledger} clock={clock} side="live" />}
+          {drops && <DropCard ledger={ledger} clock={clock.time} side="live" />}
 
           {shop.rules.methods.length > 0 && (
             <DeliveriesCard
               ledger={ledger}
               customerName={customerName}
               onOpen={host.openChat}
-              now={host.now()}
               onAddRun={(area, orders, at) => void addRun(area, orders, at)}
               runStatus={(area) => google.status[`run:${area}`]}
             />
@@ -2561,7 +2553,7 @@ export function Panel(props: {
         </TabPanel>
 
         <TabPanel id="money" current={tab}>
-          <MoneyPulseCard ledger={ledger} now={host.now()} />
+          <MoneyPulseCard ledger={ledger} />
 
           {props.inbox}
 
@@ -2654,12 +2646,10 @@ export function Panel(props: {
               Foil records what you decide. Refunds are sent from your bank app.
             </p>
           </section>
-          <BooksCard ledger={ledger} today={today} lagos={lagos} />
+          <BooksCard ledger={ledger} />
 
           <TrendsCard
             ledger={ledger}
-            today={today}
-            lagos={lagos}
             jobs={jobs}
             badge={(r) => <Badge source={r.source} ms={r.ms} />}
           />
@@ -2719,7 +2709,7 @@ export function Panel(props: {
           {drops && (
             <DropCard
               ledger={ledger}
-              clock={clock}
+              clock={clock.time}
               side="setup"
               onStarted={() => setTab('today')}
             />
@@ -2730,9 +2720,6 @@ export function Panel(props: {
           deviceReady={device.state === 'available'}
           ledger={ledger}
           rules={shop.rules}
-          today={today}
-          lagos={lagos}
-          now={() => Date.now()}
           online={online}
           jobs={jobs}
           badge={(r) => <Badge source={r.source} ms={r.ms} />}

@@ -174,18 +174,13 @@ export function voicePrompt(vocabulary: {
     .map(([k, v]) => `${k} = ${v}`)
     .join('; ')
   const m = market()
-  const speech = {
-    ng: 'English, Nigerian Pidgin, Yoruba, Igbo or Hausa',
-    in: 'English, Hindi or Marathi',
-    br: 'Brazilian Portuguese',
-  }[m.id]
-  return `This is a WhatsApp voice note from a customer of a small ${m.city} shop. They may speak ${speech}, or a mix. Listen and fill in the order, in English. Do not write out what was said word for word.
+  return `This is a WhatsApp voice note from a customer of a small ${m.city} shop. They may speak ${m.speaks}, or a mix. Listen and fill in the order, in English. Do not write out what was said word for word.
 items: each item they want, with its quantity as said (a number or a word), and unsure "yes" if you could not make out the item or how many
 customerName: the name they give for themselves, if they say it
 address: the street address with any house number, such as "14 Adeniran Ogunsanya Street"; if you are not sure of a word, write your best hearing and list "address" under unsure
 landmark, area: a landmark near the address, and the area or neighbourhood
 deliveryChoice: how they want to receive it, in their words, such as pick up, delivery or a park
-state: the state or city if they are outside ${m.city}${m.id === 'ng' ? ', including short forms such as PH or Abj' : ''}
+state: the state or city if they are outside ${m.city}${m.outOfTown.shortForms ? `, including short forms such as ${m.outOfTown.shortForms}` : ''}
 park: the motor park they named
 payOnDelivery: yes if they will pay the rider on delivery, otherwise empty
 question: anything they asked the shop, in English, or empty

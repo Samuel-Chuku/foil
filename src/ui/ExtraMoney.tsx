@@ -4,8 +4,8 @@ import type { Settlement } from '../ledger/types'
 import { formatMoney } from '../verify/money'
 import type { Credit } from '../verify/types'
 
-// Times are Lagos wall-clock readings stored as UTC, so the UTC clock face is
-// the Lagos time.
+// Times are shop wall-clock readings stored as UTC, so the UTC clock face is
+// the shop time.
 function clock(credit: Credit): string {
   return credit.at ? new Date(credit.at.ms).toISOString().slice(11, 16) : ''
 }

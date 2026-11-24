@@ -81,7 +81,6 @@ export function SettingsView(props: {
   const p = useSyncExternalStore(prefsStore.subscribe, prefsStore.get)
   const set = prefsStore.set
   const recommended = verifyFor(appConfig().verify)
-  const lagos = market().id === 'ng'
   const [saving, setSaving] = useState<'idle' | 'saving' | 'error'>('idle')
   const { device, google } = props
   const speech = useSpeech()
@@ -188,7 +187,7 @@ export function SettingsView(props: {
           onChange={(replyLength) => set({ replyLength })}
           label={(l) => (l === 'short' ? 'Short' : 'Fuller')}
         />
-        {lagos && (
+        {market().reply.pidgin && (
           <Switch
             label="Answer Pidgin with Pidgin"
             checked={p.pidgin}

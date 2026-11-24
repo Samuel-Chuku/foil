@@ -1,5 +1,5 @@
 import type { AlertEmail } from '../verify/alerts'
-import { lagosFromEpoch } from '../verify/time'
+import { shopTime } from '../verify/time'
 
 // Pure helpers for the Gmail API: the search that runs on Google's side, and
 // turning a message into the AlertEmail the rules already read. No network
@@ -112,7 +112,7 @@ export function toAlertEmail(m: GmailMessage): AlertEmail {
     id: `gmail-${m.id}`,
     from: senderAddress(header(m.payload, 'From')),
     body: m.payload ? messageText(m.payload) : '',
-    receivedAt: lagosFromEpoch(Number(m.internalDate ?? 0)),
+    receivedAt: shopTime(Number(m.internalDate ?? 0)),
     inSpam: m.labelIds?.includes('SPAM') ?? false,
   }
 }

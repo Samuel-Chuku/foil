@@ -1,4 +1,3 @@
-import { lagosFromEpoch } from '../verify/time'
 import { planHistory } from '../ai/history'
 import type { RunJob } from '../ai/job'
 import type { ReceiptImage } from '../ai/receipt'
@@ -35,11 +34,4 @@ export function fileToImage(file: File): Promise<ReceiptImage> {
     reader.onerror = () => reject(reader.error)
     reader.readAsDataURL(file)
   })
-}
-
-// Midnight today in the shop's city, as the wall-clock milliseconds used
-// everywhere else.
-export function lagosToday(epochMs: number): number {
-  const lagos = lagosFromEpoch(epochMs)
-  return lagos - (lagos % 86_400_000)
 }

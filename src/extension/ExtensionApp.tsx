@@ -7,7 +7,8 @@ import type { OpenChat, PanelHost, PanelRequest } from '../ui/host'
 import { useDevice } from '../ui/useDevice'
 import { useLedger } from '../ui/useLedger'
 import { useShopRules } from '../ui/useShopRules'
-import { lagosFromEpoch } from '../verify/time'
+import { chatAction, toPanelRequest } from '../ui/deskActions'
+import { shopTime } from '../verify/time'
 import {
   isFocusAsk,
   isFromChat,
@@ -97,21 +98,12 @@ export default function ExtensionApp() {
       }
       setChat(message.chat)
       setTabId(sender.tab.id)
-      const nonce = Date.now()
-      const a = message.action
-      setRequest(
-        (a === 'verify' || a === 'voice') && message.messageId
-          ? { action: a, messageId: message.messageId, nonce }
-          : {
-              action:
-                a === 'draft'
-                  ? 'draft'
-                  : a === 'translate'
-                    ? 'translate'
-                    : 'capture',
-              nonce,
-            },
-      )
+      // A receipt or note that came without its id falls back to reading
+      // the order, as the chat itself still arrived.
+      const action = chatAction(message.action, message.messageId) ?? {
+        kind: 'capture',
+      }
+      setRequest(toPanelRequest(action, Date.now()))
     }
     chrome.runtime.onMessage.addListener(listen)
     return () => chrome.runtime.onMessage.removeListener(listen)
@@ -145,7 +137,7 @@ export default function ExtensionApp() {
       }
       if (!reply.ok) throw new Error(reply.reason)
     },
-    now: () => lagosFromEpoch(Date.now()),
+    now: () => shopTime(Date.now()),
     googleToken: sheetsCalendarToken,
     forgetGoogle,
     // A panel button on a chat the panel only knows by name: read it now,

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { bookDays, dayBooks, type Tally } from '../ledger/dayBooks'
 import { formatMoney } from '../verify/money'
-import type { Lagos } from './TrendsCard'
+import { useShopClock } from './useShopClock'
 import { loadingLine, type LedgerApi } from './useLedger'
 import { Icon } from './icons'
 
@@ -19,16 +19,14 @@ function dayTitle(day: string): string {
 
 // The day's books, worked out on this computer. Questions about them go to
 // Ask Foil, at the foot of the panel.
-export function BooksCard(props: {
-  ledger: LedgerApi
-  today: string
-  lagos: Lagos
-}) {
+export function BooksCard(props: { ledger: LedgerApi }) {
   const { data, config } = props.ledger
-  const days = data ? bookDays(data.orders, data.credits, props.lagos.day) : []
+  const clock = useShopClock()
+  const today = clock.today()
+  const days = data ? bookDays(data.orders, data.credits, clock.day) : []
   const [picked, setPicked] = useState<string | null>(null)
-  const day = picked ?? props.today
-  const books = data ? dayBooks(day, data, config, props.lagos.day) : null
+  const day = picked ?? today
+  const books = data ? dayBooks(day, data, config, clock.day) : null
   const empty = books && books.orders === 0 && books.moneyInKobo === 0
   return (
     <details className="card shop-rules books" data-tone="money">
@@ -54,7 +52,7 @@ export function BooksCard(props: {
               setPicked(e.target.value)
             }}
           >
-            {[...new Set([props.today, ...days])].map((d) => (
+            {[...new Set([today, ...days])].map((d) => (
               <option key={d} value={d}>
                 {dayTitle(d)}
               </option>

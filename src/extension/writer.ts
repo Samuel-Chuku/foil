@@ -62,6 +62,7 @@ async function handle(ask: WriteAsk): Promise<WriteAnswer> {
         label,
         onDevice,
       })),
+      replyOnDevice: m.reply.onDevice,
     }
   }
   if (ask.op === 'decline') {

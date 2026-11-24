@@ -12,7 +12,7 @@ export type CustomerReceipt = {
   // Empty when the shop keeps order numbers off its receipts.
   orderCode: string
   customer: string | null
-  // When the last of the money landed, Lagos wall-clock; null if the bank
+  // When the last of the money landed, shop wall-clock; null if the bank
   // gave no time.
   paidAt: number | null
   lines: { label: string; kobo: number | null }[]
@@ -104,7 +104,7 @@ const MONTHS = [
   'Dec',
 ]
 
-// "Sat 21 Nov, 3:42 PM", from Lagos wall-clock milliseconds. Built by hand
+// "Sat 21 Nov, 3:42 PM", from shop wall-clock milliseconds. Built by hand
 // so it reads the same in every browser locale.
 export function receiptTime(ms: number): string {
   const d = new Date(ms)

@@ -181,7 +181,7 @@ export function dropFacts(
   }
 }
 
-// A message's "15:27" on the day of `lagosNow`, as Lagos wall-clock ms.
+// A message's "15:27" on the day of `lagosNow`, as shop wall-clock ms.
 export function messageTime(hhmm: string, lagosNow: number): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim())
   if (!m) return null

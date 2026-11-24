@@ -23,7 +23,7 @@ export type Pulse = {
   today: { in: Side; out: Side }
   days: PulseDay[]
   latest: FlowRow[]
-  // When the newest dated alert arrived, in Lagos wall-clock milliseconds.
+  // When the newest dated alert arrived, in shop wall-clock milliseconds.
   newestMs: number | null
 }
 
@@ -39,7 +39,7 @@ function side(kobo: number, lastWeekKobo: number): Side {
   }
 }
 
-// `now` is Lagos wall-clock milliseconds, like every credit's time.
+// `now` is shop wall-clock milliseconds, like every credit's time.
 export function moneyPulse(
   credits: Credit[],
   orders: Order[],

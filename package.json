@@ -13,7 +13,7 @@
     "format": "prettier --write src index.html \"*.{ts,json}\"",
     "format:check": "prettier --check src index.html \"*.{ts,json}\"",
     "test": "vitest run --passWithNoTests",
-    "build:extension": "tsc -b && vite build --config vite.extension.config.ts",
+    "build:extension": "tsc -b && vite build --config vite.extension.config.ts && vite build --config vite.extension.config.ts --mode content-script",
     "test:rules": "firebase emulators:exec --only auth,firestore --project demo-vendor-desk \"vitest run\""
   },
   "dependencies": {

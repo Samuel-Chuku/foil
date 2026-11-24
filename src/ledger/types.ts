@@ -93,7 +93,7 @@ export type MoneyEntry = {
   id: string
   amountKobo: number
   state: Settlement['state']
-  // When the money arrived, Lagos wall-clock; null if the bank gave no time.
+  // When the money arrived, shop wall-clock; null if the bank gave no time.
   arrivedAt: number | null
   updatedAt: number
 }

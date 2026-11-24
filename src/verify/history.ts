@@ -1,7 +1,7 @@
 import { clean } from './receiptFields'
 import { parseMoney } from './money'
 import { decodeSessionId, digitRuns, prefixOf } from './sessionId'
-import { parseLagosStamp } from './time'
+import { parseShopStamp } from './time'
 import type { Credit, LagosMs, Stamp } from './types'
 
 // What the model copies off each row of a bank app's transaction history, as
@@ -53,7 +53,7 @@ function direction(row: RawHistoryRow): Credit['direction'] | null {
 // Rows grouped under a date heading often print only the time, so the day the
 // screenshot covers fills the gap.
 function rowTime(text: string, day: LagosMs): Stamp | null {
-  const full = parseLagosStamp(text)
+  const full = parseShopStamp(text)
   if (full) return full
   const t = /\b(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?\b/i.exec(text)
   if (!t) return null

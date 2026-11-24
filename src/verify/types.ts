@@ -1,8 +1,9 @@
 import type { RailId } from '../config/market'
 
-// Times are Lagos wall-clock readings stored as Date.UTC milliseconds. Lagos has
-// no daylight saving, so a reading converts to true time by a fixed hour, and
-// receipts, alerts and session IDs can be compared without timezone parsing.
+// Times are shop wall-clock readings stored as Date.UTC milliseconds. None of
+// the markets has daylight saving, so a reading converts to true time by a
+// fixed offset, and receipts, alerts and session IDs can be compared without
+// timezone parsing.
 export type LagosMs = number
 
 export type Precision = 'second' | 'minute' | 'day'
@@ -22,7 +23,7 @@ export type BankInfo = {
   // Whether this bank's receipts print the NIP session ID for interbank
   // transfers. Some (PalmPay, Zenith) never do, so its absence proves nothing.
   receiptShowsSessionId: boolean
-  // Minutes the session ID's time runs behind Lagos time, when known.
+  // Minutes the session ID's time runs behind shop time, when known.
   sessionOffsetMin: number | null
 }
 

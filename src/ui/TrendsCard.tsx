@@ -6,13 +6,11 @@ import { cloudErrorText } from '../cloud/send'
 import { CHART_IDS, chartSpec, type ChartId } from '../ledger/charts'
 import type { Report } from '../ledger/report'
 import { trends, trendsText } from '../ledger/trends'
-import type { Order } from '../ledger/types'
 import { formatMoney } from '../verify/money'
 import { Chart } from './Chart'
 import { loadingLine, type LedgerApi } from './useLedger'
 import { Icon } from './icons'
-
-export type Lagos = { day: (o: Order) => string; hour: (o: Order) => number }
+import { useShopClock } from './useShopClock'
 
 type Review =
   | { status: 'running' }
@@ -26,8 +24,6 @@ const SPANS = [7, 14, 30]
 // only the totals behind those charts.
 export function TrendsCard(props: {
   ledger: LedgerApi
-  today: string
-  lagos: Lagos
   jobs: RunJob
   badge: (r: Reading<unknown>) => ReactNode
 }) {
@@ -36,7 +32,8 @@ export function TrendsCard(props: {
   const [review, setReview] = useState<Review | null>(null)
   const bankName = (id: string | null) =>
     config.banks.find((b) => b.id === id)?.name ?? 'Bank not known'
-  const t = data ? trends(props.today, span, data, config, props.lagos) : null
+  const clock = useShopClock()
+  const t = data ? trends(clock.today(), span, data, config, clock) : null
   const numbers = t ? trendsText(t, bankName) : ''
   const spec = (id: ChartId) => (t ? chartSpec(t, id, bankName) : null)
 
