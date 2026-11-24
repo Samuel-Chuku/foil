@@ -11,7 +11,7 @@ export function followUpRequest(
   replaced: string[],
 ): CloudRequest {
   return {
-    feature: 'Ask the desk',
+    feature: 'Ask Foil',
     reason:
       'This question joins the chat. The model can still look up only what you saw with your first question.',
     texts: [`Question: ${question}`],

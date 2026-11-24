@@ -21,7 +21,7 @@ export type FromChat = {
 // no messages.
 export type Opened = { kind: 'opened'; chat: OpenChat }
 
-// Content script to the panel: the vendor picked "Ask the desk".
+// Content script to the panel: the vendor picked "Ask Foil".
 export type FocusAsk = { kind: 'focus-ask' }
 
 export const isFocusAsk = (m: unknown): m is FocusAsk =>

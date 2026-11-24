@@ -392,7 +392,7 @@ export function AskCard(props: {
     <section className="card ask-desk" data-tone="ask" aria-labelledby="ask-h">
       <h3 id="ask-h">
         <Icon name="spark" />
-        Ask the desk
+        Ask Foil
       </h3>
       {turns.length === 0 && (
         <p className="hint">
@@ -407,7 +407,7 @@ export function AskCard(props: {
           className="books-chat ask-chat"
           aria-live="polite"
           tabIndex={0}
-          aria-label="Your chat with the desk"
+          aria-label="Your chat with Foil"
         >
           {turns.map((t, i) => (
             <li key={i}>
@@ -417,7 +417,7 @@ export function AskCard(props: {
               </div>
               <div className="bubble desk">
                 <header className="who">
-                  <span>Desk</span>
+                  <span>Foil</span>
                   {t.answer &&
                     props.badge({
                       fields: null,
@@ -428,7 +428,7 @@ export function AskCard(props: {
                 {t.answer ? (
                   <>
                     {t.answer.steps.length > 0 && (
-                      <ol className="ask-steps" aria-label="What the desk did">
+                      <ol className="ask-steps" aria-label="What Foil did">
                         {t.answer.steps.map((st, n) => (
                           <li key={n} data-source={st.source}>
                             <Icon
@@ -628,8 +628,8 @@ export function AskCard(props: {
       </form>
       {talking && (
         <p className="hint talk-live" aria-live="polite">
-          Talking with the desk in {lang.label}. Ask, wait for the answer, then
-          ask the next thing. Press End the talk when you are done.
+          Talking with Foil in {lang.label}. Ask, wait for the answer, then ask
+          the next thing. Press End the talk when you are done.
         </p>
       )}
       {noVoice && (

@@ -34,7 +34,7 @@ export type Prefs = {
   // Whether the shop sells in drops. Null decides from the records: on once
   // the shop has run a drop, so other shops never see drop tools.
   drops: boolean | null
-  // The language Ask the desk answers in; empty is the market's own.
+  // The language Ask Foil answers in; empty is the market's own.
   answerLanguage: string
   // Read answers aloud after a spoken question, and in talk mode.
   speakAnswers: boolean

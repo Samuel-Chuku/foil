@@ -2043,7 +2043,7 @@ p.meta:has(.badge) {
   color: var(--dk-on-ink);
 }
 
-/* ---------- Ask the desk ---------- */
+/* ---------- Ask Foil ---------- */
 
 .books-chat {
   list-style: none;
@@ -2946,7 +2946,7 @@ input[type='range']:focus-visible {
   }
 }
 
-/* ---------- Ask the desk: steps, actions, voice ---------- */
+/* ---------- Ask Foil: steps, actions, voice ---------- */
 
 /* What the desk looked up, in order: a quiet trail above the answer. */
 .ask-steps {

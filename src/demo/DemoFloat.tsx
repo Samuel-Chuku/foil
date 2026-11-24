@@ -70,7 +70,7 @@ export function DemoFloat(props: {
     },
     {
       icon: 'spark',
-      label: 'Ask the desk',
+      label: 'Ask Foil',
       sub: 'About orders, stock or money',
       where: ['device', 'cloud'],
       request: () => ({ action: 'ask', nonce: nonce() }),

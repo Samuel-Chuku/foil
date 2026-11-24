@@ -7,7 +7,7 @@ import type { Credit } from '../verify/types'
 import { balanceKobo, dueKobo } from './ledger'
 import type { ChatNote, Drop, Order, Product, Settlement } from './types'
 
-// What the "Ask the desk" chat knows about the business, as plain lines the
+// What the "Ask Foil" chat knows about the business, as plain lines the
 // vendor approves before anything is sent. It holds the shop's own facts:
 // orders by number, items, stock, money and rules. It never holds a
 // customer's name, phone number, address or chat text.

@@ -327,7 +327,7 @@ export function mountFloatDesk(opts: {
     list.append(
       item(
         'spark',
-        'Ask the desk',
+        'Ask Foil',
         'About orders, stock or money',
         {
           kind: 'ask',
@@ -340,7 +340,7 @@ export function mountFloatDesk(opts: {
     sep.className = 'sep'
     menu.append(sep)
     const more = document.createElement('ul')
-    more.append(item('panel', 'Open the desk', '', { kind: 'open' }))
+    more.append(item('panel', 'Open Foil', '', { kind: 'open' }))
     menu.append(more)
   }
 

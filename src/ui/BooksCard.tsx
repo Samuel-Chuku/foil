@@ -18,7 +18,7 @@ function dayTitle(day: string): string {
 }
 
 // The day's books, worked out on this computer. Questions about them go to
-// Ask the desk, at the foot of the panel.
+// Ask Foil, at the foot of the panel.
 export function BooksCard(props: {
   ledger: LedgerApi
   today: string
@@ -131,8 +131,8 @@ export function BooksCard(props: {
       )}
 
       <p className="hint">
-        Questions about these books, or anything else in the shop, go to Ask the
-        desk at the foot of the panel.
+        Questions about these books, or anything else in the shop, go to Ask
+        Foil at the foot of the panel.
       </p>
     </details>
   )

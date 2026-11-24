@@ -1,14 +1,9 @@
 import { shopWords } from '../config/marketWords'
 import { CHART_IDS } from './charts'
 import type { Exchange } from './snapshot'
-import {
-  toolMenu,
-  TOOL_NAMES,
-  withoutNotes,
-  type ToolResult,
-} from './tools'
+import { toolMenu, TOOL_NAMES, withoutNotes, type ToolResult } from './tools'
 
-// The prompts and checks around Ask the desk's tools, kept free of Firebase
+// The prompts and checks around Ask Foil's tools, kept free of Firebase
 // so they can be tested. See ai/deskTools.ts for the calls.
 
 // `language` is the answer language the owner chose, as prompts name it.
@@ -115,7 +110,10 @@ export function deviceAnswerPrompt(
 // sometimes gives for an empty lookup.
 export function thinAnswer(text: string): boolean {
   const t = text.trim()
-  return /^(none|nothing|n\/?a|null|no|0|-)?\.?$/i.test(t) || t.split(/\s+/).length < 3
+  return (
+    /^(none|nothing|n\/?a|null|no|0|-)?\.?$/i.test(t) ||
+    t.split(/\s+/).length < 3
+  )
 }
 
 // The lookups' own words, which are already sentences, in place of a thin

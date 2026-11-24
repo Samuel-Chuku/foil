@@ -6,7 +6,7 @@ import { speechLangs } from '../config/speech'
 
 // Asking the desk by voice. On this computer, Chrome's speech recognition
 // runs with processLocally set, so neither the audio nor the words leave the
-// machine; the words then go through Ask the desk like typed ones. Where
+// machine; the words then go through Ask Foil like typed ones. Where
 // Chrome cannot recognise speech locally, the question is recorded and,
 // after the owner approves the recording, written down by the cloud model
 // through Firebase AI Logic.
@@ -88,7 +88,7 @@ export function voiceQuestionRequest(audio: {
   seconds: number
 }): CloudRequest {
   return {
-    feature: 'Ask the desk by voice',
+    feature: 'Ask Foil by voice',
     reason:
       'This computer cannot recognise speech on its own, so your spoken question is written down by the cloud model. Only the recording goes; the written question then waits in the box for you.',
     texts: [

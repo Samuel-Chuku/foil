@@ -35,7 +35,7 @@ import {
 import { privateModels, TEXT_ONLY } from './device'
 import { generateJson, type Reading, type Source } from './run'
 
-// Ask the desk with tools. In the cloud the model calls the desk's functions
+// Ask Foil with tools. In the cloud the model calls the desk's functions
 // through Firebase AI Logic's function calling; on this computer, where the
 // SDK takes no tools, the model picks the lookups through structured output,
 // the code runs them, and the model answers from what they returned. Either
@@ -104,7 +104,7 @@ export function toolRequest(
   language?: string,
 ): CloudRequest {
   return {
-    feature: 'Ask the desk',
+    feature: 'Ask Foil',
     reason:
       'Chat answers come from the cloud model, which looks up what it needs with Foil’s tools. Your question goes now; a lookup’s result goes only if the model asks for it. Lookups hold orders by number, items, stock, money and rules, never customers’ names, phones or addresses.',
     texts: [toolInstructions(language), `Question: ${question}`],

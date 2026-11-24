@@ -1,6 +1,7 @@
 import type { SampleReceipt } from '../sample/pack'
 import { Icon } from '../ui/icons'
 import { SourceBadge } from '../ui/SourceBadge'
+import { StatePill } from '../ui/ProofPair'
 
 // The last few characters of a long transfer ID, as a receipt shows it at a
 // glance.
@@ -67,9 +68,7 @@ export function DemoIntro(props: {
               {id && <p className="fr-id">{tail(id)}</p>}
             </div>
             <figcaption>
-              <span className="state-pill" data-state="landed">
-                Matched
-              </span>
+              <StatePill state="landed" />
               Same amount, sender and transfer ID, so the money is in the
               shop&apos;s account.
             </figcaption>

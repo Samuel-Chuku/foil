@@ -204,7 +204,7 @@ export function SettingsView(props: {
           Voice and language
         </h3>
         <label className="setting">
-          <span className="setting-label">Ask the desk answers in</span>
+          <span className="setting-label">Ask Foil answers in</span>
           <select
             value={lang.id}
             onChange={(e) => set({ answerLanguage: e.target.value })}
