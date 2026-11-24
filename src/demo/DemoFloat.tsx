@@ -12,6 +12,7 @@ export function DemoFloat(props: {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const first = useRef<HTMLButtonElement>(null)
+  const launch = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -81,7 +82,10 @@ export function DemoFloat(props: {
       ref={box}
       className="desk-float"
       onKeyDown={(e) => {
-        if (e.key === 'Escape') setOpen(false)
+        if (e.key === 'Escape' && open) {
+          setOpen(false)
+          launch.current?.focus()
+        }
       }}
     >
       {open && (
@@ -116,9 +120,9 @@ export function DemoFloat(props: {
         </div>
       )}
       <button
+        ref={launch}
         type="button"
         className="desk-float-launch"
-
         aria-expanded={open}
         aria-label="Foil"
         title="Foil"

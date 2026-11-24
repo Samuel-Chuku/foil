@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Approved, CloudRequest } from '../cloud/approval'
-import {
-  addEvent,
-  createSheet,
-  GoogleError,
-  writeTabs,
-} from '../google/api'
+import { addEvent, createSheet, GoogleError, writeTabs } from '../google/api'
 import type { CalendarEvent } from '../google/calendar'
 import { tableText, type SheetTab } from '../google/sheet'
 import { market } from '../config/market'
@@ -67,6 +62,7 @@ export function useGoogle(
   }, [host])
 
   const connect = useCallback(async () => {
+    mark('connect', { kind: 'busy', note: 'Waiting for Google…' })
     try {
       await host.googleToken?.(true)
       setConnected(true)
@@ -129,7 +125,7 @@ export function useGoogle(
       {
         feature: 'Send your orders',
         reason:
-          'Your orders and daily totals are written to a sheet the desk keeps in your Google Drive. Sending again replaces them, so nothing is doubled.',
+          'Your orders and daily totals are written to a sheet Foil keeps in your Google Drive. Sending again replaces them, so nothing is doubled.',
         texts: tabs.map((t) => tableText(t, symbol)),
         to: 'Google Sheets',
         replaced: [],

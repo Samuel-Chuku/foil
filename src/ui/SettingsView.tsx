@@ -26,6 +26,7 @@ import {
   voicesFor,
 } from '../config/speech'
 import { useSpeech, type SpeakResult } from './useSpeech'
+import { useOnline } from './useOnline'
 
 // A line to try each voice with, in its own language.
 const VOICE_SAMPLE: Record<string, string> = {
@@ -66,7 +67,7 @@ async function downloadRecords() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `desk-records-${new Date().toISOString().slice(0, 10)}.json`
+  a.download = `foil-records-${new Date().toISOString().slice(0, 10)}.json`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -89,6 +90,7 @@ export function SettingsView(props: {
   const onlineVoice = voices.online.some((v) => v.name === p.voiceName)
   const onlyBasic = voices.online.length > 0 && voices.local.every(soundsBasic)
   const [tried, setTried] = useState<SpeakResult | null>(null)
+  const online = useOnline()
 
   return (
     <div className="settings" aria-labelledby="settings-h">
@@ -248,7 +250,12 @@ export function SettingsView(props: {
             )}
           </select>
         </label>
-        {onlineVoice ? (
+        {speech.voices.length === 0 ? (
+          <p className="hint" role="status">
+            Chrome is still listing the voices on this computer. If none appear,
+            answers stay on screen only.
+          </p>
+        ) : onlineVoice ? (
           <p className="hint">
             <Icon name="cloud" size={14} /> With an online voice, the words of
             each answer read aloud go to Google to be spoken. Choose a voice on
@@ -376,10 +383,21 @@ export function SettingsView(props: {
             </button>
           </>
         ) : (
-          <button type="button" onClick={() => void google.connect()}>
-            <Icon name="link" />
-            Connect Google Sheets and Calendar
-          </button>
+          <>
+            <button
+              type="button"
+              disabled={!online || google.status.connect?.kind === 'busy'}
+              onClick={() => void google.connect()}
+            >
+              <Icon name="link" />
+              Connect Google Sheets and Calendar
+            </button>
+            {!online && (
+              <p className="hint">
+                You are offline. Connect once you are back online.
+              </p>
+            )}
+          </>
         )}
         <GoogleResult status={google.status.connect} />
       </section>
@@ -390,11 +408,18 @@ export function SettingsView(props: {
           AI on this computer
         </h3>
         <p className="hint">
-          {device.state === 'available'
-            ? 'The model on this computer is ready, so receipts, orders and replies are read here.'
-            : device.state === 'checking'
-              ? 'Checking for the model on this computer…'
-              : 'This computer has no model ready, so those steps need the cloud or wait for the download.'}
+          {
+            {
+              available:
+                'The model on this computer is ready, so receipts, orders and replies are read here.',
+              checking: 'Checking for the model on this computer…',
+              downloading: `Chrome is downloading the model${device.progress === null ? '' : ` (${Math.round(device.progress * 100)}%)`}. Until it finishes, those steps need the cloud or wait.`,
+              downloadable:
+                'Chrome can download a model for this computer from the status line at the top of the panel. Until then, those steps need the cloud or wait.',
+              unavailable:
+                'This computer cannot run Chrome’s built-in model, so receipts, orders and replies need the cloud, after you agree below.',
+            }[device.state]
+          }
         </p>
         <Switch
           label="Use Google's Gemini service when this computer has no model"

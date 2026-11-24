@@ -98,7 +98,7 @@ import {
 } from '../capture/drop'
 import { lagosFromEpoch } from '../verify/time'
 import { MoneyPulseCard } from './MoneyPulseCard'
-import { MONEY_STATE } from './moneyState'
+import { MONEY_STATE, STATE_WORDS } from './moneyState'
 import { ProofPair, StatePill } from './ProofPair'
 import { BooksCard } from './BooksCard'
 import { market } from '../config/market'
@@ -1714,7 +1714,7 @@ export function Panel(props: {
             onClick={() => setSettingsOpen((o) => !o)}
           >
             <Icon name={settingsOpen ? 'back' : 'settings'} />
-            {settingsOpen ? 'Back to the desk' : 'Settings'}
+            {settingsOpen ? 'Back to Foil' : 'Settings'}
           </button>
         </div>
         <DeviceStatus device={device} />
@@ -1776,8 +1776,8 @@ export function Panel(props: {
         {ledger.loadError && (
           <p className="error" role="alert">
             Couldn&apos;t open the records on this computer: {ledger.loadError}{' '}
-            Close and reopen the desk. If it keeps happening, check that Chrome
-            is allowed to keep site data for this page.
+            Close and reopen Foil. If it keeps happening, check that Chrome is
+            allowed to keep site data for this page.
           </p>
         )}
 
@@ -1803,6 +1803,29 @@ export function Panel(props: {
                 </span>
               </header>
 
+              {/* Always mounted, so a screen reader hears each change; a
+                  live region that appears with its text is often missed. */}
+              <p className="visually-hidden" role="status">
+                {v?.status === 'running'
+                  ? v.note
+                  : shown
+                    ? `Payment: ${STATE_WORDS[MONEY_STATE[shown.kind]]}. ${shown.text}`
+                    : ''}
+              </p>
+              <p className="visually-hidden" role="status">
+                {c?.status === 'running'
+                  ? c.note
+                  : c?.status === 'done'
+                    ? 'Order captured. Check the details in the Order card.'
+                    : ''}
+              </p>
+              <p className="visually-hidden" role="status">
+                {d?.status === 'running'
+                  ? d.note
+                  : d?.status === 'done'
+                    ? 'Draft placed in the message box. It is not sent.'
+                    : ''}
+              </p>
               <section className="card" data-tone="pay" aria-labelledby="pay-h">
                 <h3 id="pay-h">
                   <Icon name="receipt" />
@@ -1830,7 +1853,7 @@ export function Panel(props: {
                     order is checked again as soon as one does.
                   </p>
                 )}
-                {v?.status === 'running' && <p aria-live="polite">{v.note}</p>}
+                {v?.status === 'running' && <p>{v.note}</p>}
                 {v?.status === 'error' && (
                   <p className="error" role="alert">
                     {v.message}
@@ -2064,7 +2087,7 @@ export function Panel(props: {
                     Capture order from chat
                   </button>
                 )}
-                {c?.status === 'running' && <p aria-live="polite">{c.note}</p>}
+                {c?.status === 'running' && <p>{c.note}</p>}
                 {c?.status === 'error' && (
                   <>
                     <p className="error" role="alert">
@@ -2333,7 +2356,7 @@ export function Panel(props: {
                     Translate their messages
                   </button>
                 </div>
-                {d?.status === 'running' && <p aria-live="polite">{d.note}</p>}
+                {d?.status === 'running' && <p>{d.note}</p>}
                 {d?.status === 'error' && (
                   <p className="error" role="alert">
                     {d.message}
@@ -2585,8 +2608,7 @@ export function Panel(props: {
               />
             )}
             <p className="hint">
-              The desk records what you decide. Refunds are sent from your bank
-              app.
+              Foil records what you decide. Refunds are sent from your bank app.
             </p>
           </section>
           <BooksCard ledger={ledger} today={today} lagos={lagos} />

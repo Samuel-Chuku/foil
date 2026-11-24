@@ -11,3 +11,12 @@ export const MONEY_STATE: Record<PaymentState, MoneyState> = {
   check: 'check',
   mismatch: 'mismatch',
 }
+
+// The same states in words, for screen readers.
+export const STATE_WORDS: Record<MoneyState, string> = {
+  waiting: 'Waiting',
+  claimed: 'Not yet credited',
+  landed: 'Landed',
+  check: 'Check this',
+  mismatch: 'Does not match',
+}

@@ -168,6 +168,7 @@ export default function DemoApp() {
   const [pasted, setPasted] = useState<Record<string, string>>({})
   const [request, setRequest] = useState<PanelRequest | null>(null)
   const [alerts, setAlerts] = useState<Record<string, AlertResult>>({})
+  const [alertsFailed, setAlertsFailed] = useState(false)
   // Whether the demo has let time pass, so later alerts have arrived.
   const [later, setLater] = useState(false)
   const emails = pack.emails.filter((e) => later || !e.later)
@@ -217,13 +218,18 @@ export default function DemoApp() {
   useEffect(() => {
     let live = true
     const arrived = pack.emails.filter((e) => later || !e.later)
-    void importAlerts(arrived).then((results) => {
-      if (live) {
+    importAlerts(arrived).then(
+      (results) => {
+        if (!live) return
+        setAlertsFailed(false)
         setAlerts(
           Object.fromEntries(arrived.map((e, n) => [e.id, results[n]!])),
         )
-      }
-    })
+      },
+      () => {
+        if (live) setAlertsFailed(true)
+      },
+    )
     return () => {
       live = false
     }
@@ -261,6 +267,7 @@ export default function DemoApp() {
     await saveRules(pack.rules)
     await seedStock()
     setAlerts({})
+    setAlertsFailed(false)
     setLater(false)
     setRound((r) => r + 1)
     setBankApp(null)
@@ -379,7 +386,7 @@ export default function DemoApp() {
               <div className="chat-none">
                 <p>
                   <strong>Pick a customer&apos;s chat</strong>
-                  Each one is a sample conversation. Open one, then let the desk
+                  Each one is a sample conversation. Open one, then let Foil
                   check its payment, take the order or draft a reply.
                 </p>
               </div>
@@ -493,7 +500,7 @@ export default function DemoApp() {
                     </figure>
                   )}
                   <p className="hint">
-                    The desk only places drafts here. Sending is always yours.
+                    Foil only places drafts here. Sending is always yours.
                   </p>
                 </div>
               </section>
@@ -505,8 +512,8 @@ export default function DemoApp() {
           <section className="inbox" aria-label="Sample inbox">
             <div className="inbox-head">
               <p>
-                Bank alert emails for the shop&apos;s {pack.bank} account. The
-                desk watches this inbox and reads each alert as it arrives.
+                Bank alert emails for the shop&apos;s {pack.bank} account. Foil
+                watches this inbox and reads each alert as it arrives.
               </p>
               {!later && (
                 <button type="button" onClick={() => setLater(true)}>
@@ -514,6 +521,12 @@ export default function DemoApp() {
                 </button>
               )}
             </div>
+            {alertsFailed && (
+              <p className="error" role="alert">
+                Couldn&apos;t read these alerts into the records on this
+                computer. Choose Reset the demo to start the day again.
+              </p>
+            )}
             <ul className="emails">
               {emails.map((e) => (
                 <li key={e.id}>
@@ -547,8 +560,7 @@ export default function DemoApp() {
             <div className="inbox-head">
               <p>
                 A screenshot of the shop&apos;s bank app. Use it when an alert
-                email is missing: the desk adds only money the alerts did not
-                show.
+                email is missing: Foil adds only money the alerts did not show.
               </p>
               <button
                 type="button"

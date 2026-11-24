@@ -177,7 +177,7 @@ export function mountFloatDesk(opts: {
   <div class="wrap">
     <div class="toast" role="status" hidden></div>
     <div class="menu" role="group" aria-label="Foil" hidden></div>
-    <button class="launch" type="button" aria-expanded="false" title="Foil (drag to move)">
+    <button class="launch" type="button" aria-expanded="false" aria-label="Foil" title="Foil (drag to move)">
       <span class="mark"></span>
     </button>
   </div>`

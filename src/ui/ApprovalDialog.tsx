@@ -9,7 +9,14 @@ export function ApprovalDialog(props: {
   const { request } = props
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
+    // The dialog is removed rather than closed, so the browser cannot hand
+    // focus back on its own; return it to whatever asked for the send.
+    const before =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
     ref.current?.showModal()
+    return () => before?.focus()
   }, [])
   const a = request.attachment
   const audioUrl =
@@ -47,7 +54,7 @@ export function ApprovalDialog(props: {
         {request.mayReturn && (
           <details className="may-return">
             <summary>
-              What the desk&apos;s lookups can send if the model asks for them
+              What Foil&apos;s lookups can send if the model asks for them
             </summary>
             <pre>{request.mayReturn}</pre>
           </details>

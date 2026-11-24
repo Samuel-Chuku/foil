@@ -14,6 +14,7 @@ export function DemoCompose(props: {
 }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  const chip = useRef<HTMLButtonElement>(null)
   const typed = props.text.trim()
 
   useEffect(() => {
@@ -36,7 +37,10 @@ export function DemoCompose(props: {
       ref={box}
       className="compose-help"
       onKeyDown={(e) => {
-        if (e.key === 'Escape') setOpen(false)
+        if (e.key === 'Escape' && open) {
+          setOpen(false)
+          chip.current?.focus()
+        }
       }}
     >
       {open && (
@@ -48,7 +52,7 @@ export function DemoCompose(props: {
           <p>
             {typed
               ? 'Reword what you typed. Nothing is sent.'
-              : 'The desk writes from this chat and its facts.'}
+              : 'Foil writes from this chat and its facts.'}
           </p>
           {typed ? (
             rewriteStyles(market()).map((s) => (
@@ -80,9 +84,9 @@ export function DemoCompose(props: {
         </div>
       )}
       <button
+        ref={chip}
         type="button"
         className="compose-help-chip"
-
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >

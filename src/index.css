@@ -2270,7 +2270,7 @@ p.meta:has(.badge) {
 }
 .pulse-time {
   font-size: var(--dk-text-meta);
-  color: var(--dk-ink-3);
+  color: var(--dk-ink-2);
 }
 .pulse-tag {
   justify-self: start;
