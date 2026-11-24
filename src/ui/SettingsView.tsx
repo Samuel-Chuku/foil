@@ -361,7 +361,7 @@ export function SettingsView(props: {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Payment desk: orders
+                  Open your orders sheet
                 </a>
                 {google.sheet.sentAt &&
                   `, last sent ${new Date(google.sheet.sentAt).toISOString().slice(0, 16).replace('T', ' ')}`}

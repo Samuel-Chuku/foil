@@ -271,7 +271,7 @@ export default function DemoApp() {
 
   return (
     <div className="demo">
-      <h1 className="visually-hidden">Payment desk demo</h1>
+      <h1 className="visually-hidden">Foil demo</h1>
       <header className="demo-bar">
         <p>
           <strong>Demo</strong> with sample data for {pack.shop} in{' '}
@@ -301,6 +301,14 @@ export default function DemoApp() {
       {intro && (
         <DemoIntro
           first={pack.first}
+          shop={pack.shop}
+          city={market().city}
+          bank={pack.bank}
+          receipt={
+            pack.chats
+              .find((c) => c.contactName === pack.first)
+              ?.messages.find((m) => m.receipt)?.receipt ?? null
+          }
           onStart={() => {
             closeIntro()
             setView('chats')

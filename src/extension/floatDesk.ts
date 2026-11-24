@@ -176,8 +176,8 @@ export function mountFloatDesk(opts: {
   root.innerHTML = `<style>${CSS}</style>
   <div class="wrap">
     <div class="toast" role="status" hidden></div>
-    <div class="menu" role="group" aria-label="Payment desk" hidden></div>
-    <button class="launch" type="button" aria-expanded="false" title="Payment desk (drag to move)">
+    <div class="menu" role="group" aria-label="Foil" hidden></div>
+    <button class="launch" type="button" aria-expanded="false" title="Foil (drag to move)">
       <span class="mark"></span>
     </button>
   </div>`
@@ -244,7 +244,7 @@ export function mountFloatDesk(opts: {
     menu.replaceChildren()
     const head = document.createElement('div')
     head.className = 'head'
-    head.innerHTML = `<div><strong>Payment desk</strong><span></span></div><button class="close" type="button" aria-label="Close">${ICONS.close}</button>`
+    head.innerHTML = `<div><strong>Foil</strong><span></span></div><button class="close" type="button" aria-label="Close">${ICONS.close}</button>`
     head.querySelector('span')!.textContent = c?.name || 'No chat open'
     head.querySelector('.close')!.addEventListener('click', close)
     menu.append(head)

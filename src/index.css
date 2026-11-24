@@ -483,42 +483,291 @@ p.meta:has(.badge) {
   background: var(--dk-ink);
   color: var(--dk-on-ink);
 }
-.demo-intro {
-  max-width: 40rem;
+/* First run: a deep hero band with the name, the question and a receipt
+   matched to its alert; then how it works, where each job runs, and how to
+   start. The band is the one place the demo uses a gradient so the name
+   lands first. */
+.first-run {
+  max-width: 64rem;
   padding: var(--dk-s6) var(--dk-s6) var(--dk-s8);
 }
-.demo-intro h2,
-.demo-intro h1 {
-  font-size: var(--dk-text-hero);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  margin: var(--dk-s4) 0;
+.first-run h3 {
+  margin: var(--dk-s8) 0 var(--dk-s3);
+  font-size: var(--dk-text-head);
 }
-.demo-intro h3 {
-  margin: var(--dk-s6) 0 var(--dk-s2);
-}
-.demo-intro p,
-.demo-intro li {
+.first-run p,
+.first-run li {
   font-size: 15px;
   color: var(--dk-ink-2);
 }
-.demo-intro li {
-  margin: var(--dk-s1) 0;
-}
-.demo-intro strong {
+.first-run strong {
   color: var(--dk-ink);
+}
+.first-run code {
+  font-family: var(--dk-font-num);
+  font-size: 0.85em;
+  padding: 0 var(--dk-s1);
+  border-radius: var(--dk-r-tag);
+  background: var(--dk-sunk);
+  color: var(--dk-ink);
+}
+.fr-hero {
+  --fr-fg: var(--dk-on-ink);
+  --fr-soft: color-mix(in oklab, var(--dk-on-ink) 78%, transparent);
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: var(--dk-s8);
+  align-items: center;
+  padding: var(--dk-s8);
+  border-radius: var(--dk-r-card);
+  color: var(--fr-fg);
+  background: linear-gradient(
+    130deg,
+    var(--dk-ink) 0%,
+    color-mix(in oklab, var(--dk-ink) 70%, var(--dk-accent-deep)) 100%
+  );
+}
+:root[data-theme='dark'] .fr-hero {
+  --fr-fg: var(--dk-ink);
+  --fr-soft: var(--dk-ink-2);
+  background: linear-gradient(
+    130deg,
+    #2a2b25 0%,
+    color-mix(in oklab, var(--dk-accent) 34%, #1c1d19) 100%
+  );
+}
+.fr-hero .fr-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--dk-s2);
+  margin: 0;
+  font-size: var(--dk-text-head);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--fr-fg);
+}
+.fr-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--dk-r-tag);
+  background: var(--dk-accent);
+  box-shadow: 2px 2px 0 0 var(--fr-fg);
+}
+.fr-hero h2 {
+  margin: var(--dk-s4) 0;
+  font-size: clamp(32px, 4vw, 44px);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  color: var(--fr-fg);
+}
+.fr-hero p {
+  color: var(--fr-soft);
+}
+.fr-hero .actions {
+  margin: var(--dk-s5) 0 var(--dk-s3);
+}
+.fr-hero .actions button {
+  min-height: var(--dk-h-control);
+  padding: 0 var(--dk-s4);
+  font-weight: 600;
+}
+.fr-hero button.primary {
+  background: var(--dk-accent);
+  color: var(--dk-on-accent);
+  border-color: var(--fr-fg);
+  box-shadow: 2px 2px 0 0 var(--fr-fg);
+}
+.fr-hero button.primary:hover {
+  background: color-mix(in oklab, var(--dk-accent) 85%, white);
+  border-color: var(--fr-fg);
+}
+.fr-hero button.quiet {
+  background: transparent;
+  color: var(--fr-fg);
+  border-color: var(--fr-fg);
+  box-shadow: none;
+}
+.fr-hero button.quiet:hover {
+  background: color-mix(in oklab, var(--fr-fg) 12%, transparent);
+}
+.fr-hero .hint {
+  font-size: var(--dk-text-small);
+}
+/* The receipt and the bank alert side by side, the way the panel's proof
+   pair shows them, joined by the verdict. */
+.fr-proof {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--dk-s3);
+  margin: 0;
+}
+.fr-slip {
+  padding: var(--dk-s4);
+  border-radius: var(--dk-r-control);
+  background: var(--dk-surface);
+  border: var(--dk-bw) solid var(--dk-line-strong);
+}
+.fr-slip:first-child {
+  transform: rotate(-2deg);
+}
+.fr-slip:nth-child(2) {
+  transform: rotate(1.5deg) translateY(var(--dk-s3));
+}
+.fr-hero .fr-slip p {
+  margin: 0;
+  font-size: var(--dk-text-small);
+  color: var(--dk-ink-2);
+}
+.fr-hero .fr-slip .fr-label {
+  font-family: var(--dk-font-num);
+  font-size: var(--dk-text-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--dk-tracking-caps);
+  color: var(--dk-ink-3);
+}
+.fr-hero .fr-slip .fr-amount {
+  margin: var(--dk-s2) 0 var(--dk-s1);
+  font-family: var(--dk-font-num);
+  font-stretch: var(--dk-num-stretch);
+  font-size: var(--dk-text-figure);
+  font-weight: 700;
+  color: var(--dk-ink);
+}
+.fr-hero .fr-slip .fr-id {
+  margin-top: var(--dk-s2);
+  font-family: var(--dk-font-num);
+  font-size: var(--dk-text-meta);
+}
+.fr-proof figcaption {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dk-s2);
+  margin-top: var(--dk-s5);
+  font-size: var(--dk-text-small);
+  color: var(--fr-soft);
+}
+.fr-steps,
+.fr-split {
+  display: grid;
+  gap: var(--dk-s3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.fr-steps {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  counter-reset: step;
+}
+.fr-steps li {
+  counter-increment: step;
+  position: relative;
+  display: grid;
+  gap: var(--dk-s1);
+  align-content: start;
+  margin: 0;
+  padding: var(--dk-s4);
+  border-radius: var(--dk-r-card);
+  border: var(--dk-bw-hair) solid var(--dk-line);
+}
+.fr-steps li:nth-child(1) {
+  background: color-mix(
+    in oklab,
+    var(--dk-tone-pay) var(--dk-tone-wash),
+    var(--dk-surface)
+  );
+}
+.fr-steps li:nth-child(2) {
+  background: color-mix(
+    in oklab,
+    var(--dk-tone-order) var(--dk-tone-wash),
+    var(--dk-surface)
+  );
+}
+.fr-steps li:nth-child(3) {
+  background: color-mix(
+    in oklab,
+    var(--dk-tone-reply) var(--dk-tone-wash),
+    var(--dk-surface)
+  );
+}
+.fr-steps li::after {
+  content: counter(step);
+  position: absolute;
+  top: var(--dk-s3);
+  right: var(--dk-s4);
+  font-family: var(--dk-font-num);
+  font-size: var(--dk-text-figure);
+  font-weight: 700;
+  color: var(--dk-ink-3);
+}
+.fr-steps strong {
+  font-size: var(--dk-text-title);
+}
+.fr-steps span {
+  font-size: var(--dk-text-small);
+  color: var(--dk-ink-2);
+}
+.fr-split {
+  grid-template-columns: 1fr 1fr;
+}
+.fr-split > div {
+  padding: var(--dk-s4);
+  border-radius: var(--dk-r-card);
+  background: var(--dk-surface);
+  border: var(--dk-bw-hair) solid var(--dk-line);
+}
+.fr-split h4 {
+  display: flex;
+  align-items: center;
+  gap: var(--dk-s2);
+  margin: 0 0 var(--dk-s2);
+  font-family: inherit;
+  font-size: var(--dk-text-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.fr-split p {
+  margin: 0;
+  font-size: var(--dk-text-small);
+}
+.fr-try {
+  padding-left: var(--dk-s5);
+}
+.fr-try li {
+  margin: var(--dk-s2) 0;
+}
+@media (max-width: 52rem) {
+  .first-run {
+    padding: var(--dk-s4);
+  }
+  .fr-hero {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--dk-s5);
+    gap: var(--dk-s5);
+  }
+  .fr-proof {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .fr-slip {
+    padding: var(--dk-s3);
+  }
+  .fr-hero .fr-slip .fr-amount {
+    font-size: var(--dk-text-title);
+  }
+  .fr-steps,
+  .fr-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--dk-s3);
-}
-.demo-intro .actions button {
-  min-height: var(--dk-h-control);
-  padding: 0 var(--dk-s4);
-  font-weight: 600;
 }
 
 /* Simulated chat: one messenger window, the chat list beside the open
@@ -2386,7 +2635,8 @@ p.meta:has(.badge) {
 
 @media (max-width: 60rem) {
   .demo {
-    grid-template-columns: 1fr;
+    /* minmax(0, …): a plain 1fr grows to the widest line and scrolls sideways. */
+    grid-template-columns: minmax(0, 1fr);
   }
   .panel {
     border-left: none;

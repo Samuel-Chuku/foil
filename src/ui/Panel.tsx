@@ -1703,10 +1703,10 @@ export function Panel(props: {
     v.value.receipt.amountKobo !== order.amountKobo
 
   return (
-    <aside className="panel" aria-label="Payment desk">
+    <aside className="panel" aria-label="Foil">
       <header>
         <div className="panel-title">
-          <h2>Payment desk</h2>
+          <h2>Foil</h2>
           <button
             type="button"
             className="quiet"

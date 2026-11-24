@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Vendor payment desk (dev)",
+  "name": "Foil (dev)",
   "version": "0.0.1",
   "description": "Verify bank-transfer payments and capture orders on WhatsApp Web, on your own device.",
   "minimum_chrome_version": "139",
   "action": {
-    "default_title": "Open payment desk"
+    "default_title": "Open Foil"
   },
   "background": {
     "service_worker": "background.js",

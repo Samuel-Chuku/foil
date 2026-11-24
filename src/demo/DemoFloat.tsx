@@ -85,10 +85,10 @@ export function DemoFloat(props: {
       }}
     >
       {open && (
-        <div className="desk-float-menu" role="group" aria-label="Payment desk">
+        <div className="desk-float-menu" role="group" aria-label="Foil">
           <div className="desk-float-head">
             <div>
-              <strong>Payment desk</strong>
+              <strong>Foil</strong>
               <span>{props.chat.contactName}</span>
             </div>
           </div>
@@ -120,8 +120,8 @@ export function DemoFloat(props: {
         className="desk-float-launch"
 
         aria-expanded={open}
-        aria-label="Payment desk"
-        title="Payment desk"
+        aria-label="Foil"
+        title="Foil"
         onClick={() => setOpen((o) => !o)}
       >
         <span className="mark" />

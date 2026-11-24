@@ -32,7 +32,7 @@ export function deliveryRunEvent(p: {
     description: [
       ...lines,
       '',
-      'Added by the payment desk. Addresses and phone numbers stay in the desk.',
+      "Added by Foil. Addresses and phone numbers stay in Foil, on the vendor's computer.",
     ].join('\n'),
     start: { dateTime: wall(p.startMs), timeZone: p.timeZone },
     end: {
