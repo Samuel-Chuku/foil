@@ -5,7 +5,7 @@ import type { Product, ProductPhoto } from '../ledger/types'
 import { parseMoney } from '../verify/money'
 import { photoFromFile } from './photos'
 import { NeedsConsent, type DeviceApi } from './useDevice'
-import type { LedgerApi } from './useLedger'
+import { loadingLine, type LedgerApi } from './useLedger'
 import { Icon } from './icons'
 
 type Row = {
@@ -174,9 +174,11 @@ export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
           Stock
         </h3>
         <span className="hint">
-          {products.length === 0
-            ? 'No products yet. Drafts will not quote prices or stock.'
-            : `${products.length} products${soldOut ? `, ${soldOut} sold out` : ''}.`}
+          {!ledger.data
+            ? loadingLine(ledger)
+            : products.length === 0
+              ? 'No products yet. Drafts will not quote prices or stock.'
+              : `${products.length} products${soldOut ? `, ${soldOut} sold out` : ''}.`}
         </span>
       </summary>
       <form
@@ -199,7 +201,9 @@ export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
           this computer. Each paid order takes its items off what is left, and
           drafts tell customers honestly when something is sold out.
         </p>
-        {r.length === 0 && <p className="empty">No products yet.</p>}
+        {ledger.data && r.length === 0 && (
+          <p className="empty">No products yet.</p>
+        )}
         {r.map((row, n) => {
           const l = left(row)
           return (

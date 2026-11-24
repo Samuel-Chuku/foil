@@ -555,3 +555,14 @@ export function useLedger() {
 }
 
 export type LedgerApi = ReturnType<typeof useLedger>
+
+// What a card says before the records are open: loading, or, if they never
+// open, that this part cannot be shown, so nothing waits on "Loading" forever.
+export function loadingLine(
+  ledger: Pick<LedgerApi, 'loadError'>,
+  loading = 'Loading…',
+): string {
+  return ledger.loadError
+    ? 'Not available: the records on this computer did not open.'
+    : loading
+}

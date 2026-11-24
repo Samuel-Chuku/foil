@@ -4,7 +4,7 @@ import { moneyPulse, type Side } from '../ledger/pulse'
 import { formatMoney } from '../verify/money'
 import { Chart } from './Chart'
 import { MoneyStatement } from './MoneyStatement'
-import type { LedgerApi } from './useLedger'
+import { loadingLine, type LedgerApi } from './useLedger'
 import { Icon } from './icons'
 
 const SPANS = [7, 14, 30] as const
@@ -56,7 +56,9 @@ export function MoneyPulseCard(props: { ledger: LedgerApi; now: number }) {
           <Icon name="pulse" />
           Money today
         </h3>
-        <p className="empty">Loading your bank alerts…</p>
+        <p className="empty">
+          {loadingLine(props.ledger, 'Loading your bank alerts…')}
+        </p>
       </section>
     )
   }

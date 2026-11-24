@@ -9,7 +9,7 @@ import { trends, trendsText } from '../ledger/trends'
 import type { Order } from '../ledger/types'
 import { formatMoney } from '../verify/money'
 import { Chart } from './Chart'
-import type { LedgerApi } from './useLedger'
+import { loadingLine, type LedgerApi } from './useLedger'
 import { Icon } from './icons'
 
 export type Lagos = { day: (o: Order) => string; hour: (o: Order) => number }
@@ -74,7 +74,7 @@ export function TrendsCard(props: {
         </h3>
         <span className="hint">
           {!t
-            ? 'Loading…'
+            ? loadingLine(props.ledger)
             : quiet
               ? `No orders in the last ${span} days yet.`
               : `Last ${span} days: ${t.current.orders} orders · ${formatMoney(t.current.paidKobo)} paid`}

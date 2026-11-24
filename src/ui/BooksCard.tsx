@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { bookDays, dayBooks, type Tally } from '../ledger/dayBooks'
 import { formatMoney } from '../verify/money'
 import type { Lagos } from './TrendsCard'
-import type { LedgerApi } from './useLedger'
+import { loadingLine, type LedgerApi } from './useLedger'
 import { Icon } from './icons'
 
 const tally = (t: Tally) =>
@@ -39,7 +39,7 @@ export function BooksCard(props: {
         </h3>
         <span className="hint">
           {!books
-            ? 'Loading…'
+            ? loadingLine(props.ledger)
             : empty
               ? 'No orders or bank money yet.'
               : `${books.orders} order${books.orders === 1 ? '' : 's'} · ${formatMoney(books.paid.kobo)} paid · ${books.waiting.count + books.toCheck.count + books.short.count} open`}

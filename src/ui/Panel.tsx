@@ -61,12 +61,7 @@ import {
   undoCreditPick,
 } from '../ledger/ledger'
 import { extraMoney, moreFromPayer, type ExtraRow } from '../ledger/settle'
-import type {
-  Order,
-  PaymentState,
-  RefundTo,
-  Settlement,
-} from '../ledger/types'
+import type { Order, PaymentState, RefundTo, Settlement } from '../ledger/types'
 import { verifyReceipt, type Verdict } from '../verify/match'
 import { formatMoney, parseMoney } from '../verify/money'
 import type { RawReceipt } from '../verify/receiptFields'
@@ -122,7 +117,7 @@ import { receiptFor } from '../capture/customerReceipt'
 import { TrendsCard } from './TrendsCard'
 import type { ShopRulesApi } from './useShopRules'
 import { NeedsConsent, type DeviceApi } from './useDevice'
-import type { LedgerApi } from './useLedger'
+import { loadingLine, type LedgerApi } from './useLedger'
 import { Icon } from './icons'
 import { SourceBadge } from './SourceBadge'
 import { lostNumbers, rewriteStyles } from '../capture/rewrite'
@@ -254,28 +249,69 @@ function Badge(props: { source: Reading<unknown>['source']; ms: number }) {
   )
 }
 
+// The on-device model's state as one line with a mark, and, when nothing can
+// be read here yet, the vendor's choice between downloading it and the cloud.
 function DeviceStatus(props: { device: DeviceApi }) {
   const { device } = props
-  const line =
-    device.progress !== null
-      ? `Downloading the on-device model: ${Math.round(device.progress * 100)}%`
-      : {
-          checking: 'Checking for the on-device model…',
-          available:
-            device.warm === 'warming'
-              ? 'Loading the on-device model so your first click is quick…'
-              : 'On-device model ready',
-          downloadable:
-            'The on-device model downloads the first time you use it.',
-          downloading: 'The on-device model is downloading.',
-          unavailable: 'This computer has no on-device model.',
-        }[device.state]
+  // The download needs a connection, so it is not offered offline.
+  const online = useOnline()
+  const downloading = device.progress !== null || device.state === 'downloading'
+  const view = downloading
+    ? 'downloading'
+    : device.state === 'available'
+      ? device.warm === 'warming'
+        ? 'warming'
+        : 'ready'
+      : device.consent && device.state !== 'checking'
+        ? 'cloud'
+        : device.state
+  const line = {
+    checking: 'Checking for the on-device model…',
+    warming: 'Loading the on-device model so your first click is quick…',
+    ready: 'On-device model ready. Receipts and chats are read here.',
+    downloading:
+      device.progress === null
+        ? 'Chrome is downloading the on-device model.'
+        : 'Downloading the on-device model',
+    downloadable: 'The on-device model is not downloaded yet.',
+    unavailable: 'This computer has no on-device model.',
+    cloud:
+      "No on-device model here, so reading goes to Google's cloud as you agreed.",
+  }[view]
   const ask =
     device.asking || (device.state === 'unavailable' && !device.consent)
-  const canDownload = device.state === 'downloadable'
+  const canDownload = device.state === 'downloadable' && online
+  const pct =
+    device.progress === null ? null : Math.round(device.progress * 100)
   return (
-    <div className="device" data-state={device.state}>
-      <p aria-live="polite">{line}</p>
+    <div className="device" data-state={view}>
+      <p className="device-line" aria-live="polite">
+        <span className="device-mark" aria-hidden="true" />
+        <span>{line}</span>
+        {view === 'downloadable' && !ask && online && (
+          <button
+            type="button"
+            className="link"
+            onClick={() => void device.download()}
+          >
+            Download it
+          </button>
+        )}
+      </p>
+      {downloading && (
+        <div className="device-progress">
+          <progress
+            aria-label="On-device model download"
+            max={100}
+            {...(pct !== null && { value: pct })}
+          />
+          <span>
+            {pct === null
+              ? 'Reading here works once it finishes.'
+              : `${pct}% done`}
+          </span>
+        </div>
+      )}
       {device.waiting > 0 && (
         <p className="hint" aria-live="polite">
           {device.waiting} more {device.waiting === 1 ? 'step' : 'steps'}{' '}
@@ -283,57 +319,64 @@ function DeviceStatus(props: { device: DeviceApi }) {
         </p>
       )}
       {device.consent && (
-        <p>
-          Cloud fallback is on.{' '}
+        <p className="hint">
+          {view === 'cloud'
+            ? 'You can take this back at any time. '
+            : 'Cloud fallback is on. '}
           <button
             type="button"
             className="link"
             onClick={() => device.setConsent(false)}
           >
-            Turn it off
+            Turn the cloud off
           </button>
         </p>
       )}
       {ask && !device.consent && device.progress === null && (
-        <div className="consent" role="region" aria-label="Cloud consent">
+        <section className="consent" aria-labelledby="consent-h">
+          <h3 id="consent-h">How should this computer read?</h3>
           {canDownload && (
-            <p>
-              Chrome can download its on-device model once. It is a large
-              download that takes a while, and afterwards receipts, orders and
-              drafts are read privately on this computer, even offline.
-            </p>
-          )}
-          <p>
-            {canDownload
-              ? 'Or use the cloud now: '
-              : 'Without the on-device model nothing can be read on this computer. If you agree, '}
-            the receipt, chat text or draft details for each action you click
-            will be sent to Google&apos;s Gemini service through Firebase. Your
-            saved customers and orders stay on this computer either way, and you
-            can turn this off at any time.
-          </p>
-          {canDownload && (
-            <>
+            <div className="consent-choice">
+              <h4>On this computer</h4>
+              <p>
+                Chrome downloads its model once. It is large and takes a while;
+                afterwards receipts, orders and drafts are read privately here,
+                even offline.
+              </p>
               <button type="button" onClick={() => void device.download()}>
                 Download the on-device model
-              </button>{' '}
-            </>
+              </button>
+            </div>
           )}
+          <div className="consent-choice">
+            <h4>
+              {canDownload ? 'Or in the cloud, now' : "In Google's cloud"}
+            </h4>
+            <p>
+              {canDownload
+                ? ''
+                : 'Without the on-device model nothing can be read on this computer. '}
+              If you agree, the receipt, chat text or draft details for each
+              action you click are sent to Google&apos;s Gemini service through
+              Firebase. Your saved customers and orders stay on this computer
+              either way, and you can turn this off at any time.
+            </p>
+            <button
+              type="button"
+              className={canDownload ? 'quiet' : undefined}
+              onClick={() => device.setConsent(true)}
+            >
+              Use the cloud for these actions
+            </button>
+          </div>
           <button
             type="button"
-            className={canDownload ? 'quiet' : undefined}
-            onClick={() => device.setConsent(true)}
-          >
-            Use the cloud for these actions
-          </button>{' '}
-          <button
-            type="button"
-            className="quiet"
+            className="link"
             onClick={() => device.setConsent(false)}
           >
             Not now
           </button>
-        </div>
+        </section>
       )}
     </div>
   )
@@ -572,7 +615,8 @@ export function Panel(props: {
       if (photos.length < 2) continue
       onCompare()
       const pick = await pickPhoto(p.picture, photos, device.consent)
-      const chosen = pick.fields === null ? undefined : p.candidates[pick.fields]
+      const chosen =
+        pick.fields === null ? undefined : p.candidates[pick.fields]
       if (chosen) {
         picks.set(p.messageId, { productId: chosen.id, source: pick.source })
       }
@@ -1731,7 +1775,9 @@ export function Panel(props: {
 
         {ledger.loadError && (
           <p className="error" role="alert">
-            Couldn&apos;t open the records on this computer: {ledger.loadError}
+            Couldn&apos;t open the records on this computer: {ledger.loadError}{' '}
+            Close and reopen the desk. If it keeps happening, check that Chrome
+            is allowed to keep site data for this page.
           </p>
         )}
 
@@ -2208,8 +2254,8 @@ export function Panel(props: {
                     ))}
                     {c.value.form.chatPrices?.map((line) => (
                       <p className="hint" key={line}>
-                        {line} The list price is used; change it if you agreed
-                        a different one.
+                        {line} The list price is used; change it if you agreed a
+                        different one.
                       </p>
                     ))}
                     {c.value.form.addressFromLast && (
@@ -2391,7 +2437,7 @@ export function Panel(props: {
                 />
               </>
             )}
-            {!data && !ledger.loadError && <p>Loading…</p>}
+            {!data && <p className="empty">{loadingLine(ledger)}</p>}
             {data && listed.length === 0 && (
               <p className="empty">
                 {searching

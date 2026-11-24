@@ -8,7 +8,7 @@ import {
 } from '../queue/queue'
 import { formatMoney } from '../verify/money'
 import { NeedsConsent, type DeviceApi } from './useDevice'
-import type { LedgerApi } from './useLedger'
+import { loadingLine, type LedgerApi } from './useLedger'
 import { Icon } from './icons'
 
 const LABEL_TEXT = {
@@ -43,7 +43,19 @@ export function QueueCard(props: {
     const timer = setInterval(() => setNow(Date.now()), 30_000)
     return () => clearInterval(timer)
   }, [])
-  if (!data) return null
+  if (!data) {
+    return (
+      <section className="card queue" data-tone="ask" aria-labelledby="queue-h">
+        <h3 id="queue-h">
+          <Icon name="bell" />
+          Who needs you
+        </h3>
+        <p className="empty">
+          {loadingLine(props.ledger, 'Loading your chats…')}
+        </p>
+      </section>
+    )
+  }
 
   const entries = buildQueue({
     orders: data.orders,

@@ -933,36 +933,94 @@ p.meta:has(.badge) {
 .device p {
   margin: var(--dk-s1) 0;
 }
-.device > p:first-child {
+.device-line {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--dk-s2);
+  gap: var(--dk-s1) var(--dk-s2);
 }
-.device > p:first-child::before {
-  content: '';
+/* The mark: a ring while checking, filled when ready, dashed when there is
+   no model, half-filled while it downloads, and a cloud-coloured fill when
+   the vendor chose the cloud. */
+.device-mark {
   flex: none;
-  width: var(--dk-s2);
-  height: var(--dk-s2);
+  width: 10px;
+  height: 10px;
   border-radius: var(--dk-r-round);
   border: var(--dk-bw) solid var(--dk-ink);
 }
-.device[data-state='available'] > p:first-child::before {
+.device[data-state='ready'] .device-mark {
   background: var(--dk-ink);
 }
-.device[data-state='unavailable'] > p:first-child::before {
+.device[data-state='checking'] .device-mark,
+.device[data-state='warming'] .device-mark {
+  animation: live-breathe 1.6s ease-in-out infinite;
+}
+.device[data-state='downloading'] .device-mark {
+  background: linear-gradient(90deg, var(--dk-ink) 50%, transparent 50%);
+}
+.device[data-state='unavailable'] .device-mark,
+.device[data-state='downloadable'] .device-mark {
   border-style: dashed;
+}
+.device[data-state='cloud'] .device-mark {
+  background: var(--dk-tone-pay-deep);
+  border-color: var(--dk-tone-pay-deep);
+}
+.device-progress {
+  display: grid;
+  gap: var(--dk-s1);
+  margin: var(--dk-s2) 0;
+}
+.device-progress progress {
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border: var(--dk-bw-hair) solid var(--dk-ink);
+  border-radius: var(--dk-r-round);
+  background: var(--dk-surface);
+  overflow: hidden;
+}
+.device-progress progress::-webkit-progress-bar {
+  background: var(--dk-surface);
+}
+.device-progress progress::-webkit-progress-value {
+  background: var(--dk-ink);
+}
+.device-progress progress::-moz-progress-bar {
+  background: var(--dk-ink);
+}
+.device-progress progress:indeterminate {
+  background: var(--dk-hatch), var(--dk-surface);
 }
 .consent {
   border: var(--dk-bw) solid var(--dk-ink);
-  border-radius: var(--dk-r-control);
-  padding: var(--dk-s3);
-  margin: var(--dk-s2) 0;
+  border-radius: var(--dk-r-card);
+  padding: var(--dk-s4);
+  margin: var(--dk-s3) 0;
   background: var(--dk-surface);
+  box-shadow: var(--dk-key);
   font-size: var(--dk-text-small);
   color: var(--dk-ink);
 }
-.consent button + button {
-  margin-left: var(--dk-s2);
+.consent h3 {
+  margin: 0 0 var(--dk-s3);
+  font-size: var(--dk-text-title);
+}
+.consent-choice {
+  padding: var(--dk-s3);
+  margin: 0 0 var(--dk-s3);
+  border: var(--dk-bw-hair) solid var(--dk-line);
+  border-radius: var(--dk-r-control);
+  background: var(--dk-ground);
+}
+.consent-choice h4 {
+  margin: 0 0 var(--dk-s1);
+  font-size: var(--dk-text-meta);
+}
+.consent-choice p {
+  margin: 0 0 var(--dk-s3);
+  color: var(--dk-ink-2);
 }
 .who {
   display: flex;
@@ -2382,11 +2440,11 @@ p.meta:has(.badge) {
   font-weight: 600;
   color: var(--dk-ink-2);
 }
-.device > p:first-child {
+.device-line {
   align-items: flex-start;
 }
-.device > p:first-child::before {
-  margin-top: 5px;
+.device-mark {
+  margin-top: 3px;
 }
 
 /* Inputs fill the card unless they sit in a row of their own. */
@@ -2696,7 +2754,8 @@ button.mic[aria-pressed='true'] {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bubble.me.live .who svg {
+  .bubble.me.live .who svg,
+  .device-mark {
     animation: none;
   }
 }
