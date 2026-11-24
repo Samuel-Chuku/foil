@@ -1,12 +1,11 @@
 import {
   getGenerativeModel,
   InferenceMode,
-  InferenceSource,
-  type GenerateContentResult,
   type GenerationConfig,
   type GenerativeModel,
+  type Tool,
 } from 'firebase/ai'
-import type { Source } from '../ai/run'
+import { timed, type Source } from '../ai/run'
 import { appConfig } from '../config/active'
 import { ai } from '../firebase'
 import { partsOf, type Approved } from './approval'
@@ -15,7 +14,10 @@ import { errorMessage } from './errors'
 // Cloud-only jobs (voice notes, the books chat, other languages, Maps) never
 // rely on automatic fallback, so each uses an explicit cloud-only instance,
 // made on first use after Remote Config has named the model.
-export function cloudModel(config?: GenerationConfig): () => GenerativeModel {
+export function cloudModel(
+  config?: GenerationConfig,
+  tools?: Tool[],
+): () => GenerativeModel {
   let model: GenerativeModel | undefined
   return () => {
     model ??= getGenerativeModel(ai, {
@@ -23,6 +25,7 @@ export function cloudModel(config?: GenerationConfig): () => GenerativeModel {
       inCloudParams: {
         model: appConfig().cloudModel,
         ...(config && { generationConfig: config }),
+        ...(tools && { tools }),
       },
     })
     return model
@@ -35,21 +38,6 @@ export function sendApproved(
   request: Approved,
 ): Promise<{ text: string; source: Source; ms: number }> {
   return timed(() => model.generateContent(partsOf(request)))
-}
-
-async function timed(
-  call: () => Promise<GenerateContentResult>,
-): Promise<{ text: string; source: Source; ms: number }> {
-  const started = performance.now()
-  const result = await call()
-  return {
-    text: result.response.text(),
-    source:
-      result.response.inferenceSource === InferenceSource.ON_DEVICE
-        ? 'On device'
-        : 'Cloud',
-    ms: Math.round(performance.now() - started),
-  }
 }
 
 // Cloud failures in plain words; see errors.ts.

@@ -2,6 +2,7 @@ import { Schema } from 'firebase/ai'
 import { RAW_HISTORY_FIELDS, type RawHistoryRow } from '../verify/history'
 import { privateModels, TEXT_AND_IMAGE } from './device'
 import { RECEIPT_IMAGE_TYPES, type ReceiptImage } from './receipt'
+import { onDevice, type DevicePlan } from './job'
 import { generateJson, pickStrings, type Reading } from './run'
 
 // Every value is a string for the same reason as receipts: the model copies
@@ -55,30 +56,30 @@ const model = privateModels({
   },
 })
 
-export async function readHistoryImage(
+export const planHistory = (
   image: ReceiptImage,
-  cloudConsent: boolean,
-): Promise<Reading<RawHistoryRow[]>> {
-  if (!RECEIPT_IMAGE_TYPES.includes(image.mimeType)) {
-    throw new Error(`Screenshots must be PNG or JPEG, not ${image.mimeType}.`)
-  }
-  const { json, source, ms } = await generateJson(model(cloudConsent), [
-    PROMPT,
-    {
-      type: 'inlineData',
-      inlineData: { mimeType: image.mimeType, data: image.base64 },
-    },
-  ])
-  const rows =
-    json &&
-    typeof json === 'object' &&
-    'rows' in json &&
-    Array.isArray(json.rows)
-      ? (json.rows as unknown[])
-      : []
-  return {
-    fields: rows.map((r) => pickStrings(r, RAW_HISTORY_FIELDS)),
-    source,
-    ms,
-  }
-}
+): DevicePlan<Reading<RawHistoryRow[]>> =>
+  onDevice(async (cloudConsent) => {
+    if (!RECEIPT_IMAGE_TYPES.includes(image.mimeType)) {
+      throw new Error(`Screenshots must be PNG or JPEG, not ${image.mimeType}.`)
+    }
+    const { json, source, ms } = await generateJson(model(cloudConsent), [
+      PROMPT,
+      {
+        type: 'inlineData',
+        inlineData: { mimeType: image.mimeType, data: image.base64 },
+      },
+    ])
+    const rows =
+      json &&
+      typeof json === 'object' &&
+      'rows' in json &&
+      Array.isArray(json.rows)
+        ? (json.rows as unknown[])
+        : []
+    return {
+      fields: rows.map((r) => pickStrings(r, RAW_HISTORY_FIELDS)),
+      source,
+      ms,
+    }
+  })

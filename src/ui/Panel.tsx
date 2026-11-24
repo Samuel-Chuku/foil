@@ -6,9 +6,9 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
-import { draftRequest, writeCloudDraft, writeDraft } from '../ai/draft'
-import { readOrder } from '../ai/order'
-import { readRefundTo } from '../ai/refund'
+import { planDraft } from '../ai/draft'
+import { planOrder } from '../ai/order'
+import { planRefundTo } from '../ai/refund'
 import { toRefundTo } from '../capture/refundDetails'
 import { rulesForDraft } from '../capture/shopRules'
 import {
@@ -23,8 +23,8 @@ import {
   planDelivery,
   planFromChat,
 } from '../capture/delivery'
-import { readReceiptImage } from '../ai/receipt'
-import { readVoiceNote, voiceRequest } from '../ai/voice'
+import { planReceipt } from '../ai/receipt'
+import { planVoice } from '../ai/voice'
 import {
   clarifyLine,
   LAGOS_STREETS,
@@ -33,9 +33,10 @@ import {
 } from '../capture/voice'
 import { placeNames } from '../capture/places'
 import { errorMessage } from '../cloud/errors'
-import { redact } from '../cloud/approval'
 import { cloudErrorText } from '../cloud/send'
 import { useApproval } from './useApproval'
+import { useModelJobs } from './useModelJobs'
+import { whenApproved } from '../ai/job'
 import { VoiceCard, type VoiceStep } from './VoiceCard'
 import type { Reading } from '../ai/run'
 import { draftPrompt, draftProblem } from '../capture/draft'
@@ -94,7 +95,7 @@ import { QueueCard } from './QueueCard'
 import { useOnline } from './useOnline'
 import { DropCard } from './DropCard'
 import { pictureItems } from './pictureItems'
-import { pickPhoto } from '../ai/photoPick'
+import { planPhotoPick } from '../ai/photoPick'
 import {
   DEFAULT_HOLD_MIN,
   dropFacts,
@@ -405,6 +406,7 @@ export function Panel(props: {
   const { chat, ledger, device, host, shop } = props
   const online = useOnline()
   const approval = useApproval()
+  const jobs = useModelJobs(device, approval.ask)
   const google = useGoogle(host, approval.ask)
   const [sheetNames, setSheetNames] = useState(false)
   const brand = useBrand()
@@ -531,13 +533,11 @@ export function Panel(props: {
       ? chat.messages.find((m) => m.id === messageId)
       : [...chat.messages].reverse().find((m) => m.image)
     if (!message?.image) return
-    patch(phone, { verify: { status: 'running', note: 'Getting ready…' } })
+    patch(phone, {
+      verify: { status: 'running', note: 'Reading the receipt…' },
+    })
     try {
-      await device.ready()
-      patch(phone, {
-        verify: { status: 'running', note: 'Reading the receipt…' },
-      })
-      const reading = await readReceiptImage(message.image, device.consent)
+      const reading = await jobs(planReceipt(message.image))
       const receipt = toReceipt(reading.fields, config)
       const now = await ledger.load()
       const mine = openOrder(now.orders, normalisePhone(phone))
@@ -621,7 +621,7 @@ export function Panel(props: {
       )
       if (photos.length < 2) continue
       onCompare()
-      const pick = await pickPhoto(p.picture, photos, device.consent)
+      const pick = await jobs(planPhotoPick(p.picture, photos))
       const chosen =
         pick.fields === null ? undefined : p.candidates[pick.fields]
       if (chosen) {
@@ -635,15 +635,13 @@ export function Panel(props: {
     const chat = await readOpenChat()
     if (!chat) return
     const phone = chat.phone
-    patch(phone, { capture: { status: 'running', note: 'Getting ready…' } })
+    patch(phone, {
+      capture: {
+        status: 'running',
+        note: 'Reading the order from the chat…',
+      },
+    })
     try {
-      await device.ready()
-      patch(phone, {
-        capture: {
-          status: 'running',
-          note: 'Reading the order from the chat…',
-        },
-      })
       const lines = chat.messages.map((m) => ({
         from: m.from,
         time: m.time,
@@ -676,7 +674,7 @@ export function Panel(props: {
           note: 'Reading the order from the chat…',
         },
       })
-      const reading = await readOrder(chatText, device.consent)
+      const reading = await jobs(planOrder(chatText))
       const f = toOrderFields(reading.fields)
       const shown = new Set(
         pictures.items.flatMap((p) =>
@@ -846,50 +844,42 @@ export function Panel(props: {
     const audio = message?.voice?.audio
     if (!chat || !message?.voice || !audio) return
     const phone = chat.phone
-    if (!online) {
-      patch(phone, {
-        voice: {
-          status: 'error',
-          message: 'You are offline. Nothing was sent.',
-        },
-      })
-      return
-    }
     patch(phone, {
       voice: { status: 'running', note: 'Waiting for your approval…' },
     })
     const lagos = market().id === 'ng'
-    const approved = await approval.ask(
-      voiceRequest(
-        {
-          ...audio,
-          ...(message.voice.seconds !== null && {
-            seconds: message.voice.seconds,
-          }),
-        },
-        {
-          // Lagos brings its Pidgin glossary, areas and well-known streets;
-          // other markets use the shop's own delivery areas.
-          glossary: lagos ? appConfig().pidginGlossary : {},
-          areas: lagos
-            ? placeNames('Lagos')
-            : shop.rules.areaFees.map((f) => f.area),
-          streets: lagos ? LAGOS_STREETS : [],
-          products: (data?.products ?? []).flatMap((p) =>
-            p.name && !p.dropId ? [p.name] : [],
-          ),
-        },
-      ),
+    const plan = planVoice(
+      {
+        ...audio,
+        ...(message.voice.seconds !== null && {
+          seconds: message.voice.seconds,
+        }),
+      },
+      {
+        // Lagos brings its Pidgin glossary, areas and well-known streets;
+        // other markets use the shop's own delivery areas.
+        glossary: lagos ? appConfig().pidginGlossary : {},
+        areas: lagos
+          ? placeNames('Lagos')
+          : shop.rules.areaFees.map((f) => f.area),
+        streets: lagos ? LAGOS_STREETS : [],
+        products: (data?.products ?? []).flatMap((p) =>
+          p.name && !p.dropId ? [p.name] : [],
+        ),
+      },
     )
-    if (!approved) {
-      patch(phone, { voice: undefined })
-      return
-    }
-    patch(phone, {
-      voice: { status: 'running', note: 'Listening in the cloud…' },
-    })
     try {
-      const value = await readVoiceNote(approved)
+      const value = await jobs(
+        whenApproved(plan, () =>
+          patch(phone, {
+            voice: { status: 'running', note: 'Listening in the cloud…' },
+          }),
+        ),
+      )
+      if (!value) {
+        patch(phone, { voice: undefined })
+        return
+      }
       setWork((w) => ({
         ...w,
         [phone]: {
@@ -1122,7 +1112,7 @@ export function Panel(props: {
       const value = await importBankApp(
         await fileToImage(file),
         { bank: appBank || null, day: lagosToday(Date.now()) },
-        device,
+        jobs,
         ledger,
       )
       setBankApp({ status: 'done', value })
@@ -1138,18 +1128,18 @@ export function Panel(props: {
       refund: { key, status: 'running', note: 'Reading the chat…' },
     })
     try {
-      await device.ready()
-      const reading = await readRefundTo(
-        transcript(
-          chat.messages.map((m) => ({
-            from: m.from,
-            time: m.time,
-            text: m.text,
-            image: Boolean(m.image),
-            voice: Boolean(m.voice),
-          })),
+      const reading = await jobs(
+        planRefundTo(
+          transcript(
+            chat.messages.map((m) => ({
+              from: m.from,
+              time: m.time,
+              text: m.text,
+              image: Boolean(m.image),
+              voice: Boolean(m.voice),
+            })),
+          ),
         ),
-        device.consent,
       )
       patch(phone, {
         refund: {
@@ -1289,13 +1279,7 @@ export function Panel(props: {
   // A writing job: at once on this computer, or in the cloud once the vendor
   // approves exactly what goes. Null when they decline.
   async function runWrite(job: WriteJob): Promise<Reading<string> | null> {
-    const plan = planWrite(job, market(), device.consent)
-    if (plan.where === 'device') {
-      await device.ready()
-      return plan.run()
-    }
-    const approved = await approval.ask(plan.request)
-    return approved ? plan.run(approved) : null
+    return jobs(planWrite(job, market()))
   }
 
   async function undoRewrite() {
@@ -1355,11 +1339,8 @@ export function Panel(props: {
     const chat = await readOpenChat()
     if (!chat || !data) return
     const phone = chat.phone
-    patch(phone, { draft: { status: 'running', note: 'Getting ready…' } })
-    const onDevice = market().reply.onDevice
+    patch(phone, { draft: { status: 'running', note: 'Writing a reply…' } })
     try {
-      if (onDevice) await device.ready()
-      patch(phone, { draft: { status: 'running', note: 'Writing a reply…' } })
       const v = current.verify?.status === 'done' ? current.verify.value : null
       const chatText = transcript(
         chat.messages.map((m) => {
@@ -1562,24 +1543,16 @@ export function Panel(props: {
         market(),
         { ...replyManner(prefs()), pidgin: prefs().pidgin },
       )
-      let reading: Reading<string>
-      if (onDevice) {
-        reading = await writeDraft(prompt, device.consent, chatText)
-      } else {
-        // The chat holds names and numbers, so they are swapped out and the
-        // vendor sees exactly what goes before anything leaves.
-        const names = [chat.contactName, customerName(customerId)]
-          .filter((n) => n && n !== 'Customer')
-          .map((name) => ({ name, label: '(customer)' }))
-        const { text, replaced } = redact(prompt, names)
-        const approved = await approval.ask(
-          draftRequest(text, market().reply.language, replaced),
-        )
-        if (!approved) {
-          patch(phone, { draft: undefined })
-          return
-        }
-        reading = await writeCloudDraft(approved)
+      const reading = await jobs(
+        planDraft(prompt, chatText, {
+          onDevice: market().reply.onDevice,
+          language: market().reply.language,
+          names: [chat.contactName, customerName(customerId)],
+        }),
+      )
+      if (!reading) {
+        patch(phone, { draft: undefined })
+        return
       }
       const problem = draftProblem(reading.fields)
       if (problem) throw new Error(`${problem} Try again.`)
@@ -2505,6 +2478,7 @@ export function Panel(props: {
           <QueueCard
             ledger={ledger}
             device={device}
+            jobs={jobs}
             delivers={shop.rules.methods.length > 0}
             onOpen={host.openChat}
           />
@@ -2686,8 +2660,7 @@ export function Panel(props: {
             ledger={ledger}
             today={today}
             lagos={lagos}
-            online={online}
-            ask={approval.ask}
+            jobs={jobs}
             badge={(r) => <Badge source={r.source} ms={r.ms} />}
           />
           {data && data.orders.length > 0 && (
@@ -2735,13 +2708,13 @@ export function Panel(props: {
         <TabPanel id="shop" current={tab}>
           <ShopRulesCard
             shop={shop}
-            device={device}
+            jobs={jobs}
             pickMarket={props.pickMarket}
           />
 
           <ReceiptLookCard brand={brand} shopName={shop.rules.shopName} />
 
-          <StockCard ledger={ledger} device={device} />
+          <StockCard ledger={ledger} device={device} jobs={jobs} />
 
           {drops && (
             <DropCard
@@ -2761,7 +2734,7 @@ export function Panel(props: {
           lagos={lagos}
           now={() => Date.now()}
           online={online}
-          ask={approval.ask}
+          jobs={jobs}
           badge={(r) => <Badge source={r.source} ms={r.ms} />}
           openChat={host.openChat}
           sendSheet={() => void sendSheet()}

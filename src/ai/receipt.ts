@@ -2,6 +2,7 @@ import { market, type MarketId } from '../config/market'
 import { Schema } from 'firebase/ai'
 import { RAW_RECEIPT_FIELDS, type RawReceipt } from '../verify/receiptFields'
 import { privateModels, TEXT_AND_IMAGE } from './device'
+import { onDevice, type DevicePlan } from './job'
 import { generateJson, pickStrings, type Reading } from './run'
 
 // Amounts and IDs are requested as strings: a numeric constraint makes the
@@ -73,21 +74,21 @@ export function prepareReceiptModel(
   return model(false).initializeDeviceModel(onProgress)
 }
 
-export async function readReceiptImage(
+export const planReceipt = (
   image: ReceiptImage,
-  cloudConsent: boolean,
-): Promise<Reading<RawReceipt>> {
-  if (!RECEIPT_IMAGE_TYPES.includes(image.mimeType)) {
-    throw new Error(
-      `Receipt images must be PNG or JPEG, not ${image.mimeType}.`,
-    )
-  }
-  const { json, source, ms } = await generateJson(model(cloudConsent), [
-    receiptPrompt(),
-    {
-      type: 'inlineData',
-      inlineData: { mimeType: image.mimeType, data: image.base64 },
-    },
-  ])
-  return { fields: pickStrings(json, RAW_RECEIPT_FIELDS), source, ms }
-}
+): DevicePlan<Reading<RawReceipt>> =>
+  onDevice(async (cloudConsent) => {
+    if (!RECEIPT_IMAGE_TYPES.includes(image.mimeType)) {
+      throw new Error(
+        `Receipt images must be PNG or JPEG, not ${image.mimeType}.`,
+      )
+    }
+    const { json, source, ms } = await generateJson(model(cloudConsent), [
+      receiptPrompt(),
+      {
+        type: 'inlineData',
+        inlineData: { mimeType: image.mimeType, data: image.base64 },
+      },
+    ])
+    return { fields: pickStrings(json, RAW_RECEIPT_FIELDS), source, ms }
+  })

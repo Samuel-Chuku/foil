@@ -83,7 +83,7 @@ async function handle(ask: WriteAsk): Promise<WriteAnswer> {
       lost: lostNumbers(job.from, r.fields),
     }
   }
-  const plan = planWrite(ask.job, m, storedConsent())
+  const plan = planWrite(ask.job, m)
   if (plan.where === 'cloud') {
     const id = crypto.randomUUID()
     waiting = { id, plan, from: original(ask.job) }
@@ -96,7 +96,7 @@ async function handle(ask: WriteAsk): Promise<WriteAnswer> {
   }
   const problem = await deviceProblem()
   if (problem) return problem
-  const r = await plan.run()
+  const r = await plan.run(storedConsent())
   return {
     kind: 'done',
     text: r.fields,

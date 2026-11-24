@@ -1,10 +1,10 @@
 import { lagosFromEpoch } from '../verify/time'
-import { readHistoryImage } from '../ai/history'
+import { planHistory } from '../ai/history'
+import type { RunJob } from '../ai/job'
 import type { ReceiptImage } from '../ai/receipt'
 import type { Reading } from '../ai/run'
 import type { RawHistoryRow } from '../verify/history'
 import type { Credit } from '../verify/types'
-import type { DeviceApi } from './useDevice'
 import type { LedgerApi } from './useLedger'
 
 export type BankAppResult = {
@@ -17,11 +17,10 @@ export type BankAppResult = {
 export async function importBankApp(
   image: ReceiptImage,
   opts: { bank: string | null; day: number },
-  device: DeviceApi,
+  jobs: RunJob,
   ledger: LedgerApi,
 ): Promise<BankAppResult> {
-  await device.ready()
-  const reading = await readHistoryImage(image, device.consent)
+  const reading = await jobs(planHistory(image))
   const added = await ledger.importHistory(reading.fields, opts)
   return { reading, added }
 }

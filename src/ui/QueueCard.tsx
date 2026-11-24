@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { triage } from '../ai/triage'
+import type { RunJob } from '../ai/job'
+import { planTriage } from '../ai/triage'
 import {
   buildQueue,
   latestAsk,
@@ -23,12 +24,13 @@ const LABEL_TEXT = {
 export function QueueCard(props: {
   ledger: LedgerApi
   device: DeviceApi
+  jobs: RunJob
   delivers: boolean
   // Opens that customer's chat where the host can (the demo); WhatsApp Web
   // is never driven by the desk.
   onOpen?: (key: string) => void
 }) {
-  const { ledger, device } = props
+  const { ledger, device, jobs } = props
   const data = ledger.data
   const [sorting, setSorting] = useState<
     | { state: 'running' }
@@ -78,9 +80,8 @@ export function QueueCard(props: {
   async function sort() {
     setSorting({ state: 'running' })
     try {
-      await device.ready()
       const texts = unsorted.map(latestAsk)
-      const r = await triage(texts, device.consent)
+      const r = await jobs(planTriage(texts))
       await ledger.labelChats(
         unsorted.flatMap((c, n) => {
           const label = r.labels[n]

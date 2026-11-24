@@ -3,6 +3,7 @@ import type { Approved, CloudRequest } from '../cloud/approval'
 import { cloudModel, sendApproved } from '../cloud/send'
 import { CHART_IDS, chartMenu } from '../ledger/charts'
 import { pickReport, reportInstructions, type Report } from '../ledger/report'
+import type { CloudPlan } from './job'
 import type { Reading } from './run'
 
 const chart = Schema.enumString({ enum: [...CHART_IDS, 'none'] })
@@ -24,7 +25,7 @@ const model = cloudModel({
   }),
 })
 
-export function reportRequest(numbers: string, days: number): CloudRequest {
+function reportRequest(numbers: string, days: number): CloudRequest {
   return {
     feature: `Review the last ${days} days`,
     reason:
@@ -34,7 +35,17 @@ export function reportRequest(numbers: string, days: number): CloudRequest {
   }
 }
 
-export async function readReport(request: Approved): Promise<Reading<Report>> {
+async function readReport(request: Approved): Promise<Reading<Report>> {
   const { text, source, ms } = await sendApproved(model(), request)
   return { fields: pickReport(JSON.parse(text) as unknown), source, ms }
 }
+
+// Only totals go, so the review is always a cloud job.
+export const planReport = (
+  numbers: string,
+  days: number,
+): CloudPlan<Reading<Report>> => ({
+  where: 'cloud',
+  request: reportRequest(numbers, days),
+  run: readReport,
+})

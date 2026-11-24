@@ -2,6 +2,7 @@ import { Schema } from 'firebase/ai'
 import type { RawRules } from '../capture/shopRules'
 import { privateModels, TEXT_AND_IMAGE } from './device'
 import { RECEIPT_IMAGE_TYPES, type ReceiptImage } from './receipt'
+import { onDevice, type DevicePlan } from './job'
 import { generateJson, type Reading } from './run'
 
 const TEXT_FIELDS = [
@@ -111,29 +112,27 @@ function pick(json: unknown): RawRules {
   }
 }
 
-export async function readRulesText(
-  text: string,
-  cloudConsent: boolean,
-): Promise<Reading<RawRules>> {
-  const { json, source, ms } = await generateJson(model(cloudConsent), [
-    `${PROMPT}\n\nRules:\n${text}`,
-  ])
-  return { fields: pick(json), source, ms }
-}
+export const planRulesText = (text: string): DevicePlan<Reading<RawRules>> =>
+  onDevice(async (cloudConsent) => {
+    const { json, source, ms } = await generateJson(model(cloudConsent), [
+      `${PROMPT}\n\nRules:\n${text}`,
+    ])
+    return { fields: pick(json), source, ms }
+  })
 
-export async function readRulesImage(
+export const planRulesImage = (
   image: ReceiptImage,
-  cloudConsent: boolean,
-): Promise<Reading<RawRules>> {
-  if (!RECEIPT_IMAGE_TYPES.includes(image.mimeType)) {
-    throw new Error(`Screenshots must be PNG or JPEG, not ${image.mimeType}.`)
-  }
-  const { json, source, ms } = await generateJson(model(cloudConsent), [
-    PROMPT,
-    {
-      type: 'inlineData',
-      inlineData: { mimeType: image.mimeType, data: image.base64 },
-    },
-  ])
-  return { fields: pick(json), source, ms }
-}
+): DevicePlan<Reading<RawRules>> =>
+  onDevice(async (cloudConsent) => {
+    if (!RECEIPT_IMAGE_TYPES.includes(image.mimeType)) {
+      throw new Error(`Screenshots must be PNG or JPEG, not ${image.mimeType}.`)
+    }
+    const { json, source, ms } = await generateJson(model(cloudConsent), [
+      PROMPT,
+      {
+        type: 'inlineData',
+        inlineData: { mimeType: image.mimeType, data: image.base64 },
+      },
+    ])
+    return { fields: pick(json), source, ms }
+  })

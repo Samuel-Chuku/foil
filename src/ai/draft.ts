@@ -1,14 +1,15 @@
-import type { Approved, CloudRequest } from '../cloud/approval'
+import { redact, type Approved, type CloudRequest } from '../cloud/approval'
 import { cloudModel, sendApproved } from '../cloud/send'
 import { echoesCustomer, oddWording, tidyDraft } from '../capture/draft'
 import { privateModels, TEXT_ONLY } from './device'
+import { onDevice, type Plan } from './job'
 import { generateText, type Reading } from './run'
 
 // The draft is built from the customer's chat, so it is written on the device
 // unless the vendor has consented to the cloud.
 const model = privateModels({ createOptions: TEXT_ONLY })
 
-export async function writeDraft(
+async function writeDraft(
   prompt: string,
   cloudConsent: boolean,
   // The chat as the prompt gives it, to catch a draft that repeats the
@@ -44,7 +45,7 @@ export async function writeDraft(
 // sent, with names and numbers swapped out.
 const cloud = cloudModel()
 
-export function draftRequest(
+function draftRequest(
   prompt: string,
   language: string,
   replaced: string[],
@@ -57,9 +58,30 @@ export function draftRequest(
   }
 }
 
-export async function writeCloudDraft(
-  approved: Approved,
-): Promise<Reading<string>> {
+async function writeCloudDraft(approved: Approved): Promise<Reading<string>> {
   const { text, source, ms } = await sendApproved(cloud(), approved)
   return { fields: tidyDraft(text), source, ms }
+}
+
+// The market says where replies are written. In the cloud the chat's names and
+// numbers are swapped out, and the vendor sees exactly what goes.
+export function planDraft(
+  prompt: string,
+  chat: string,
+  opts: { onDevice: boolean; language: string; names: string[] },
+): Plan<Reading<string>> {
+  if (opts.onDevice) {
+    return onDevice((cloudConsent) => writeDraft(prompt, cloudConsent, chat))
+  }
+  const { text, replaced } = redact(
+    prompt,
+    opts.names
+      .filter((n) => n && n !== 'Customer')
+      .map((name) => ({ name, label: '(customer)' })),
+  )
+  return {
+    where: 'cloud',
+    request: draftRequest(text, opts.language, replaced),
+    run: writeCloudDraft,
+  }
 }

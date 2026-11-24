@@ -1,16 +1,17 @@
 import {
-  getGenerativeModel,
-  InferenceMode,
   Schema,
   type ChatSession,
   type FunctionCall,
   type FunctionDeclarationsTool,
-  type GenerativeModel,
   type Part,
 } from 'firebase/ai'
-import { partsOf, type Approved, type CloudRequest } from '../cloud/approval'
-import { appConfig } from '../config/active'
-import { ai } from '../firebase'
+import {
+  partsOf,
+  redact,
+  type Approved,
+  type CloudRequest,
+} from '../cloud/approval'
+import { cloudModel } from '../cloud/send'
 import type { ChartId } from '../ledger/charts'
 import type { Answer } from '../ledger/report'
 import { answerLines, type Exchange } from '../ledger/snapshot'
@@ -22,7 +23,8 @@ import {
   type Proposal,
   type ToolResult,
 } from '../ledger/tools'
-import { askOnDevice } from './books'
+import { askOnDevice, followUpRequest } from './books'
+import type { CloudPlan } from './job'
 import {
   answerFromResults,
   deviceAnswerPrompt,
@@ -33,7 +35,7 @@ import {
   toolInstructions,
 } from '../ledger/askRoute'
 import { privateModels, TEXT_ONLY } from './device'
-import { generateJson, type Reading, type Source } from './run'
+import { generateJson, sourceOf, type Reading, type Source } from './run'
 
 // Ask Foil with tools. In the cloud the model calls the desk's functions
 // through Firebase AI Logic's function calling; on this computer, where the
@@ -80,15 +82,7 @@ const declarations: FunctionDeclarationsTool = {
   }),
 }
 
-let cloud: GenerativeModel | undefined
-const toolModel = () =>
-  (cloud ??= getGenerativeModel(ai, {
-    mode: InferenceMode.ONLY_IN_CLOUD,
-    inCloudParams: {
-      model: appConfig().cloudModel,
-      tools: [declarations],
-    },
-  }))
+const toolModel = cloudModel(undefined, [declarations])
 
 export function toolChat(): ChatSession {
   return toolModel().startChat()
@@ -97,7 +91,7 @@ export function toolChat(): ChatSession {
 // The first question of a cloud chat. The owner sees the instructions, the
 // question and, as what the tools may return, every lookup in full: the cloud
 // is sent at most that, and only the parts it asks for.
-export function toolRequest(
+function toolRequest(
   question: string,
   preview: string,
   replaced: string[],
@@ -128,7 +122,7 @@ const gather = (results: ToolResult[]) => ({
     ),
 })
 
-export async function askCloudWithTools(
+async function askCloudWithTools(
   chat: ChatSession,
   approved: Approved,
   data: () => DeskData,
@@ -154,12 +148,44 @@ export async function askCloudWithTools(
     })
     response = (await chat.sendMessage(replies)).response
   }
+  const source = sourceOf(response)
   return {
     text: withoutNotes(response.text()),
     ...gather(results),
-    steps: results.map((r) => ({ label: r.step, source: 'Cloud' as const })),
-    source: 'Cloud',
+    steps: results.map((r) => ({ label: r.step, source })),
+    source,
     ms: Math.round(performance.now() - started),
+  }
+}
+
+// A cloud question in the Ask chat. Names the vendor typed are swapped out.
+// The first question of a chat shows every lookup the model may make; a
+// later one the vendor typed with nothing swapped out is already on screen
+// exactly as it goes, so their Ask click is the approval.
+export function planCloudAsk(o: {
+  typed: string
+  names: string[]
+  // Every lookup in full for the first question; null for a later one.
+  preview: string | null
+  language?: string
+  session: () => ChatSession
+  data: () => DeskData
+}): { asked: string; plan: CloudPlan<DeskAnswer> } {
+  const { text, replaced } = redact(
+    o.typed,
+    o.names.map((name) => ({ name, label: '(customer)' })),
+  )
+  return {
+    asked: text,
+    plan: {
+      where: 'cloud',
+      request:
+        o.preview !== null
+          ? toolRequest(text, o.preview, replaced, o.language)
+          : followUpRequest(text, replaced),
+      shown: o.preview === null && replaced.length === 0,
+      run: (approved) => askCloudWithTools(o.session(), approved, o.data),
+    },
   }
 }
 

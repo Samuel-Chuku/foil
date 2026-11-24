@@ -1,4 +1,4 @@
-import type { Approved, CloudRequest } from '../cloud/approval'
+import type { Approved } from '../cloud/approval'
 import { cloudModel, sendApproved } from '../cloud/send'
 import { draftProblem, tidyDraft } from '../capture/draft'
 import {
@@ -12,6 +12,7 @@ import {
 } from '../capture/rewrite'
 import type { Market } from '../config/market'
 import { privateModels, TEXT_ONLY } from './device'
+import type { Plan } from './job'
 import { generateText, type Reading } from './run'
 
 // Rewording the vendor's reply and putting a customer's message into English.
@@ -40,15 +41,7 @@ export type WriteJob =
   | { op: 'rewrite'; style: string; text: string; names: string[] }
   | { op: 'translate'; lines: string[]; names: string[] }
 
-// A device job runs at once; a cloud job waits for the vendor to approve
-// exactly `request`.
-export type WritePlan =
-  | { where: 'device'; run: () => Promise<Reading<string>> }
-  | {
-      where: 'cloud'
-      request: CloudRequest
-      run: (approved: Approved) => Promise<Reading<string>>
-    }
+export type WritePlan = Plan<Reading<string>>
 
 const named = (names: string[]) =>
   names.map((n) => n.trim()).filter((n) => n && n !== 'Customer')
@@ -59,16 +52,13 @@ function checked(reading: Reading<string>): Reading<string> {
   return reading
 }
 
-export function planWrite(
-  job: WriteJob,
-  m: Market,
-  cloudConsent: boolean,
-): WritePlan {
+export function planWrite(job: WriteJob, m: Market): WritePlan {
   if (job.op === 'translate') {
     if (job.lines.every(readsAsEnglish)) {
       return {
         where: 'device',
-        run: () => onDevice(translatePrompt(job.lines), cloudConsent),
+        run: (cloudConsent) =>
+          onDevice(translatePrompt(job.lines), cloudConsent),
       }
     }
     const safe = protect(job.lines.join('\n'), named(job.names))
@@ -94,8 +84,11 @@ export function planWrite(
   if (style.onDevice) {
     return {
       where: 'device',
-      run: async () => {
-        const first = await onDevice(rewritePrompt(text, style, m), cloudConsent)
+      run: async (cloudConsent) => {
+        const first = await onDevice(
+          rewritePrompt(text, style, m),
+          cloudConsent,
+        )
         // A number the model dropped is asked for once more by name.
         const missing = lostNumbers(text, first.fields)
         if (!missing.length) return checked(first)

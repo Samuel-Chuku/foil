@@ -15,6 +15,8 @@ import { importBankApp, type BankAppResult } from '../ui/bankApp'
 import type { OpenChat, PanelHost, PanelRequest } from '../ui/host'
 import { Panel } from '../ui/Panel'
 import { useDevice } from '../ui/useDevice'
+import { useModelJobs } from '../ui/useModelJobs'
+import { noCloud } from '../ai/job'
 import { useLedger } from '../ui/useLedger'
 import { useShopRules } from '../ui/useShopRules'
 import { formatMoney } from '../verify/money'
@@ -104,6 +106,8 @@ export default function DemoApp() {
   )
   const ledger = useLedger()
   const device = useDevice()
+  // The sample bank-app screenshot is read on the device only.
+  const jobs = useModelJobs(device, noCloud)
   const shop = useShopRules()
   // The sample shop comes with its rules filled in, so drafts can quote them.
   const { stored, save: saveRules } = shop
@@ -247,7 +251,7 @@ export default function DemoApp() {
       const value = await importBankApp(
         history,
         { bank: SAMPLE_HISTORY.bank, day: SAMPLE_DAY_MS },
-        device,
+        jobs,
         ledger,
       )
       setBankApp({ status: 'done', value })

@@ -9,6 +9,7 @@ import {
   voicePrompt,
   type VoiceNote,
 } from '../capture/voice'
+import type { CloudPlan } from './job'
 import type { Reading } from './run'
 
 const model = cloudModel({
@@ -32,7 +33,7 @@ const model = cloudModel({
 
 // The request the vendor is shown: the instructions, which hold only the
 // shop's own vocabulary, and the voice note itself.
-export function voiceRequest(
+function voiceRequest(
   audio: { mimeType: string; base64: string; seconds?: number },
   vocabulary: Parameters<typeof voicePrompt>[0],
 ): CloudRequest {
@@ -54,9 +55,7 @@ export function voiceRequest(
   }
 }
 
-export async function readVoiceNote(
-  request: Approved,
-): Promise<Reading<VoiceNote>> {
+async function readVoiceNote(request: Approved): Promise<Reading<VoiceNote>> {
   const { text, source, ms } = await sendApproved(model(), request)
   // The street check knows Lagos streets only; elsewhere it stays quiet.
   const streets = market().id === 'ng' ? LAGOS_STREETS : []
@@ -66,3 +65,12 @@ export async function readVoiceNote(
     ms,
   }
 }
+
+// Always a cloud job: the model on this computer cannot take audio.
+export const planVoice = (
+  ...args: Parameters<typeof voiceRequest>
+): CloudPlan<Reading<VoiceNote>> => ({
+  where: 'cloud',
+  request: voiceRequest(...args),
+  run: readVoiceNote,
+})

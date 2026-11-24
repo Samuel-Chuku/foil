@@ -3,7 +3,8 @@ import { rememberMarket, RAIL_NAME } from './marketChoice'
 import { useState } from 'react'
 import { pdfText } from '../ai/pdfText'
 import { RECEIPT_IMAGE_TYPES } from '../ai/receipt'
-import { readRulesImage, readRulesText } from '../ai/shopRules'
+import type { RunJob } from '../ai/job'
+import { planRulesImage, planRulesText } from '../ai/shopRules'
 import {
   chunkText,
   DELIVERY_METHODS,
@@ -20,7 +21,7 @@ import { STATES, type State } from '../capture/places'
 import { parseMoney } from '../verify/money'
 import { fileToImage } from './bankApp'
 import { Segmented } from './controls'
-import { NeedsConsent, type DeviceApi } from './useDevice'
+import { NeedsConsent } from './useDevice'
 import type { ShopRulesApi } from './useShopRules'
 import { Icon } from './icons'
 
@@ -109,12 +110,12 @@ function Checked(props: { field: string; form: Form }) {
 
 export function ShopRulesCard(props: {
   shop: ShopRulesApi
-  device: DeviceApi
+  jobs: RunJob
   // The extension lets a shop choose its market; the demo has its own
   // city switcher.
   pickMarket?: boolean
 }) {
-  const { shop, device } = props
+  const { shop, jobs } = props
   // Edits and file readings stay in the form until saved.
   const [form, setForm] = useState<Form | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -138,15 +139,11 @@ export function ShopRulesCard(props: {
   async function upload(files: File[]) {
     let next = f
     try {
-      await device.ready()
       for (const [n, file] of files.entries()) {
         const label = files.length > 1 ? ` (${n + 1} of ${files.length})` : ''
         if (RECEIPT_IMAGE_TYPES.includes(file.type)) {
           setReading(`Reading ${file.name}${label}…`)
-          const r = await readRulesImage(
-            await fileToImage(file),
-            device.consent,
-          )
+          const r = await jobs(planRulesImage(await fileToImage(file)))
           next = {
             ...toForm(mergeRead(fromForm(next), r.fields)),
             policies: [next.policies, r.fields.otherRules]
@@ -170,7 +167,7 @@ export function ShopRulesCard(props: {
           setReading(
             `Reading ${file.name}${label}${parts.length > 1 ? `, part ${k + 1} of ${parts.length}` : ''}…`,
           )
-          const r = await readRulesText(part, device.consent)
+          const r = await jobs(planRulesText(part))
           next = {
             ...toForm(mergeRead(fromForm(next), r.fields)),
             policies: next.policies,

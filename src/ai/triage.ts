@@ -7,6 +7,7 @@ import {
   triagePrompt,
 } from '../queue/triage'
 import { privateModels, TEXT_ONLY } from './device'
+import { onDevice, type DevicePlan } from './job'
 import { generateText, type Source } from './run'
 
 // One model per batch size: the on-device constraint fixes how many numbers
@@ -40,22 +41,20 @@ export type TriageResult = {
 
 // Labels each text, in batches. A batch whose answer cannot be read leaves
 // its texts unlabelled rather than guessing.
-export async function triage(
-  texts: string[],
-  cloudConsent: boolean,
-): Promise<TriageResult> {
-  const labels: (MessageLabel | null)[] = []
-  let source: Source | null = null
-  let ms = 0
-  for (let i = 0; i < texts.length; i += BATCH) {
-    const batch = texts.slice(i, i + BATCH)
-    const r = await generateText(modelFor(batch.length)(cloudConsent), [
-      triagePrompt(batch),
-    ])
-    source ??= r.source
-    ms += r.ms
-    const parsed = parseTriage(r.text, batch.length)
-    labels.push(...(parsed ?? batch.map(() => null)))
-  }
-  return { labels, source, ms }
-}
+export const planTriage = (texts: string[]): DevicePlan<TriageResult> =>
+  onDevice(async (cloudConsent) => {
+    const labels: (MessageLabel | null)[] = []
+    let source: Source | null = null
+    let ms = 0
+    for (let i = 0; i < texts.length; i += BATCH) {
+      const batch = texts.slice(i, i + BATCH)
+      const r = await generateText(modelFor(batch.length)(cloudConsent), [
+        triagePrompt(batch),
+      ])
+      source ??= r.source
+      ms += r.ms
+      const parsed = parseTriage(r.text, batch.length)
+      labels.push(...(parsed ?? batch.map(() => null)))
+    }
+    return { labels, source, ms }
+  })

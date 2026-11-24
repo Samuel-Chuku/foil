@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
-import { readReport, reportRequest } from '../ai/report'
+import { whenApproved, type RunJob } from '../ai/job'
+import { planReport } from '../ai/report'
 import type { Reading } from '../ai/run'
-import type { Approved, CloudRequest } from '../cloud/approval'
 import { cloudErrorText } from '../cloud/send'
 import { CHART_IDS, chartSpec, type ChartId } from '../ledger/charts'
 import type { Report } from '../ledger/report'
@@ -28,8 +28,7 @@ export function TrendsCard(props: {
   ledger: LedgerApi
   today: string
   lagos: Lagos
-  online: boolean
-  ask: (request: CloudRequest) => Promise<Approved | null>
+  jobs: RunJob
   badge: (r: Reading<unknown>) => ReactNode
 }) {
   const { data, config } = props.ledger
@@ -43,19 +42,13 @@ export function TrendsCard(props: {
 
   async function runReview() {
     if (!t) return
-    if (!props.online) {
-      setReview({
-        status: 'error',
-        message: 'You are offline. Nothing was sent.',
-      })
-      return
-    }
-    const approved = await props.ask(reportRequest(numbers, span))
-    if (!approved) return
-    setReview({ status: 'running' })
     try {
-      const value = await readReport(approved)
-      setReview({ status: 'done', value, numbers })
+      const value = await props.jobs(
+        whenApproved(planReport(numbers, span), () =>
+          setReview({ status: 'running' }),
+        ),
+      )
+      if (value) setReview({ status: 'done', value, numbers })
     } catch (e) {
       setReview({
         status: 'error',

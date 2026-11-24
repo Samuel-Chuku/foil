@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Approved, CloudRequest } from '../cloud/approval'
+import { whenApproved, type CloudPlan, type RunJob } from '../ai/job'
+import type { CloudRequest } from '../cloud/approval'
 import { cloudModel, sendApproved } from '../cloud/send'
 import { market } from '../config/market'
 import { speechLangs } from '../config/speech'
@@ -82,7 +83,7 @@ export function allowMic(): void {
 
 const transcriber = cloudModel()
 
-export function voiceQuestionRequest(audio: {
+function voiceQuestionRequest(audio: {
   mimeType: string
   base64: string
   seconds: number
@@ -103,6 +104,16 @@ export function voiceQuestionRequest(audio: {
     replaced: [],
   }
 }
+
+// Speech without the browser's own recognition is always a cloud job.
+export const planVoiceQuestion = (
+  audio: Parameters<typeof voiceQuestionRequest>[0],
+): CloudPlan<string> => ({
+  where: 'cloud',
+  request: voiceQuestionRequest(audio),
+  run: async (approved) =>
+    (await sendApproved(transcriber(), approved)).text.trim(),
+})
 
 // What this browser offers for voice: speech recognised on the device (or
 // ready to download), a recording for the cloud, or nothing.
@@ -177,14 +188,14 @@ export function useVoiceAsk(props: {
   // Product names and order numbers, so they are heard right.
   vocabulary: string[]
   onQuestion: (text: string) => void
-  ask: (request: CloudRequest) => Promise<Approved | null>
+  jobs: RunJob
   online: boolean
 }) {
   const [mode, setMode] = useState<VoiceMode>('none')
   const [state, setState] = useState<VoiceState>({ status: 'idle' })
   const rec = useRef<Recognition | null>(null)
   const recorder = useRef<MediaRecorder | null>(null)
-  const { onQuestion, ask } = props
+  const { onQuestion, jobs } = props
 
   const [lang, setLang] = useState(() => market().currency.locale)
 
@@ -329,21 +340,21 @@ export function useVoiceAsk(props: {
       const blob = new Blob(chunks, { type: r.mimeType || 'audio/webm' })
       const seconds = (performance.now() - started) / 1000
       try {
-        const approved = await ask(
-          voiceQuestionRequest({
-            mimeType: blob.type.split(';')[0] || 'audio/webm',
-            base64: await toBase64(blob),
-            seconds,
-          }),
+        const q = await jobs(
+          whenApproved(
+            planVoiceQuestion({
+              mimeType: blob.type.split(';')[0] || 'audio/webm',
+              base64: await toBase64(blob),
+              seconds,
+            }),
+            () =>
+              setState({
+                status: 'writing',
+                note: 'Writing down your question…',
+              }),
+          ),
         )
-        if (!approved) {
-          setState({ status: 'idle' })
-          return
-        }
-        setState({ status: 'writing', note: 'Writing down your question…' })
-        const { text } = await sendApproved(transcriber(), approved)
         setState({ status: 'idle' })
-        const q = text.trim()
         if (q) onQuestion(q)
       } catch {
         setState({
@@ -356,7 +367,7 @@ export function useVoiceAsk(props: {
     recorder.current = r
     setState({ status: 'listening', heard: '', mode: 'cloud' })
     r.start()
-  }, [ask, onQuestion, props.online])
+  }, [jobs, onQuestion, props.online])
 
   const start = useCallback(() => {
     if (mode === 'device') listenOnDevice(true)

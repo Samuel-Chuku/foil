@@ -1,4 +1,9 @@
-import { InferenceSource, type GenerativeModel, type Part } from 'firebase/ai'
+import {
+  InferenceSource,
+  type GenerateContentResult,
+  type GenerativeModel,
+  type Part,
+} from 'firebase/ai'
 
 export type Source = 'On device' | 'Cloud'
 
@@ -43,22 +48,31 @@ export function oneAtATime<T>(work: () => Promise<T>): Promise<T> {
 
 // Every result carries where it ran, taken from the SDK's own field so the
 // badge can never claim "On device" for a cloud answer.
-export async function generateText(
+export function sourceOf(response: {
+  inferenceSource?: InferenceSource
+}): Source {
+  return response.inferenceSource === InferenceSource.ON_DEVICE
+    ? 'On device'
+    : 'Cloud'
+}
+
+export async function timed(
+  call: () => Promise<GenerateContentResult>,
+): Promise<{ text: string; source: Source; ms: number }> {
+  const started = performance.now()
+  const { response } = await call()
+  return {
+    text: response.text(),
+    source: sourceOf(response),
+    ms: Math.round(performance.now() - started),
+  }
+}
+
+export function generateText(
   model: GenerativeModel,
   parts: (string | Part)[],
 ): Promise<{ text: string; source: Source; ms: number }> {
-  return oneAtATime(async () => {
-    const started = performance.now()
-    const result = await model.generateContent(parts)
-    return {
-      text: result.response.text(),
-      source:
-        result.response.inferenceSource === InferenceSource.ON_DEVICE
-          ? 'On device'
-          : 'Cloud',
-      ms: Math.round(performance.now() - started),
-    }
-  })
+  return oneAtATime(() => timed(() => model.generateContent(parts)))
 }
 
 export async function generateJson(

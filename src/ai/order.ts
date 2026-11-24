@@ -2,6 +2,7 @@ import { market } from '../config/market'
 import { Schema } from 'firebase/ai'
 import { pickOrder, type RawOrder } from '../capture/orderFields'
 import { privateModels, TEXT_ONLY } from './device'
+import { onDevice, type DevicePlan } from './job'
 import { generateJson, type Reading } from './run'
 
 const FIELDS = [
@@ -80,12 +81,10 @@ ${market().id === 'ng' ? 'state: the Nigerian state or city for delivery, as wri
 Chat:
 `
 
-export async function readOrder(
-  chat: string,
-  cloudConsent: boolean,
-): Promise<Reading<RawOrder>> {
-  const { json, source, ms } = await generateJson(model(cloudConsent), [
-    prompt() + chat,
-  ])
-  return { fields: pickOrder(json), source, ms }
-}
+export const planOrder = (chat: string): DevicePlan<Reading<RawOrder>> =>
+  onDevice(async (cloudConsent) => {
+    const { json, source, ms } = await generateJson(model(cloudConsent), [
+      prompt() + chat,
+    ])
+    return { fields: pickOrder(json), source, ms }
+  })

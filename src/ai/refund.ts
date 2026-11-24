@@ -2,6 +2,7 @@ import { market } from '../config/market'
 import { Schema } from 'firebase/ai'
 import { RAW_REFUND_FIELDS, type RawRefundTo } from '../capture/refundDetails'
 import { privateModels, TEXT_ONLY } from './device'
+import { onDevice, type DevicePlan } from './job'
 import { generateJson, pickStrings, type Reading } from './run'
 
 const onDeviceSchema = {
@@ -39,12 +40,10 @@ const model = privateModels({
   },
 })
 
-export async function readRefundTo(
-  chat: string,
-  cloudConsent: boolean,
-): Promise<Reading<RawRefundTo>> {
-  const { json, source, ms } = await generateJson(model(cloudConsent), [
-    prompt() + chat,
-  ])
-  return { fields: pickStrings(json, RAW_REFUND_FIELDS), source, ms }
-}
+export const planRefundTo = (chat: string): DevicePlan<Reading<RawRefundTo>> =>
+  onDevice(async (cloudConsent) => {
+    const { json, source, ms } = await generateJson(model(cloudConsent), [
+      prompt() + chat,
+    ])
+    return { fields: pickStrings(json, RAW_REFUND_FIELDS), source, ms }
+  })

@@ -9,21 +9,15 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
-import { askOnDevice, followUpRequest } from '../ai/books'
+import { askOnDevice } from '../ai/books'
+import { onDevice as onDeviceJob, whenApproved, type RunJob } from '../ai/job'
 import {
-  askCloudWithTools,
   askOnDeviceWithTools,
+  planCloudAsk,
   toolChat,
-  toolRequest,
   type DeskAnswer,
 } from '../ai/deskTools'
 import type { Reading } from '../ai/run'
-import {
-  approve,
-  redact,
-  type Approved,
-  type CloudRequest,
-} from '../cloud/approval'
 import { cloudErrorText } from '../cloud/send'
 import type { ShopRules } from '../capture/shopRules'
 import { market } from '../config/market'
@@ -98,7 +92,7 @@ export function AskCard(props: {
   lagos: Lagos
   now: () => number
   online: boolean
-  ask: (request: CloudRequest) => Promise<Approved | null>
+  jobs: RunJob
   badge: (r: Reading<unknown>) => ReactNode
   // Whether Chrome's built-in model is ready on this computer.
   deviceReady: boolean
@@ -214,19 +208,23 @@ export function AskCard(props: {
       const at = turns.length
       setTurns((t) => [...t, { question: typed }])
       try {
-        const read = await askOnDeviceWithTools(
-          typed,
-          history,
-          desk,
-          () =>
-            prompt
-              ? askOnDevice(prompt)
-              : Promise.reject(
-                  new NeedsCloud(
-                    'That needs more of your records than the model on this computer can hold. Ask the cloud instead.',
-                  ),
-                ),
-          lang.prompt,
+        const read = await props.jobs(
+          onDeviceJob(() =>
+            askOnDeviceWithTools(
+              typed,
+              history,
+              desk,
+              () =>
+                prompt
+                  ? askOnDevice(prompt)
+                  : Promise.reject(
+                      new NeedsCloud(
+                        'That needs more of your records than the model on this computer can hold. Ask the cloud instead.',
+                      ),
+                    ),
+              lang.prompt,
+            ),
+          ),
         )
         // Order numbers are checked against the shop's real orders.
         const answer = {
@@ -245,54 +243,40 @@ export function AskCard(props: {
       }
       return
     }
-    if (!props.online) {
-      setTurns((t) => [
-        ...t,
-        { question: typed, error: 'You are offline. Nothing was sent.' },
-      ])
-      return
-    }
-    // A name or number typed into a question is swapped out like anywhere
-    // else, and the vendor then sees the swapped question before it goes.
-    const names = (data?.customers ?? []).map((c) => ({
-      name: c.name,
-      label: '(customer)',
-    }))
-    const { text, replaced } = redact(typed, names)
     const first = !chat.current
-    const request = first
-      ? toolRequest(
-          text,
-          desk ? lookupPreview(desk) : '',
-          replaced,
-          lang.prompt,
-        )
-      : followUpRequest(text, replaced)
-    // A follow-up the vendor typed and nothing was swapped in is already on
-    // screen exactly as it will be sent, so their Ask click is the approval.
-    const approved =
-      first || replaced.length ? await props.ask(request) : approve(request)
-    if (!approved) return
-    if (first) {
-      chat.current = toolChat()
-      approvedDesk.current = desk
-      setSent(records)
-    }
-    const session = chat.current!
-    setQuestion('')
-    setBusy(true)
-    const at = turns.length
-    setTurns((t) => [...t, { question: text }])
+    const { asked: text, plan } = planCloudAsk({
+      typed,
+      names: (data?.customers ?? []).map((c) => c.name),
+      preview: first ? (desk ? lookupPreview(desk) : '') : null,
+      language: lang.prompt,
+      session: () => (chat.current ??= toolChat()),
+      data: () => approvedDesk.current!,
+    })
+    // The question joins the chat only once it is approved.
+    let at = -1
     try {
-      const answer = await askCloudWithTools(
-        session,
-        approved,
-        () => approvedDesk.current!,
+      const answer = await props.jobs(
+        whenApproved(plan, () => {
+          if (first) {
+            approvedDesk.current = desk
+            setSent(records)
+          }
+          setQuestion('')
+          setBusy(true)
+          at = turns.length
+          setTurns((t) => [...t, { question: text }])
+        }),
       )
-      setTurns((t) => t.map((x, i) => (i === at ? { ...x, answer } : x)))
+      if (answer) {
+        setTurns((t) => t.map((x, i) => (i === at ? { ...x, answer } : x)))
+      }
     } catch (e) {
       const error = cloudErrorText(e)
-      setTurns((t) => t.map((x, i) => (i === at ? { ...x, error } : x)))
+      setTurns((t) =>
+        at < 0
+          ? [...t, { question: typed, error }]
+          : t.map((x, i) => (i === at ? { ...x, error } : x)),
+      )
     } finally {
       setBusy(false)
     }
@@ -319,7 +303,7 @@ export function AskCard(props: {
       voiceAsked.current = true
       void sendRef.current(q)
     }, []),
-    ask: props.ask,
+    jobs: props.jobs,
     online: props.online,
   })
   // While the owner speaks, their words fill a bubble at the end of the

@@ -1,5 +1,6 @@
 import { Schema } from 'firebase/ai'
 import { privateModels, TEXT_AND_IMAGE } from './device'
+import { onDevice, type DevicePlan } from './job'
 import { generateJson, pickStrings, type Reading } from './run'
 
 // Breaks a close call between stock photos. Code first finds the two or
@@ -34,23 +35,23 @@ const part = (image: Image) => ({
 })
 
 // Returns the 0-based index of the matching stock photo, or null.
-export async function pickPhoto(
+export const planPhotoPick = (
   customer: Image,
   stock: Image[],
-  cloudConsent: boolean,
-): Promise<Reading<number | null>> {
-  const options = stock.slice(0, 3)
-  const { json, source, ms } = await generateJson(model(cloudConsent), [
-    "The first picture is what a customer showed a shop: possibly a small, cropped copy of a photo the shop posted. The pictures after it are the shop's own photos, numbered 1, 2 and so on in order.",
-    part(customer),
-    ...options.flatMap((image, n) => [`Photo ${n + 1}:`, part(image)]),
-    'Which numbered photo shows the same item as the first picture? Judge by the item itself: its shape, colours and pattern. Answer "none" if none of them is clearly the same item.',
-  ])
-  const choice = pickStrings(json, ['choice'] as const).choice
-  const n = Number.parseInt(choice, 10)
-  return {
-    fields: n >= 1 && n <= options.length ? n - 1 : null,
-    source,
-    ms,
-  }
-}
+): DevicePlan<Reading<number | null>> =>
+  onDevice(async (cloudConsent) => {
+    const options = stock.slice(0, 3)
+    const { json, source, ms } = await generateJson(model(cloudConsent), [
+      "The first picture is what a customer showed a shop: possibly a small, cropped copy of a photo the shop posted. The pictures after it are the shop's own photos, numbered 1, 2 and so on in order.",
+      part(customer),
+      ...options.flatMap((image, n) => [`Photo ${n + 1}:`, part(image)]),
+      'Which numbered photo shows the same item as the first picture? Judge by the item itself: its shape, colours and pattern. Answer "none" if none of them is clearly the same item.',
+    ])
+    const choice = pickStrings(json, ['choice'] as const).choice
+    const n = Number.parseInt(choice, 10)
+    return {
+      fields: n >= 1 && n <= options.length ? n - 1 : null,
+      source,
+      ms,
+    }
+  })

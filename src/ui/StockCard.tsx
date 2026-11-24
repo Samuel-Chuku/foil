@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { suggestLabel } from '../ai/productLabel'
+import type { RunJob } from '../ai/job'
+import { planLabel } from '../ai/productLabel'
 import { leftOf, mergeProducts, parsePriceList } from '../capture/stock'
 import type { Product, ProductPhoto } from '../ledger/types'
 import { parseMoney } from '../verify/money'
@@ -60,8 +61,12 @@ function fromRows(rows: Row[], before: Product[], now: number): Product[] {
   })
 }
 
-export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
-  const { ledger, device } = props
+export function StockCard(props: {
+  ledger: LedgerApi
+  device: DeviceApi
+  jobs: RunJob
+}) {
+  const { ledger, device, jobs } = props
   const [naming, setNaming] = useState(false)
   const products = (ledger.data?.products ?? []).filter((p) => !p.dropId)
   const orders = ledger.data?.orders ?? []
@@ -118,15 +123,13 @@ export function StockCard(props: { ledger: LedgerApi; device: DeviceApi }) {
     setNaming(true)
     setNote(null)
     try {
-      await device.ready()
       let next = r
       for (let n = 0; n < next.length; n++) {
         const row = next[n]!
         if (row.name.trim() || !row.photo) continue
         const base64 = row.photo.thumb.split(',')[1] ?? ''
-        const reading = await suggestLabel(
-          { mimeType: 'image/jpeg', base64 },
-          device.consent,
+        const reading = await jobs(
+          planLabel({ mimeType: 'image/jpeg', base64 }),
         )
         next = next.map((x, k) =>
           k === n && !x.name.trim() ? { ...x, name: reading.fields } : x,
