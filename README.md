@@ -70,10 +70,12 @@ The hard part is not reading a receipt. It is deciding, safely, whether a specif
 
 No install, no account and no keys. Everything in the demo is invented and stays in your browser.
 
+![The first-run screen: Foil's question, did the money actually land, a sample receipt beside its bank alert under a Landed pill, and the three steps read, match and reply](docs/images/demo-intro.jpg)
+
 | Step | Do this                                                                              | You should see                                                                                                                                                                                                                                               |
 | ---- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 1    | Open the hosted demo in desktop Chrome                                               | A short introduction; the panel on the right shows the on-device model's state                                                                                                                                                                               |
-| 2    | Choose **Start with Adaeze's chat**, then click **Verify payment** under her receipt | Amount, sender, bank, session ID and time, a verdict **Paid** with its reason, and an **On device** badge with the seconds it took                                                                                                                           |
+| 2    | Choose **Start with Adaeze's chat**, then click **Verify payment** under her receipt | The receipt beside your bank's alert, a **Landed** verdict with its reason, and an **On device** badge (**Cloud** on a computer without the model) with the seconds it took                                                                                  |
 | 3    | Click **Capture order from chat**, **Save order**, then **Draft a reply**            | The order with list prices and the Yaba delivery fee; a reply in WhatsApp's message box asking for the ₦1,500 balance, not sent                                                                                                                              |
 | 4    | Open **Inbox** and choose **Let time pass**                                          | Late bank alerts arrive; waiting orders turn paid on their own and appear under **Now paid**                                                                                                                                                                 |
 | 5    | In **Ask Foil** at the foot of the panel, choose **What should I restock?**          | With the on-device model, an answer in about 3 seconds with an **On device** badge and nothing sent. Without it, an approval dialog listing exactly what will be sent (no customer names); after **Send this**, an answer with a chart and a **Cloud** badge |
@@ -360,15 +362,15 @@ Measured on 21 November 2026 on a laptop with an RTX 3060 Mobile, Chrome 157 and
 
 **Mumbai (UPI) and São Paulo (Pix)**, measured the same way on 22 November 2026 (3 passes over each city's synthetic sample day):
 
-| What                                             | Mumbai              | São Paulo                |
-| ------------------------------------------------ | ------------------- | ------------------------ |
-| Every call on device                             | 9/9                 | 12/12                    |
-| Receipt amount, sender and status                | 9/9 each            | 12/12 each               |
+| What                                                         | Mumbai              | São Paulo                |
+| ------------------------------------------------------------ | ------------------- | ------------------------ |
+| Every call on device                                         | 9/9                 | 12/12                    |
+| Receipt amount, sender and status                            | 9/9 each            | 12/12 each               |
 | Reference (UPI reference or Pix transaction ID) read exactly | 8/9                 | 10/12                    |
-| Payment verdicts                                 | 9/9                 | 11/12                    |
-| Order totals, items, quantities and pickup       | 9/9 each            | 11/12, 12/12, 12/12, 6/6 |
-| Replies in English, with no odd wording          | 9/9                 | cloud by design          |
-| Median time on device: receipt, order, reply     | 3.7 s, 3.6 s, 2.4 s | 3.7 s, 3.4 s, –          |
+| Payment verdicts                                             | 9/9                 | 11/12                    |
+| Order totals, items, quantities and pickup                   | 9/9 each            | 11/12, 12/12, 12/12, 6/6 |
+| Replies in English, with no odd wording                      | 9/9                 | cloud by design          |
+| Median time on device: receipt, order, reply                 | 3.7 s, 3.6 s, 2.4 s | 3.7 s, 3.4 s, –          |
 
 Measuring the new markets also found and fixed four engine faults:
 
