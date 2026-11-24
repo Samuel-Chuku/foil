@@ -76,7 +76,7 @@ No install, no account and no keys. Everything in the demo is invented and stays
 | 2    | Choose **Start with Adaeze's chat**, then click **Verify payment** under her receipt | Amount, sender, bank, session ID and time, a verdict **Paid** with its reason, and an **On device** badge with the seconds it took                                                                                                                           |
 | 3    | Click **Capture order from chat**, **Save order**, then **Draft a reply**            | The order with list prices and the Yaba delivery fee; a reply in WhatsApp's message box asking for the ₦1,500 balance, not sent                                                                                                                              |
 | 4    | Open **Inbox** and choose **Let time pass**                                          | Late bank alerts arrive; waiting orders turn paid on their own and appear under **Now paid**                                                                                                                                                                 |
-| 5    | In **Ask the desk** at the foot of the panel, choose **What should I restock?**      | With the on-device model, an answer in about 3 seconds with an **On device** badge and nothing sent. Without it, an approval dialog listing exactly what will be sent (no customer names); after **Send this**, an answer with a chart and a **Cloud** badge |
+| 5    | In **Ask Foil** at the foot of the panel, choose **What should I restock?**          | With the on-device model, an answer in about 3 seconds with an **On device** badge and nothing sent. Without it, an approval dialog listing exactly what will be sent (no customer names); after **Send this**, an answer with a chart and a **Cloud** badge |
 | 6    | Open the **Today** tab, then **Your business over time**, and **Write a review**     | Six charts drawn on the device; a cloud review whose findings each carry one of those charts                                                                                                                                                                 |
 | 7    | Back in Adaeze's chat, use **Receipt for the customer**                              | A receipt picture to copy or download, and a text version for the message box; the shop's look is set under **Shop** > **Receipt look**                                                                                                                      |
 
@@ -133,13 +133,13 @@ Around that answer, Foil finishes the job: the order, the delivery fee, the repl
   - **Everyday:** customers chat, ask prices and pay at any time.
   - **Drops:** a timed sale posted to WhatsApp status, often of one-of-a-kind items, where many people reply at once and the first to pay wins.
 - **The customer** never sees the tool. They get faster replies in their own register and a clean receipt once their money has landed.
-- **Language:** results say _matched_, _not yet credited_ or _does not match_, each with a reason. Foil never calls a customer or a payment fraudulent.
+- **Language:** results say _landed_, _not yet credited_ or _does not match_, each with a reason. Foil never calls a customer or a payment fraudulent.
 
 ## 6. What it does
 
-The panel has four tabs, **This chat**, **Today**, **Money** and **Shop**, with **Ask the desk** at the foot of every tab and **Settings** at the top. On WhatsApp Web itself, two small controls bring Foil to where the seller works:
+The panel has four tabs, **This chat**, **Today**, **Money** and **Shop**, with **Ask Foil** at the foot of every tab and **Settings** at the top. On WhatsApp Web itself, two small controls bring Foil to where the seller works:
 
-- **The floating button:** one draggable Foil button that opens a menu for the open chat: verify the latest payments, capture the order, read the voice note, draft a reply, translate the customer's messages, ask the desk. Picking one opens the side panel and runs it there. It lives in its own shadow root and adds nothing to WhatsApp's own markup.
+- **The floating button:** one draggable Foil button that opens a menu for the open chat: verify the latest payments, capture the order, read the voice note, draft a reply, translate the customer's messages, ask Foil. Picking one opens the side panel and runs it there. It lives in its own shadow root and adds nothing to WhatsApp's own markup.
 - **The writing button** on the message box: **Draft** when the box is empty; **Rewrite** once the seller has typed, to make it friendlier, more formal or shorter, fix the spelling, or put it in Pidgin, English, Yoruba, Igbo or Hausa. The same choices appear beside any text the seller selects in the chat, with **What it means in English** for a customer's message. Rewrites run on WhatsApp itself, without opening the panel, through the extension's hidden writer page (an offscreen document) and the same Firebase AI Logic models; a cloud rewrite shows exactly what will be sent, right there, before anything goes.
 
 Each menu item shows where it runs: a laptop for this computer, a cloud for Google's cloud, both when it can run either way.
@@ -171,11 +171,11 @@ The receipt picture can carry the shop's own look: its logo (with colours sugges
 - **Books for the day:** totals, part payments, refunds, deliveries and open orders by number.
 - **Your business over time:** sales, order hours, time to payment, money by bank and top items over 7, 14 or 30 days, as six charts, with a written review from the cloud.
 - **Only what the shop uses:** drop tools appear only for shops that sell in drops, deliveries only for shops that deliver and only when an order is waiting, and the Shop rules ask what the shop sells before anything about riders or parks.
-- **Ask the desk, with tools:** Foil has twelve tools, lookups (orders by group, one order, stock, today's money, the week, chats waiting, the drop, refunds owed, shop rules) and actions it can only offer as buttons (mark an order out or delivered, open a chat, send orders to Google Sheets, add a delivery run to Calendar). Every lookup it made shows as a step above the answer. Lists of orders to send come with their buttons, so the seller never depends on the model to offer them.
-- **Talk to the desk:** ask by voice, hear the answer, ask again, hands-free, in the answer language chosen in Settings. Chrome recognises the speech on the computer when it can, and reads answers with its own voices, amounts and order numbers said the way people say them.
+- **Ask Foil, with tools:** Foil has twelve tools, lookups (orders by group, one order, stock, today's money, the week, chats waiting, the drop, refunds owed, shop rules) and actions it can only offer as buttons (mark an order out or delivered, open a chat, send orders to Google Sheets, add a delivery run to Calendar). Every lookup it made shows as a step above the answer. Lists of orders to send come with their buttons, so the seller never depends on the model to offer them.
+- **Talk to Foil:** ask by voice, hear the answer, ask again, hands-free, in the answer language chosen in Settings. Chrome recognises the speech on the computer when it can, and reads answers with its own voices, amounts and order numbers said the way people say them.
 - **Google Sheets and Calendar:** every order and a total per day to a sheet Foil keeps in the seller's own Drive (it can see only that file), laid out with real dates, currency, a frozen header and a totals row, and an area's delivery run to their calendar at a chosen time. Each send shows exactly what goes first; names go only if ticked, phone numbers and addresses never.
 - **Settings:** theme, accent and text size; reply tone and length; the answer language, voice and speed; the matching windows (over Remote Config's recommended values); cloud consent; connections; a download of the seller's records.
-- **Ask the desk:** a chat about the whole business ("which orders still need sending?", "what should I restock?", "how did this week compare with last?"). It is sent the shop's own facts, orders by number, items, stock, money and rules, never customers' names, phones or addresses. Answers can carry a chart. When Chrome's model is ready, each question is answered on the device and nothing is sent; **Ask the cloud instead** sends it after approval. Common answers, such as which orders are unpaid or ready to send, are worked out in code first, and order numbers in an on-device answer are checked against the real orders.
+- **Ask Foil:** a chat about the whole business ("which orders still need sending?", "what should I restock?", "how did this week compare with last?"). It is sent the shop's own facts, orders by number, items, stock, money and rules, never customers' names, phones or addresses. Answers can carry a chart. When Chrome's model is ready, each question is answered on the device and nothing is sent; **Ask the cloud instead** sends it after approval. Common answers, such as which orders are unpaid or ready to send, are worked out in code first, and order numbers in an on-device answer are checked against the real orders.
 - **Offline and power cuts:** records are saved on the device with strict durability, and the cloud books catch up when the connection returns.
 
 ![A chat answer comparing this week with last week, with a stacked chart of paid and still-open sales by day, marked Cloud](docs/images/books-chat-chart.png)
@@ -195,10 +195,10 @@ Every AI call goes through the **Firebase AI Logic** web SDK. Each feature has i
 | Sort the waiting queue                   | `ONLY_ON_DEVICE`                                          | High volume, private, no cost per message                                                                                                                                                                             |
 | Any of the above, after explicit consent | `PREFER_ON_DEVICE`                                        | Computers without the model can still use Foil                                                                                                                                                                        |
 | Read a voice note                        | `ONLY_IN_CLOUD`, after approval                           | The on-device model does not take audio                                                                                                                                                                               |
-| Ask the desk                             | `ONLY_ON_DEVICE` when the model is ready, in two steps    | Tools are not available on the device on the web, so the model picks one or two through constrained output, code runs them, and the model answers from their results; with no fitting tool, from the whole fact sheet |
+| Ask Foil                                 | `ONLY_ON_DEVICE` when the model is ready, in two steps    | Tools are not available on the device on the web, so the model picks one or two through constrained output, code runs them, and the model answers from their results; with no fitting tool, from the whole fact sheet |
 | Rewrite a reply, translate a message     | `ONLY_ON_DEVICE` for English and Pidgin                   | The seller's own words and the customer's chat                                                                                                                                                                        |
 | Rewrite in Yoruba, Igbo, Hausa or Hindi  | `ONLY_IN_CLOUD`, after approval                           | The on-device model does not write them; names and long numbers are swapped for markers and put back afterwards                                                                                                       |
-| Ask the desk, cloud                      | `ONLY_IN_CLOUD` with **function calling**, after approval | Multi-turn chat and tools run only in the cloud on the web. The approval shows, in full, everything a lookup could send; the model's lookups send only parts of it, from the records as approved                      |
+| Ask Foil, cloud                          | `ONLY_IN_CLOUD` with **function calling**, after approval | Multi-turn chat and tools run only in the cloud on the web. The approval shows, in full, everything a lookup could send; the model's lookups send only parts of it, from the records as approved                      |
 | Ask by voice, without on-device speech   | `ONLY_IN_CLOUD`, after approval                           | The recording is shown and approved, then written down; the question waits in the box                                                                                                                                 |
 | Review the last 7 to 30 days             | `ONLY_IN_CLOUD`, after approval, totals only              | Reasoning across many days with structured output                                                                                                                                                                     |
 | Match a payment                          | Rules, no model                                           | A payment decision must be explainable and repeatable                                                                                                                                                                 |
@@ -241,9 +241,9 @@ export function sendApproved(model: GenerativeModel, request: Approved) {
 
 **What makes the split visible on screen:**
 
-- **Source badges.** Every AI result carries a laptop (_on device_) or cloud (_Cloud_) badge with its time, read from the SDK response's `inferenceSource`, never assumed. Ask the desk marks every tool step the same way.
+- **Source badges.** Every AI result carries a laptop (_on device_) or cloud (_Cloud_) badge with its time, read from the SDK response's `inferenceSource`, never assumed. Ask Foil marks every tool step the same way.
 - **The approval dialog.** Before any cloud call, it shows every word and file that will be sent, with names, phone numbers, account numbers and references replaced by neutral labels, and waits for a click. Cancelling sends nothing.
-- **Charts the cloud cannot falsify.** In the review and in Ask the desk, the cloud picks _which_ of Foil's charts backs a point, by its id. Every number in a chart is drawn on the device from the seller's own records.
+- **Charts the cloud cannot falsify.** In the review and in Ask Foil, the cloud picks _which_ of Foil's charts backs a point, by its id. Every number in a chart is drawn on the device from the seller's own records.
 - **Model states.** The panel shows whether Chrome's model is being checked, can be downloaded, is downloading (with progress) or is ready. When it can be downloaded, the seller chooses between the one-time download and the cloud, instead of a first click starting a large download.
 - **Constrained output on the device.** On-device calls are constrained to a JSON schema, or to a regular expression for the waiting queue (one letter per message). The model returns strings; code normalises amounts, names, quantities and street names.
 
@@ -305,7 +305,7 @@ sequenceDiagram
   P->>P: normalise amount and names in code
   P->>R: receipt fields and credits from bank alerts
   R->>L: claimed credits, used session IDs, reversals
-  R-->>P: matched, not yet credited, does not match, or check this, with reason
+  R-->>P: landed, not yet credited, does not match, or check this, with reason
   P->>L: save the order and verdict
   P-->>V: verdict, reason and next steps
 ```
@@ -328,7 +328,7 @@ The matching rules ([`src/verify/match.ts`](src/verify/match.ts)), with threshol
 | Receipt images and bank-app screenshots          | Read in memory, results in IndexedDB                       | Never, unless the seller consents to the cloud on a computer without the model                            |
 | Bank alert emails                                | Read from Gmail with read-only OAuth, credits in IndexedDB | Never                                                                                                     |
 | Voice notes                                      | Sent to the cloud only after approval                      | Yes, after approval, with the shop's own vocabulary                                                       |
-| Ask the desk and the review                      | Sent after approval                                        | Yes: orders by number, items, stock, money, totals and the shop's rules, never names, phones or addresses |
+| Ask Foil and the review                          | Sent after approval                                        | Yes: orders by number, items, stock, money, totals and the shop's rules, never names, phones or addresses |
 | Books: amounts, payment states, times, order ids | Cloud Firestore                                            | Yes, owner-only, with no names or contact details                                                         |
 | Refund decisions: amount, state, times           | Cloud Firestore                                            | Yes, with no customer or account number                                                                   |
 | Receipt look: logo, colour, font                 | IndexedDB in the browser                                   | Never                                                                                                     |
@@ -381,8 +381,8 @@ The one São Paulo verdict miss was a misread Pix ID that became _check this_.
 
 - **Both missed verdicts came out as _check this_**, which hands the decision to the seller. A misread session ID caused each one; neither was a false match or a false mismatch. That is the design working: a misread ID becomes a question, not a wrong answer.
 - **The first on-device call** after Chrome starts took 16 seconds while the model loaded. The panel warms the model up in the background, so the seller's first click is usually quick.
-- **Cloud calls** took 6 to 12 seconds for voice notes, 1.5 to 3 seconds for the review, and up to about 8 seconds for Ask the desk with a full day's facts. Ask the desk on the device answered in about 3 seconds.
-- **Ask the desk on the device** sometimes ran neighbouring order numbers together ("#78, #80" written as "#780"). Common answers are now worked out in code and given to the model, and order numbers in an answer are checked against the shop's real orders.
+- **Cloud calls** took 6 to 12 seconds for voice notes, 1.5 to 3 seconds for the review, and up to about 8 seconds for Ask Foil with a full day's facts. Ask Foil on the device answered in about 3 seconds.
+- **Ask Foil on the device** sometimes ran neighbouring order numbers together ("#78, #80" written as "#780"). Common answers are now worked out in code and given to the model, and order numbers in an answer are checked against the shop's real orders.
 - **Lessons that shaped the design:**
   - Constraining amounts to a JSON _number_ made the model drop the thousands comma (₦45,000.00 became 450000). Reading amounts as text and parsing them in code fixed it.
   - A voice note heard "Bode Thomas Street" as "Potiskum Street". Street names are now checked in code against well-known streets: near-certain spellings are corrected, close ones are suggested for the seller to confirm, and unknown ones make the draft ask the customer to confirm the street by name.
@@ -414,7 +414,7 @@ npm run lint
 | Capture                    | Order fields and quantity words, delivery planning, drop mode and image matching, voice-note fields and street checks                                                                     |
 | Books                      | Day books, trends, chart data, the business snapshot, and that none of them carries a name or phone number                                                                                |
 | Receipts and brand         | Receipt contents and text, brand colours, tints and contrast                                                                                                                              |
-| Ask the desk tools         | Every tool's output, bad arguments from a model, buttons offered only when Foil itself would, the approval preview holding everything a lookup could send, the on-device router's parsing |
+| Ask Foil tools             | Every tool's output, bad arguments from a model, buttons offered only when Foil itself would, the approval preview holding everything a lookup could send, the on-device router's parsing |
 | Writing help               | Rewrite styles per market, numbers surviving a rewrite, markers swapped out and back, which messages read as English                                                                      |
 | Sheets, Calendar, voice    | Sheet rows without phones, dates as Sheets counts them, daily totals, calendar events in the shop's time zone, answer languages, spoken wording, voice choice                             |
 | Cloud safety               | Redaction of names and numbers, the approved-only sender, plain error wording for every failure                                                                                           |
@@ -450,7 +450,7 @@ Lagos was chosen as the first market because the problem is acute and documented
 | Receipt status words           | English                                                             | English                                                                             | Portuguese, with a scheduled Pix ("agendado") treated as pending     |
 | Sample day in the demo         | A Lagos fashion shop                                                | A Mumbai clothing shop                                                              | A São Paulo boutique                                                 |
 
-What does not change between markets: the "did the money land?" matching, orders, deliveries, stock, books, receipts, Ask the desk, the approval dialog, the privacy rules and the hybrid routing. Pix ISPB codes come from Banco Central's participant list; the Pix ID layout follows Banco Central's identifier scheme and Pix providers' documentation of its UTC timestamp.
+What does not change between markets: the "did the money land?" matching, orders, deliveries, stock, books, receipts, Ask Foil, the approval dialog, the privacy rules and the hybrid routing. Pix ISPB codes come from Banco Central's participant list; the Pix ID layout follows Banco Central's identifier scheme and Pix providers' documentation of its UTC timestamp.
 
 ## 15. Limitations
 
@@ -474,7 +474,7 @@ What does not change between markets: the "did the money land?" matching, orders
 - **Why rules for matching, not the model?** A payment decision must be repeatable and explainable. The model is good at reading messy images and text; the rules are good at deciding.
 - **Why a side panel beside WhatsApp Web?** Sellers already work there. A separate app would mean exporting chats and copying details, which is exactly the work being removed.
 - **Why an approval dialog on every cloud job?** It turns a privacy promise into something the seller can see, every time.
-- **Why the cloud for voice, chat and reviews only?** Those are the jobs Chrome's model cannot do on the web (audio, multi-turn chat) or does not need to see private data for (totals). Even Ask the desk answers single questions on the device when it can. Everything that touches a customer's details stays on the device.
+- **Why the cloud for voice, chat and reviews only?** Those are the jobs Chrome's model cannot do on the web (audio, multi-turn chat) or does not need to see private data for (totals). Even Ask Foil answers single questions on the device when it can. Everything that touches a customer's details stays on the device.
 
 ## 17. Provenance and originality
 
