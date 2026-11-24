@@ -974,6 +974,31 @@ p.meta:has(.badge) {
 .who strong {
   font-size: var(--dk-text-title);
 }
+/* The open chat's customer, as a card the desk's sections hang from. */
+.who.customer {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--dk-s3);
+  margin: 0 0 var(--dk-s3);
+  padding: var(--dk-s3);
+  border: var(--dk-bw-hair) solid var(--dk-line);
+  border-radius: var(--dk-r-card);
+  background: var(--dk-surface);
+}
+.who.customer > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+.who.customer strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.who.customer .phone {
+  font-family: var(--dk-font-num);
+  font-size: var(--dk-text-meta);
+  color: var(--dk-ink-2);
+}
 
 /* Tabs: a segmented track. */
 .panel-tabs {
@@ -1552,17 +1577,42 @@ p.meta:has(.badge) {
   object-fit: cover;
   border-radius: var(--dk-r-control);
 }
+.drop-items li > span:first-of-type {
+  font-family: var(--dk-font-num);
+  font-weight: 600;
+}
+/* A state pill: a dot and a word, outlined while free, dithered while held,
+   lime once the bank confirms it is paid. */
 .drop-status {
   justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--dk-font-num);
   font-size: var(--dk-text-micro);
   text-transform: uppercase;
   letter-spacing: var(--dk-tracking-caps);
   font-weight: 600;
-  padding: 0 var(--dk-s1);
-  border-radius: var(--dk-r-tag);
+  padding: 2px var(--dk-s2);
+  border: var(--dk-bw-hair) solid var(--dk-line-strong);
+  border-radius: var(--dk-r-round);
+  background: var(--dk-surface);
+}
+.drop-status::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.drop-items li[data-state='held'] .drop-status::before {
+  display: none;
 }
 .drop-items li[data-state='held'] .drop-status {
+  /* Holds carry a time, a count and a button, so they wrap as a block. */
+  display: block;
+  border-radius: var(--dk-r-control);
   background: var(--dk-dither), var(--dk-surface);
   border: var(--dk-bw) solid var(--dk-ink);
 }

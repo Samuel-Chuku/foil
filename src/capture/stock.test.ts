@@ -9,7 +9,9 @@ import {
   mergeProducts,
   parsePriceList,
   productsInChat,
+  orderTotal,
   stockFacts,
+  unknownPriceFact,
   withListPrices,
 } from './stock'
 
@@ -194,17 +196,64 @@ describe('askedFor', () => {
 })
 
 describe('withListPrices', () => {
-  it('fills only prices the chat did not give', () => {
+  it("uses the list price and keeps a differing chat figure aside", () => {
+    const priced = withListPrices(
+      [
+        { name: 'headwrap', qty: 1, priceKobo: null },
+        { name: 'silk scarf', qty: 1, priceKobo: 150_000 },
+        { name: 'shoes', qty: 1, priceKobo: null },
+      ],
+      products,
+    )
+    expect(priced.map((i) => i.priceKobo)).toEqual([350_000, 500_000, null])
+    expect(priced.map((i) => i.chatPriceKobo)).toEqual([
+      undefined,
+      150_000,
+      undefined,
+    ])
+    expect(priced.map((i) => i.fromList)).toEqual([true, true, undefined])
+  })
+
+  it('keeps a chat price for something the list does not have', () => {
     expect(
-      withListPrices(
+      withListPrices([{ name: 'shoes', qty: 1, priceKobo: 900_000 }], products),
+    ).toEqual([{ name: 'shoes', qty: 1, priceKobo: 900_000 }])
+  })
+})
+
+describe('orderTotal', () => {
+  it("sums the list when every line is from it, over the chat's total", () => {
+    expect(
+      orderTotal(
+        [{ name: 'scarf', qty: 2, priceKobo: 650_000, fromList: true }],
+        150_000,
+      ),
+    ).toBe(1_300_000)
+  })
+
+  it('takes the stated total when a line is not from the list', () => {
+    expect(
+      orderTotal(
         [
-          { name: 'headwrap', qty: 1, priceKobo: null },
-          { name: 'silk scarf', qty: 1, priceKobo: 450_000 },
+          { name: 'scarf', qty: 1, priceKobo: 650_000, fromList: true },
           { name: 'shoes', qty: 1, priceKobo: null },
         ],
-        products,
-      ).map((i) => i.priceKobo),
-    ).toEqual([350_000, 450_000, null])
+        900_000,
+      ),
+    ).toBe(900_000)
+    expect(
+      orderTotal([{ name: 'shoes', qty: 1, priceKobo: 200_000 }], null),
+    ).toBe(200_000)
+  })
+})
+
+describe('unknownPriceFact', () => {
+  it('asks which item when a price is asked for nothing on the list', () => {
+    expect(unknownPriceFact('How much be that bag?', [])).toHaveLength(1)
+    expect(unknownPriceFact('Good morning', [])).toEqual([])
+    expect(
+      unknownPriceFact('how much?', [{ product: products[0]!, qty: 1 }]),
+    ).toEqual([])
   })
 })
 

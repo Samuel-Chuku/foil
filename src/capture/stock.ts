@@ -162,16 +162,53 @@ export function askedFor(
   }))
 }
 
-// A price the chat did not give comes from the shop's list.
+// The shop's list is the price; a figure the model read from the chat (often a
+// delivery fee or a number the customer offered) never replaces it. A chat
+// figure that differs is kept beside it so the vendor can see it and agree a
+// different price on purpose.
+export type PricedItem = OrderItem & {
+  chatPriceKobo?: number
+  fromList?: boolean
+}
+
 export function withListPrices(
   items: OrderItem[],
   products: Product[],
-): OrderItem[] {
-  return items.map((i) =>
-    i.priceKobo !== null
-      ? i
-      : { ...i, priceKobo: productOf(i, products)?.priceKobo ?? null },
-  )
+): PricedItem[] {
+  return items.map((i) => {
+    const list = productOf(i, products)?.priceKobo ?? null
+    if (list === null) return i
+    return i.priceKobo !== null && i.priceKobo !== list
+      ? { ...i, priceKobo: list, fromList: true, chatPriceKobo: i.priceKobo }
+      : { ...i, priceKobo: list, fromList: true }
+  })
+}
+
+// An order's total: the list's sum when every line is priced from the list,
+// otherwise the total the chat states, otherwise the sum of what is priced.
+export function orderTotal(
+  items: PricedItem[],
+  statedKobo: number | null,
+): number | null {
+  const sum = items.every((i) => i.priceKobo !== null)
+    ? items.reduce((n, i) => n + i.qty * (i.priceKobo ?? 0), 0)
+    : null
+  if (sum && items.length > 0 && items.every((i) => i.fromList)) return sum
+  return statedKobo ?? (sum || null)
+}
+
+// Customers asking what something costs, in English or Pidgin.
+const PRICE_ASK =
+  /\b(how much|hm|price|cost|amount|wetin be the price|how much be|last price)\b/i
+
+// A customer who asks a price for something the list does not name is asked
+// which item they mean, so the draft never borrows another figure (such as a
+// delivery fee) as the price.
+export function unknownPriceFact(said: string, asked: Asked[]): string[] {
+  if (asked.length > 0 || !PRICE_ASK.test(said)) return []
+  return [
+    'They asked about a price, but the item they mean is not clear from the shop\'s list. Ask which item they mean, or for a photo of it, and do not quote any item price.',
+  ]
 }
 
 export type ListedProduct = Pick<Product, 'name' | 'priceKobo' | 'qty'>

@@ -39,9 +39,12 @@ import {
   askedFor,
   called,
   leftOf,
+  orderTotal,
   productOf,
   stockFacts,
+  unknownPriceFact,
   withListPrices,
+  type PricedItem,
 } from '../capture/stock'
 import { transcript } from '../capture/transcript'
 import { appConfig } from '../config/active'
@@ -63,7 +66,6 @@ import type {
   PaymentState,
   RefundTo,
   Settlement,
-  OrderItem,
 } from '../ledger/types'
 import { verifyReceipt, type Verdict } from '../verify/match'
 import { formatMoney, parseMoney } from '../verify/money'
@@ -108,6 +110,7 @@ import { market } from '../config/market'
 import { REF_LABEL } from '../verify/sessionId'
 import { findOrders } from '../ledger/search'
 import { DeliveriesCard, DeliverySteps } from './DeliveriesCard'
+import { Avatar } from './Avatar'
 import { AskCard } from './AskCard'
 import { ReceiptCard } from './ReceiptCard'
 import { ReceiptLookCard } from './ReceiptLookCard'
@@ -145,6 +148,8 @@ type OrderForm = {
   delivery: DeliveryForm
   // The address came from this customer's last saved order, for checking.
   addressFromLast?: boolean
+  // Prices the chat gave that differ from the shop's list, which won.
+  chatPrices?: string[]
   customerName: string
   address: string
   landmark: string
@@ -541,6 +546,40 @@ export function Panel(props: {
     onRequest(request)
   }, [request])
 
+  // A close call between stock photos goes to the model, which looks at the
+  // customer's picture beside the two or three nearest photos. Used by both
+  // capture and drafts, so a reply never goes out without the piece's price.
+  async function photoPicks(
+    items: Awaited<ReturnType<typeof pictureItems>>['items'],
+    onCompare: () => void,
+  ) {
+    const picks = new Map<
+      string,
+      { productId: string; source: Reading<unknown>['source'] }
+    >()
+    for (const p of items) {
+      if (p.kind !== 'unsure') continue
+      const photos = p.candidates.flatMap((c) =>
+        c.photo
+          ? [
+              {
+                mimeType: 'image/jpeg',
+                base64: c.photo.thumb.split(',')[1] ?? '',
+              },
+            ]
+          : [],
+      )
+      if (photos.length < 2) continue
+      onCompare()
+      const pick = await pickPhoto(p.picture, photos, device.consent)
+      const chosen = pick.fields === null ? undefined : p.candidates[pick.fields]
+      if (chosen) {
+        picks.set(p.messageId, { productId: chosen.id, source: pick.source })
+      }
+    }
+    return picks
+  }
+
   async function capture() {
     const chat = await readOpenChat()
     if (!chat) return
@@ -572,38 +611,14 @@ export function Panel(props: {
         products,
         appConfig().photoMatch,
       )
-      // A close call between stock photos goes to the model, which looks at
-      // the customer's picture beside the two or three nearest photos.
-      const picks = new Map<
-        string,
-        { productId: string; source: Reading<unknown>['source'] }
-      >()
-      for (const p of pictures.items) {
-        if (p.kind !== 'unsure') continue
-        const photos = p.candidates.flatMap((c) =>
-          c.photo
-            ? [
-                {
-                  mimeType: 'image/jpeg',
-                  base64: c.photo.thumb.split(',')[1] ?? '',
-                },
-              ]
-            : [],
-        )
-        if (photos.length < 2) continue
+      const picks = await photoPicks(pictures.items, () =>
         patch(phone, {
           capture: {
             status: 'running',
             note: 'Comparing their picture with your closest photos…',
           },
-        })
-        const pick = await pickPhoto(p.picture, photos, device.consent)
-        const chosen =
-          pick.fields === null ? undefined : p.candidates[pick.fields]
-        if (chosen) {
-          picks.set(p.messageId, { productId: chosen.id, source: pick.source })
-        }
-      }
+        }),
+      )
       patch(phone, {
         capture: {
           status: 'running',
@@ -641,6 +656,7 @@ export function Panel(props: {
               name: p.product.name || 'Item from photo',
               qty: 1,
               priceKobo: p.product.priceKobo,
+              fromList: p.product.priceKobo !== null,
               productId: p.product.id,
             }
           : (() => {
@@ -650,6 +666,7 @@ export function Panel(props: {
                 name: chosen ? chosen.name || 'Item from photo' : '',
                 qty: 1,
                 priceKobo: chosen?.priceKobo ?? null,
+                fromList: (chosen?.priceKobo ?? null) !== null,
                 choices: p.candidates.map((c) => c.id),
                 ...(chosen &&
                   pick && {
@@ -667,14 +684,29 @@ export function Panel(props: {
       const items = [
         ...fromPictures,
         ...withListPrices(named, products),
-      ] as (OrderItem & {
+      ] as (PricedItem & {
         choices?: string[]
         pickedBy?: Reading<unknown>['source']
       })[]
-      const listTotal = items.every((i) => i.priceKobo !== null)
-        ? items.reduce((n, i) => n + i.qty * (i.priceKobo ?? 0), 0)
-        : null
-      const amountKobo = f.amountKobo ?? (listTotal || null)
+      const amountKobo = orderTotal(items, f.amountKobo)
+      // Figures the chat gave that the shop's list overrode, shown to the
+      // vendor so a price agreed in the chat can be put back on purpose.
+      const chatPrices = [
+        ...items.flatMap((i) =>
+          i.chatPriceKobo === undefined
+            ? []
+            : [
+                `The chat says ${formatMoney(i.chatPriceKobo)} for ${i.name}; your list says ${formatMoney(i.priceKobo ?? 0)}.`,
+              ],
+        ),
+        ...(f.amountKobo !== null &&
+        amountKobo !== null &&
+        f.amountKobo !== amountKobo
+          ? [
+              `The chat gives a total of ${formatMoney(f.amountKobo)}; your list adds up to ${formatMoney(amountKobo)}.`,
+            ]
+          : []),
+      ]
       // A returning customer who gives no address, or says "same address as
       // last time", gets the one saved from their last order, marked for
       // the vendor to check.
@@ -685,6 +717,7 @@ export function Panel(props: {
       const form: OrderForm = {
         ...(claimedAt !== undefined && { claimedAt }),
         ...(reuse && { addressFromLast: true }),
+        ...(chatPrices.length > 0 && { chatPrices }),
         delivery: toDeliveryForm(planDelivery(f, shop.rules, chatText)),
         customerName: f.customerName || chat.contactName,
         address: reuse ? saved.address : f.address,
@@ -1283,7 +1316,7 @@ export function Panel(props: {
         .filter((m) => m.from === 'customer' && m.text)
         .map((m) => m.text)
         .join('\n')
-      const shownItems = order
+      const pictures = order
         ? []
         : (
             await pictureItems(
@@ -1291,18 +1324,35 @@ export function Panel(props: {
               data.products,
               appConfig().photoMatch,
             )
-          ).items.flatMap((p) =>
-            p.kind === 'sure'
-              ? [
-                  {
-                    name: p.product.name,
-                    qty: 1,
-                    priceKobo: p.product.priceKobo,
-                    productId: p.product.id,
-                  },
-                ]
-              : [],
-          )
+          ).items
+      // A picture close to two stock photos is settled the way capture
+      // settles it; otherwise the reply has no price for what they showed.
+      const picks = await photoPicks(pictures, () =>
+        patch(phone, {
+          draft: {
+            status: 'running',
+            note: 'Comparing their picture with your closest photos…',
+          },
+        }),
+      )
+      const shownItems = pictures.flatMap((p) => {
+        const product =
+          p.kind === 'sure'
+            ? p.product
+            : data.products.find(
+                (x) => x.id === picks.get(p.messageId)?.productId,
+              )
+        return product
+          ? [
+              {
+                name: product.name,
+                qty: 1,
+                priceKobo: product.priceKobo,
+                productId: product.id,
+              },
+            ]
+          : []
+      })
       const asked = [
         ...askedFor(order?.items ?? shownItems, '', data.products),
         ...(order ? [] : askedFor([], said, data.products)),
@@ -1386,6 +1436,7 @@ export function Panel(props: {
           // vendor's matter, not news for the customer.
           stock: [
             ...dropLines,
+            ...(order ? [] : unknownPriceFact(said, asked)),
             ...(!order || order.payment.state === 'awaiting'
               ? stockFacts(
                   asked.filter((a) => !a.product.dropId),
@@ -1698,9 +1749,13 @@ export function Panel(props: {
             </p>
           ) : (
             <>
-              <p className="who">
-                <strong>{chat.contactName}</strong> {chat.phone}
-              </p>
+              <header className="who customer">
+                <Avatar name={chat.contactName} />
+                <span>
+                  <strong>{chat.contactName}</strong>
+                  <span className="phone">{chat.phone}</span>
+                </span>
+              </header>
 
               <section className="card" data-tone="pay" aria-labelledby="pay-h">
                 <h3 id="pay-h">
@@ -2151,6 +2206,12 @@ export function Panel(props: {
                         />
                       </label>
                     ))}
+                    {c.value.form.chatPrices?.map((line) => (
+                      <p className="hint" key={line}>
+                        {line} The list price is used; change it if you agreed
+                        a different one.
+                      </p>
+                    ))}
                     {c.value.form.addressFromLast && (
                       <p className="hint">
                         The address is from this customer&apos;s last order.
@@ -2315,22 +2376,29 @@ export function Panel(props: {
               <Icon name="bag" />
               {searching ? 'Find an order' : "Today's orders"}
             </h3>
-            <label className="visually-hidden" htmlFor="order-search">
-              Find an order by number, name, phone or item
-            </label>
-            <input
-              id="order-search"
-              type="search"
-              value={orderQuery}
-              placeholder="Find by number, name, phone or item"
-              onChange={(e) => setOrderQuery(e.target.value)}
-            />
+            {/* Nothing to search until the shop has saved an order. */}
+            {(searching || (data?.orders.length ?? 0) > 0) && (
+              <>
+                <label className="visually-hidden" htmlFor="order-search">
+                  Find an order by number, name, phone or item
+                </label>
+                <input
+                  id="order-search"
+                  type="search"
+                  value={orderQuery}
+                  placeholder="Find by number, name, phone or item"
+                  onChange={(e) => setOrderQuery(e.target.value)}
+                />
+              </>
+            )}
             {!data && !ledger.loadError && <p>Loading…</p>}
             {data && listed.length === 0 && (
               <p className="empty">
                 {searching
                   ? 'No order matches that, on any day.'
-                  : 'No orders saved today yet.'}
+                  : data.orders.length > 0
+                    ? 'No orders saved today yet. Search finds older ones.'
+                    : "No orders yet. Capture one from a customer's chat and it lands here."}
               </p>
             )}
             {listed.length > 0 && (

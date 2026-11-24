@@ -29,6 +29,7 @@ import type { AlertResult } from '../verify/alerts'
 import { SourceBadge } from '../ui/SourceBadge'
 import { DemoCompose } from './DemoCompose'
 import { DemoFloat } from './DemoFloat'
+import { Avatar } from '../ui/Avatar'
 
 // The hosted demo: simulated chat and inbox panes stand in for WhatsApp Web
 // and Gmail, beside the same panel the extension shows.
@@ -84,22 +85,6 @@ function alertLine(r: AlertResult): string {
   if (r.status === 'untrusted') return `Ignored: ${r.reason}`
   if (r.status === 'not-a-transfer') return 'Not a transfer alert.'
   return 'Not a format the rules know yet.'
-}
-
-// A contact's initial on a solid disc, its colour fixed by the name so it
-// stays the same between visits.
-const AVATAR_TONES = ['pay', 'order', 'reply', 'ask', 'money', 'shop']
-function Avatar(props: { name: string }) {
-  const tone =
-    AVATAR_TONES[
-      [...props.name].reduce((n, ch) => n + ch.charCodeAt(0), 0) %
-        AVATAR_TONES.length
-    ]
-  return (
-    <span className="avatar" data-avatar={tone} aria-hidden="true">
-      {props.name.trim().charAt(0).toUpperCase() || '?'}
-    </span>
-  )
 }
 
 export default function DemoApp() {
