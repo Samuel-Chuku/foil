@@ -12,8 +12,7 @@ export const ERRORS = {
   busy: 'The cloud service is busy right now. Try again in a minute.',
   unreachable:
     'The cloud could not be reached. Check your connection and try again.',
-  unreadable:
-    'The answer came back in a form the desk could not read. Try again.',
+  unreadable: 'The answer came back in a form Foil could not read. Try again.',
   deviceTooLong:
     'This is too long for the model on this computer. Try a smaller picture or fewer messages.',
   deviceNotReady:

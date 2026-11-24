@@ -19,11 +19,7 @@ export class GoogleError extends Error {
 }
 
 // Posts `body`, or reads when there is none.
-async function call<T>(
-  token: string,
-  url: string,
-  body?: unknown,
-): Promise<T> {
+async function call<T>(token: string, url: string, body?: unknown): Promise<T> {
   let res: Response
   try {
     res = await fetch(url, {
@@ -45,7 +41,7 @@ async function call<T>(
     res.status === 401
       ? 'Your Google sign-in has run out. Connect again in Settings.'
       : res.status === 403
-        ? 'Google refused this. Check that the desk may use Sheets and Calendar, then connect again.'
+        ? 'Google refused this. Check that Foil may use Sheets and Calendar, then connect again.'
         : res.status === 404
           ? 'That sheet is gone from your Drive.'
           : res.status === 429

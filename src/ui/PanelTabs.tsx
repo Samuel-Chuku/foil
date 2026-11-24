@@ -38,7 +38,7 @@ export function PanelTabs(props: {
     refs.current[id]?.focus()
   }
   return (
-    <div className="panel-tabs" role="tablist" aria-label="Desk sections">
+    <div className="panel-tabs" role="tablist" aria-label="Foil sections">
       {TABS.map((t, i) => {
         const count = props.counts?.[t.id] ?? 0
         const selected = props.current === t.id

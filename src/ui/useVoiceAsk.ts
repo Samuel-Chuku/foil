@@ -73,7 +73,7 @@ const SPEECH_LEVEL = 0.04
 // a tab asks once; on a web page the address bar does.
 const inExtension = globalThis.location?.protocol === 'chrome-extension:'
 const MIC_BLOCKED = inExtension
-  ? 'Chrome has not let the desk use the microphone yet. Press Allow the microphone; a small page asks once.'
+  ? 'Chrome has not let Foil use the microphone yet. Press Allow the microphone; a small page asks once.'
   : 'The microphone is blocked. Allow it from the icon at the left of the address bar, then try again.'
 
 export function allowMic(): void {

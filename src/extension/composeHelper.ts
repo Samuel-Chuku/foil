@@ -125,7 +125,7 @@ export function mountComposeHelper(opts: {
     <div class="anchor box" hidden>
       <div class="menu glass" role="group" aria-label="Writing help" hidden></div>
       <section class="card glass" role="status" aria-live="polite" hidden></section>
-      <button class="chip glass" type="button" aria-expanded="false">${SPARK}<span>Desk</span></button>
+      <button class="chip glass" type="button" aria-expanded="false">${SPARK}<span>Foil</span></button>
     </div>
     <div class="anchor sel below" hidden>
       <button class="chip glass" type="button" aria-expanded="false">${SPARK}<span>Rewrite</span></button>
@@ -215,7 +215,7 @@ export function mountComposeHelper(opts: {
     const text = opts.box()?.innerText.trim() ?? ''
     boxMenu.replaceChildren()
     if (!text) {
-      note(boxMenu, 'The desk writes from this chat and its facts.')
+      note(boxMenu, 'Foil writes from this chat and its facts.')
       button(boxMenu, 'Draft a reply for me', ['device'], () =>
         opts.onPick({ kind: 'draft' }),
       )
@@ -286,7 +286,13 @@ export function mountComposeHelper(opts: {
     const text = sel?.toString().trim() ?? ''
     const node = sel?.anchorNode ?? null
     const area = opts.chatArea()
-    if (!sel || sel.isCollapsed || text.length < 3 || !node || !area?.contains(node)) {
+    if (
+      !sel ||
+      sel.isCollapsed ||
+      text.length < 3 ||
+      !node ||
+      !area?.contains(node)
+    ) {
       if (selMenu.hidden) selAnchor.hidden = true
       return
     }
@@ -397,7 +403,9 @@ export function mountComposeHelper(opts: {
           }
           if (request.replaced.length) {
             body.append(
-              para(`Swapped out before sending: ${request.replaced.join(', ')}.`),
+              para(
+                `Swapped out before sending: ${request.replaced.join(', ')}.`,
+              ),
             )
           }
           body.append(
@@ -450,7 +458,7 @@ export function mountComposeHelper(opts: {
           body.append(
             row([
               {
-                label: 'Open the desk',
+                label: 'Open Foil',
                 go: true,
                 run: () => {
                   card.hidden = true

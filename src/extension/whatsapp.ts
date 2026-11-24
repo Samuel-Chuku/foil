@@ -159,8 +159,8 @@ async function voiceAudio(
   if (!blob) {
     return {
       missing: seen
-        ? 'The desk saw this note play but could not keep its sound. Play it again for a few seconds, then pick Read the voice note again.'
-        : 'Play this voice note in WhatsApp first, for a few seconds, then pick Read the voice note. If you already did, reload WhatsApp Web once (needed after the desk is installed or updated) and play it again.',
+        ? 'Foil saw this note play but could not keep its sound. Play it again for a few seconds, then pick Read the voice note again.'
+        : 'Play this voice note in WhatsApp first, for a few seconds, then pick Read the voice note. If you already did, reload WhatsApp Web once (needed after Foil is installed or updated) and play it again.',
     }
   }
   const bytes = new Uint8Array(await blob.arrayBuffer())
@@ -239,14 +239,14 @@ function toast(text: string) {
 function problem(e: unknown): string {
   const text = e instanceof Error ? e.message : String(e)
   if (/context invalidated/i.test(text) || !chrome.runtime?.id) {
-    return 'The desk was updated. Reload WhatsApp Web, then pick this again.'
+    return 'Foil was updated. Reload WhatsApp Web, then pick this again.'
   }
   if (
     /receiving end does not exist|could not establish connection/i.test(text)
   ) {
-    return 'The desk did not open. Open it from the toolbar icon, then pick this again.'
+    return 'Foil did not open. Open it from the toolbar icon, then pick this again.'
   }
-  return `The desk could not read this chat (${text}). Reload WhatsApp Web and try again.`
+  return `Foil could not read this chat (${text}). Reload WhatsApp Web and try again.`
 }
 
 async function send(action: FromChat['action'], messageId?: string) {
@@ -270,7 +270,7 @@ async function send(action: FromChat['action'], messageId?: string) {
     }
   } catch (e) {
     toast(
-      `The desk could not read this chat (${e instanceof Error ? e.message : String(e)}).`,
+      `Foil could not read this chat (${e instanceof Error ? e.message : String(e)}).`,
     )
     return
   }
@@ -397,14 +397,14 @@ const float = mountFloatDesk({
     }
     toast(
       a.kind === 'verify'
-        ? 'Checking this payment in the desk…'
+        ? 'Checking this payment in Foil…'
         : a.kind === 'voice'
-          ? 'Opening the voice note in the desk…'
+          ? 'Opening the voice note in Foil…'
           : a.kind === 'draft'
-            ? 'Writing a reply in the desk…'
+            ? 'Writing a reply in Foil…'
             : a.kind === 'translate'
-              ? 'Putting their messages into English in the desk…'
-              : 'Reading the order in the desk…',
+              ? 'Putting their messages into English in Foil…'
+              : 'Reading the order in Foil…',
     )
     void send(a.kind, 'messageId' in a ? a.messageId : undefined)
   },
@@ -633,7 +633,7 @@ async function rewrite(pick: Extract<ComposePick, { kind: 'rewrite' }>) {
     return offerText(
       style.label,
       done,
-      'The message box changed while the desk was writing, so it was left as it is.',
+      'The message box changed while Foil was writing, so it was left as it is.',
     )
   }
   if (!(await setBoxText(box, after))) {
@@ -681,7 +681,7 @@ async function fromClipboard() {
     text = (await navigator.clipboard.readText()).trim()
   } catch {
     compose.error(
-      'Chrome did not let the desk read what you copied. Allow it when Chrome asks, or select the text in the chat instead.',
+      'Chrome did not let Foil read what you copied. Allow it when Chrome asks, or select the text in the chat instead.',
     )
     return
   }
@@ -702,7 +702,7 @@ const compose = mountComposeHelper({
       // A draft is built from the chat, the order and the payment the panel
       // holds, so it opens there.
       if (!openPanel()) return
-      toast('Writing a reply in the desk…')
+      toast('Writing a reply in Foil…')
       void send('draft')
       return
     }

@@ -171,10 +171,10 @@ export default function ExtensionApp() {
         <details className="card number-ask">
           <summary>Add {name}&apos;s number (optional)</summary>
           <p className="hint">
-            WhatsApp shows saved contacts by name, so the desk files {name}{' '}
-            under that name for now. To add the number, click their name at the
-            top of the chat to open Contact info and use any desk button, or
-            type it here. Earlier orders move to the number.
+            WhatsApp shows saved contacts by name, so Foil files {name} under
+            that name for now. To add the number, click their name at the top of
+            the chat to open Contact info and use any Foil button, or type it
+            here. Earlier orders move to the number.
           </p>
           <form
             onSubmit={(e) => {

@@ -115,8 +115,8 @@ export function QueueCard(props: {
       </h3>
       {entries.length === 0 ? (
         <p className="empty">
-          Nobody is waiting. Chats appear here once you open them with the desk,
-          and orders once you capture them.
+          Nobody is waiting. Chats appear here once you open them with Foil, and
+          orders once you capture them.
         </p>
       ) : (
         sections.map((section) => (

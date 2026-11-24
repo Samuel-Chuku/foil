@@ -19,7 +19,7 @@ async function writer(): Promise<void> {
       url: WRITER,
       reasons: ['LOCAL_STORAGE'],
       justification:
-        "Reads the vendor's desk settings and rewrites their typed reply on their click.",
+        "Reads the vendor's Foil settings and rewrites their typed reply on their click.",
     })
     .finally(() => {
       opening = null
@@ -42,7 +42,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
     .then(reply, (e: unknown) =>
       reply({
         kind: 'error',
-        message: `The desk's writer did not start (${e instanceof Error ? e.message : String(e)}). Reload the extension and try again.`,
+        message: `Foil's writer did not start (${e instanceof Error ? e.message : String(e)}). Reload the extension and try again.`,
       } satisfies WriteAnswer),
     )
   return true

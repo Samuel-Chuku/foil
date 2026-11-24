@@ -6,11 +6,7 @@ import { lostNumbers, rewriteStyles } from '../capture/rewrite'
 import { market } from '../config/market'
 import { loadAppConfig } from '../config/remote'
 import { startMarket } from '../ui/marketChoice'
-import {
-  isToWriter,
-  type WriteAnswer,
-  type WriteAsk,
-} from './bridge'
+import { isToWriter, type WriteAnswer, type WriteAsk } from './bridge'
 
 // The desk's hidden writer page (an offscreen document). It rewrites the
 // vendor's own text on WhatsApp without the side panel being open, through
@@ -48,8 +44,8 @@ async function deviceProblem(): Promise<WriteAnswer | null> {
     openDesk: true,
     message:
       state === 'unavailable'
-        ? 'This computer has no model for writing help yet. Open the desk to choose the cloud instead.'
-        : 'The model on this computer is not downloaded yet. Open the desk to download it.',
+        ? 'This computer has no model for writing help yet. Open Foil to choose the cloud instead.'
+        : 'The model on this computer is not downloaded yet. Open Foil to download it.',
   }
 }
 

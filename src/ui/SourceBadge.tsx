@@ -10,7 +10,7 @@ const ICON: Record<Reading<unknown>['source'], IconName> = {
 const SAID: Record<Reading<unknown>['source'], string> = {
   'On device': 'Worked out on this computer',
   Cloud: "Worked out in Google's cloud",
-  Rules: 'Worked out by the desk’s rules, without a model',
+  Rules: 'Worked out by Foil’s rules, without a model',
 }
 
 // Where a result came from, always from the SDK's own source field (or

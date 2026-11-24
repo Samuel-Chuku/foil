@@ -101,7 +101,7 @@ function VoiceResult(props: {
           <>
             <dt>Street</dt>
             <dd>
-              Heard as &ldquo;{note.street.heard}&rdquo;, which the desk cannot
+              Heard as &ldquo;{note.street.heard}&rdquo;, which Foil cannot
               check, so the reply will ask the customer to confirm it.
               {note.street.suggestion && (
                 <>

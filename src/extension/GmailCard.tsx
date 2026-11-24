@@ -15,15 +15,15 @@ function statusText(
 ): string {
   if (!s || s.state === 'checking') return 'Checking…'
   if (s.state === 'offline') {
-    return 'Offline. The desk will check again as soon as you are back online.'
+    return 'Offline. Foil will check again as soon as you are back online.'
   }
   if (s.state === 'signed-out')
     return 'Signed out. Sign in again to keep reading alerts.'
   if (s.state === 'error') return `Could not check: ${s.message}`
   const unread = s.unread
-    ? ` ${s.unread} from ${s.unreadBanks.map(bankName).join(', ')} in a layout the desk cannot read yet.`
+    ? ` ${s.unread} from ${s.unreadBanks.map(bankName).join(', ')} in a layout Foil cannot read yet.`
     : ''
-  return `Checked at ${clock(s.checkedAt)}. ${s.read} alert${s.read === 1 ? '' : 's'} read since you opened the desk.${unread}`
+  return `Checked at ${clock(s.checkedAt)}. ${s.read} alert${s.read === 1 ? '' : 's'} read since you opened Foil.${unread}`
 }
 
 export function GmailCard(props: {
@@ -57,10 +57,10 @@ export function GmailCard(props: {
         Bank alert emails
       </h3>
       <p className="hint">
-        The desk reads your bank alerts from Gmail every 45 seconds while this
-        panel is open, and checks waiting orders as money lands. It can only
-        read, never send or delete, and it asks Google only for mail under your
-        label or from known bank addresses, so the rest of your inbox is never
+        Foil reads your bank alerts from Gmail every 45 seconds while this panel
+        is open, and checks waiting orders as money lands. It can only read,
+        never send or delete, and it asks Google only for mail under your label
+        or from known bank addresses, so the rest of your inbox is never
         downloaded.
       </p>
       {!s && <p>Loading…</p>}

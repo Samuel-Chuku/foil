@@ -106,7 +106,7 @@ export function toolRequest(
   return {
     feature: 'Ask the desk',
     reason:
-      'Chat answers come from the cloud model, which looks up what it needs with the desk’s tools. Your question goes now; a lookup’s result goes only if the model asks for it. Lookups hold orders by number, items, stock, money and rules, never customers’ names, phones or addresses.',
+      'Chat answers come from the cloud model, which looks up what it needs with Foil’s tools. Your question goes now; a lookup’s result goes only if the model asks for it. Lookups hold orders by number, items, stock, money and rules, never customers’ names, phones or addresses.',
     texts: [toolInstructions(language), `Question: ${question}`],
     mayReturn: preview,
     replaced,

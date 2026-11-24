@@ -244,9 +244,9 @@ export function ShopRulesCard(props: {
         }}
       >
         <p className="hint">
-          Answer what you can, or just add your files and let the desk fill this
-          in. Everything stays on this computer, and drafts never make up terms
-          you have not set.
+          Answer what you can, or just add your files and let Foil fill this in.
+          Everything stays on this computer, and drafts never make up terms you
+          have not set.
         </p>
         {props.pickMarket && (
           <label>

@@ -8,7 +8,7 @@ async function ask() {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     stream.getTracks().forEach((t) => t.stop())
     said.textContent =
-      'Done. Go back to the desk and press Speak again. This tab closes by itself.'
+      'Done. Go back to Foil and press Speak again. This tab closes by itself.'
     allow.hidden = true
     setTimeout(() => window.close(), 2500)
   } catch {
