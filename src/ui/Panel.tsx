@@ -11,7 +11,12 @@ import { readOrder } from '../ai/order'
 import { readRefundTo } from '../ai/refund'
 import { toRefundTo } from '../capture/refundDetails'
 import { rulesForDraft } from '../capture/shopRules'
-import { followUpFacts, formatWait, waitingMin } from '../capture/followUp'
+import {
+  followUpFacts,
+  formatWait,
+  PAYER_NAME_ASK,
+  waitingMin,
+} from '../capture/followUp'
 import {
   deliveryFacts,
   describePlan,
@@ -53,12 +58,14 @@ import {
   balanceKobo,
   confirmCredit,
   customerKey,
+  declineCredits,
   dueKobo,
   matcherLedger,
   newOrder,
   normalisePhone,
   paidKobo,
   undoCreditPick,
+  undoDecline,
 } from '../ledger/ledger'
 import { extraMoney, moreFromPayer, type ExtraRow } from '../ledger/settle'
 import type { Order, PaymentState, RefundTo, Settlement } from '../ledger/types'
@@ -1069,6 +1076,20 @@ export function Panel(props: {
     patch(chat.phone, { notice: undefined })
   }
 
+  // The vendor says none of the credits on offer is this customer's, or
+  // takes that answer back.
+  async function answerCredits(take: typeof declineCredits) {
+    if (!chat) return
+    const data = await ledger.load()
+    const mine = openOrder(data.orders, customerId)
+    // Runs on a click, not during render (see pickCredit).
+    // oxlint-disable-next-line react/purity
+    const next = mine && take(mine, Date.now())
+    if (!next) return
+    await ledger.saveOrder(next)
+    patch(chat.phone, { notice: undefined })
+  }
+
   async function undoPick() {
     if (!chat) return
     const data = await ledger.load()
@@ -1507,7 +1528,11 @@ export function Panel(props: {
                     ),
                   ],
                 )
-              : []),
+              : !outOfLine &&
+                  v?.verdict.kind === 'check' &&
+                  v.verdict.why === 'name'
+                ? [PAYER_NAME_ASK]
+                : []),
           ],
           delivery: deliveryFacts(
             order ? (order.deliveryPlan ?? null) : chatPlan,
@@ -1907,30 +1932,74 @@ export function Panel(props: {
                     )}
                     {shown.candidates.length > 0 &&
                       (order ? (
-                        <ul className="candidates">
-                          {shown.candidates.map((id) => {
-                            const cr = data?.credits.find((x) => x.id === id)
-                            return (
-                              <li key={id}>
-                                {cr
-                                  ? `${formatMoney(cr.amountKobo)} from ${cr.sender || 'an unknown sender'}`
-                                  : id}{' '}
-                                <button
-                                  type="button"
-                                  onClick={() => void pickCredit(id)}
-                                >
-                                  This one
-                                </button>
-                              </li>
-                            )
-                          })}
-                        </ul>
+                        <>
+                          <ul className="candidates">
+                            {shown.candidates.map((id) => {
+                              const cr = data?.credits.find((x) => x.id === id)
+                              return (
+                                <li key={id}>
+                                  {cr
+                                    ? `${formatMoney(cr.amountKobo)} from ${cr.sender || 'an unknown sender'}`
+                                    : id}{' '}
+                                  <button
+                                    type="button"
+                                    onClick={() => void pickCredit(id)}
+                                  >
+                                    {shown.candidates.length === 1
+                                      ? 'Yes, this is theirs'
+                                      : 'This one'}
+                                  </button>
+                                </li>
+                              )
+                            })}
+                          </ul>
+                          <button
+                            type="button"
+                            className="quiet"
+                            onClick={() => void answerCredits(declineCredits)}
+                          >
+                            {shown.candidates.length === 1
+                              ? 'No, not theirs'
+                              : 'None of these is theirs'}
+                          </button>
+                          {order.payment.checkWhy === 'name' && (
+                            <p className="hint">
+                              Not sure? Draft a reply: it asks them whose
+                              account the money came from, in case someone paid
+                              for them.
+                            </p>
+                          )}
+                        </>
                       ) : (
-                        <p className="hint">
-                          Save the order first, then choose the credit that pays
-                          for it.
-                        </p>
+                        <>
+                          <p className="hint">
+                            Capture the order first, then confirm whether this
+                            money is theirs.
+                          </p>
+                          <button
+                            type="button"
+                            disabled={device.busy}
+                            onClick={() => void capture()}
+                          >
+                            Capture the order
+                          </button>
+                        </>
                       ))}
+                    {fromOrder &&
+                      order.payment.state === 'not yet credited' &&
+                      (order.payment.declinedIds?.length ?? 0) > 0 && (
+                        <p className="hint">
+                          A draft will ask which account they paid from, so the
+                          money can be traced.{' '}
+                          <button
+                            type="button"
+                            className="link"
+                            onClick={() => void answerCredits(undoDecline)}
+                          >
+                            Undo my answer
+                          </button>
+                        </p>
+                      )}
                   </div>
                 )}
                 {v?.status === 'done' && (

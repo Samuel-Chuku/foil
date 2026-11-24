@@ -18,6 +18,11 @@ export function formatWait(min: number): string {
   return m ? `${h} h ${m} min` : `${h} h`
 }
 
+// Money that fits came from a name other than the one on the receipt, often
+// because someone paid for them. Asked plainly, never as a suspicion.
+export const PAYER_NAME_ASK =
+  'The money that fits came from a different name than their receipt shows. If their messages already say who paid for them, thank them and say the shop is confirming it now; do not ask again. Otherwise ask them politely whose account the transfer came from, in case someone paid for them. Do not suggest anything is wrong.'
+
 // What a reply should ask of a customer whose payment has not been
 // confirmed. Decided by rules from the receipt and the shop's wait time; the
 // customer is never accused, only asked to help trace the transfer.
@@ -41,6 +46,12 @@ export function followUpFacts(
     ]
   }
   const lines: string[] = []
+  if (p.state === 'check' && p.checkWhy === 'name') lines.push(PAYER_NAME_ASK)
+  if (p.state === 'not yet credited' && p.declinedIds?.length) {
+    lines.push(
+      'The money that arrived around that time was from someone else. Ask them politely which account they paid from and whether it has left their account, so the shop can trace it.',
+    )
+  }
   const session = decodeSessionId(receipt.reference)
   const bank = config.banks.find((b) => b.id === receipt.senderBank)
   const sameBank =

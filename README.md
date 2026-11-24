@@ -80,7 +80,7 @@ No install, no account and no keys. Everything in the demo is invented and stays
 | 6    | Open the **Today** tab, then **Your business over time**, and **Write a review**     | Six charts drawn on the device; a cloud review whose findings each carry one of those charts                                                                                                                                                                 |
 | 7    | Back in Adaeze's chat, use **Receipt for the customer**                              | A receipt picture to copy or download, and a text version for the message box; the shop's look is set under **Shop** > **Receipt look**                                                                                                                      |
 
-**Another market?** Choose **Mumbai: UPI** or **São Paulo: Pix** at the top of the demo. Priya's UPI receipt is matched by its 12-digit UPI reference; in São Paulo, Fernanda's receipt says Itaú while its Pix ID carries Nubank's bank code, so it does not match, and replies are drafted in Portuguese through the cloud after approval.
+**Another market?** Choose **Mumbai: UPI** or **São Paulo: Pix** at the top of the demo. Priya's UPI receipt is matched by its 12-digit UPI reference; in São Paulo, Fernanda's receipt says Itaú while its Pix transaction ID carries Nubank's bank code, so it does not match, and replies are drafted in Portuguese through the cloud after approval.
 
 **No built-in model?** Open the demo in a browser without Chrome's model (Brave works): the panel asks before using the cloud, and the badge reads **Cloud**. That is the consent path every feature follows.
 
@@ -364,7 +364,7 @@ Measured on 21 November 2026 on a laptop with an RTX 3060 Mobile, Chrome 157 and
 | ------------------------------------------------ | ------------------- | ------------------------ |
 | Every call on device                             | 9/9                 | 12/12                    |
 | Receipt amount, sender and status                | 9/9 each            | 12/12 each               |
-| Reference (UPI reference or Pix ID) read exactly | 8/9                 | 10/12                    |
+| Reference (UPI reference or Pix transaction ID) read exactly | 8/9                 | 10/12                    |
 | Payment verdicts                                 | 9/9                 | 11/12                    |
 | Order totals, items, quantities and pickup       | 9/9 each            | 11/12, 12/12, 12/12, 6/6 |
 | Replies in English, with no odd wording          | 9/9                 | cloud by design          |
@@ -372,12 +372,12 @@ Measured on 21 November 2026 on a laptop with an RTX 3060 Mobile, Chrome 157 and
 
 Measuring the new markets also found and fixed four engine faults:
 
-- a Pix ID glued to the next field;
+- a Pix transaction ID glued to the next field;
 - Portuguese pickup phrases not recognised;
 - two amounts in one field read as one;
 - a misread date inside a reference treated as a mismatch.
 
-The one São Paulo verdict miss was a misread Pix ID that became _check this_.
+The one São Paulo verdict miss was a misread Pix transaction ID that became _check this_.
 
 - **Both missed verdicts came out as _check this_**, which hands the decision to the seller. A misread session ID caused each one; neither was a false match or a false mismatch. That is the design working: a misread ID becomes a question, not a wrong answer.
 - **The first on-device call** after Chrome starts took 16 seconds while the model loaded. The panel warms the model up in the background, so the seller's first click is usually quick.
@@ -450,7 +450,7 @@ Lagos was chosen as the first market because the problem is acute and documented
 | Receipt status words           | English                                                             | English                                                                             | Portuguese, with a scheduled Pix ("agendado") treated as pending     |
 | Sample day in the demo         | A Lagos fashion shop                                                | A Mumbai clothing shop                                                              | A São Paulo boutique                                                 |
 
-What does not change between markets: the "did the money land?" matching, orders, deliveries, stock, books, receipts, Ask Foil, the approval dialog, the privacy rules and the hybrid routing. Pix ISPB codes come from Banco Central's participant list; the Pix ID layout follows Banco Central's identifier scheme and Pix providers' documentation of its UTC timestamp.
+What does not change between markets: the "did the money land?" matching, orders, deliveries, stock, books, receipts, Ask Foil, the approval dialog, the privacy rules and the hybrid routing. Pix ISPB codes come from Banco Central's participant list; the Pix transaction ID layout follows Banco Central's identifier scheme and Pix providers' documentation of its UTC timestamp.
 
 ## 15. Limitations
 

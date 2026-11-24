@@ -19,7 +19,7 @@ export type SessionId = {
 export const REF_LABEL: Record<RailId, string> = {
   nip: 'session ID',
   upi: 'UPI reference',
-  pix: 'Pix ID',
+  pix: 'Pix transaction ID',
 }
 
 export type SessionIdResult =

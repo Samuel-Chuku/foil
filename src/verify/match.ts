@@ -19,7 +19,9 @@ export type Verdict =
   | { kind: 'not yet credited'; reason: string }
   | { kind: 'mismatch'; reason: string }
   // The rules cannot decide alone; the vendor confirms or picks a credit.
-  | { kind: 'check'; reason: string; candidates: string[] }
+  // `why: 'name'`: money fits but came from a different name, so the reply
+  // can ask whose account paid.
+  | { kind: 'check'; reason: string; candidates: string[]; why?: 'name' }
 
 export type Ledger = {
   credits: Credit[]
@@ -293,6 +295,7 @@ export function verifyReceipt(
             ? `A credit of ${amount} arrived at the right time from ${otherName[0]!.credit.sender || 'a different name'}, not ${onReceipt}. Confirm it is this customer's payment.`
             : `${otherName.length} credits of ${amount} arrived at the right time from names other than ${onReceipt}. Pick the one that pays for this order, if any.`,
         candidates: otherName.map((s) => s.credit.id),
+        why: 'name',
       }
     }
     return {

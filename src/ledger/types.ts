@@ -39,6 +39,10 @@ export type Payment = {
   topUpIds: string[]
   decidedBy: 'rules' | 'vendor' | null
   checkedAt: number | null
+  // Set when the money that fits came from a different name than the receipt.
+  checkWhy?: 'name'
+  // Credits the vendor said are not this customer's; never offered again.
+  declinedIds?: string[]
 }
 
 export type Order = {

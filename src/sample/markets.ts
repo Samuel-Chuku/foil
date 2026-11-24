@@ -20,6 +20,9 @@ export type SamplePack = {
   shop: string
   // The customer the demo's introduction starts with.
   first: string
+  // Chats pinned above the rest, as WhatsApp lets a seller pin chats: one of
+  // each strong result, so a visitor meets them first.
+  pinned: string[]
   // The vendor's bank, whose alerts fill the sample inbox.
   bank: string
   chats: SampleChat[]
@@ -566,6 +569,7 @@ export const PACKS: Record<MarketId, SamplePack> = {
     day: SAMPLE_DAY,
     shop: SAMPLE_SHOP_RULES.shopName,
     first: 'Adaeze',
+    pinned: ['Adaeze', 'Kemi J', 'Emeka'],
     bank: 'GTBank',
     chats: SAMPLE_CHATS,
     emails: SAMPLE_EMAILS,
@@ -577,6 +581,7 @@ export const PACKS: Record<MarketId, SamplePack> = {
     day: SAMPLE_DAY,
     shop: MUMBAI_RULES.shopName,
     first: 'Priya',
+    pinned: ['Priya', 'Ananya'],
     bank: 'HDFC Bank',
     chats: MUMBAI_CHATS,
     emails: MUMBAI_EMAILS,
@@ -588,6 +593,7 @@ export const PACKS: Record<MarketId, SamplePack> = {
     day: 'Sábado, 21 de novembro de 2026',
     shop: SAO_PAULO_RULES.shopName,
     first: 'Mariana',
+    pinned: ['Mariana', 'Fernanda'],
     bank: 'Itaú',
     chats: SAO_PAULO_CHATS,
     emails: SAO_PAULO_EMAILS,

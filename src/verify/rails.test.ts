@@ -163,7 +163,7 @@ describe('Pix (São Paulo)', () => {
     expect(v).toEqual({
       kind: 'mismatch',
       reason:
-        'The Pix ID was issued by Nubank, but the receipt is from Bradesco.',
+        'The Pix transaction ID was issued by Nubank, but the receipt is from Bradesco.',
     })
   })
 

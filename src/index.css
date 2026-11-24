@@ -837,6 +837,16 @@ p.meta:has(.badge) {
 }
 .chat-row .preview {
   grid-column: 1 / -1;
+}
+.chat-row[data-pinned] .preview {
+  grid-column: 1;
+}
+.chat-row .pin {
+  display: grid;
+  place-items: center;
+  color: var(--dk-ink-3);
+}
+.chat-row .preview {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

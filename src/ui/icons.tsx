@@ -146,6 +146,7 @@ const PATHS = {
   ),
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
   back: <path d="M14.5 6 8.5 12l6 6" />,
+  pin: <path d="M9 4h6l-1 6 3.5 3.5h-11L10 10 9 4ZM12 13.5V20" />,
 } as const
 
 export type IconName = keyof typeof PATHS

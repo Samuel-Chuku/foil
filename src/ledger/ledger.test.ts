@@ -6,6 +6,7 @@ import {
   customerKey,
   applyReversals,
   confirmCredit,
+  declineCredits,
   matcherLedger,
   newOrder,
   normalisePhone,
@@ -14,6 +15,7 @@ import {
   toBookEntry,
   toMoneyEntry,
   undoCreditPick,
+  undoDecline,
 } from './ledger'
 import type { Order } from './types'
 
@@ -232,6 +234,55 @@ describe('undo', () => {
     const matched = verify(order(), [], [credit({ sessionId: OPAY_ID })])
     expect(matched.payment.state).toBe('matched')
     expect(undoCreditPick(matched, NOW)).toBeNull()
+  })
+})
+
+describe('money from a different name', () => {
+  const other = credit({ sender: 'TUNDE BAKARE' })
+
+  it('asks the vendor, and says why, when the name differs', () => {
+    const o = verify(order(), [], [other])
+    expect(o.payment).toMatchObject({
+      state: 'check',
+      candidates: ['c1'],
+      checkWhy: 'name',
+    })
+  })
+
+  it('never offers a declined credit again, and keeps checking', () => {
+    const asked = verify(order(), [], [other])
+    const declined = declineCredits(asked, NOW + 1)!
+    expect(declined.payment).toMatchObject({
+      state: 'not yet credited',
+      candidates: [],
+      declinedIds: ['c1'],
+      decidedBy: 'rules',
+    })
+    expect(declined.payment.checkWhy).toBeUndefined()
+    // Rechecks leave it waiting rather than offering the same money.
+    expect(recheckOrders([declined], [other], config, [], NOW + 2)).toEqual([])
+    // Their own payment still lands when it arrives.
+    const own = credit({ id: 'c2', sessionId: OPAY_ID })
+    const [paid] = recheckOrders([declined], [other, own], config, [], NOW + 3)
+    expect(paid!.payment).toMatchObject({
+      state: 'matched',
+      creditId: 'c2',
+      declinedIds: ['c1'],
+    })
+  })
+
+  it('takes "not theirs" back', () => {
+    const declined = declineCredits(verify(order(), [], [other]), NOW)!
+    expect(undoDecline(declined, NOW + 1)!.payment).toMatchObject({
+      state: 'check',
+      candidates: ['c1'],
+    })
+    expect(undoDecline(declined, NOW + 1)!.payment.declinedIds).toBeUndefined()
+  })
+
+  it('declines only a question that has credits on offer', () => {
+    expect(declineCredits(order(), NOW)).toBeNull()
+    expect(undoDecline(order(), NOW)).toBeNull()
   })
 })
 

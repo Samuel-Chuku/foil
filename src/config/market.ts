@@ -89,7 +89,7 @@ export const MARKETS: Record<MarketId, Market> = {
       spaced: true,
     },
     rail: 'pix',
-    refLabel: 'Pix ID',
+    refLabel: 'Pix transaction ID',
     utcOffsetMin: -180,
     timeZone: 'America/Sao_Paulo',
     reply: { language: 'Brazilian Portuguese', onDevice: false },

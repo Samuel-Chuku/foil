@@ -30,6 +30,7 @@ import { SourceBadge } from '../ui/SourceBadge'
 import { DemoCompose } from './DemoCompose'
 import { DemoFloat } from './DemoFloat'
 import { Avatar } from '../ui/Avatar'
+import { Icon } from '../ui/icons'
 
 // The hosted demo: simulated chat and inbox panes stand in for WhatsApp Web
 // and Gmail, beside the same panel the extension shows.
@@ -56,11 +57,16 @@ async function sampleStock(pack: SamplePack): Promise<Product[]> {
   return [...counted, ...thrift]
 }
 
-// Like WhatsApp, the chat with the latest message comes first.
+// Like WhatsApp, pinned chats come first in their pinned order, then the
+// chat with the latest message.
 function buildChats(pack: SamplePack): OpenChat[] {
   const last = (c: (typeof pack.chats)[number]) => c.messages.at(-1)?.time ?? ''
+  const pin = (c: (typeof pack.chats)[number]) => {
+    const n = pack.pinned.indexOf(c.contactName)
+    return n === -1 ? pack.pinned.length : n
+  }
   return [...pack.chats]
-    .sort((a, b) => last(b).localeCompare(last(a)))
+    .sort((a, b) => pin(a) - pin(b) || last(b).localeCompare(last(a)))
     .map((c) => ({
       phone: c.phone,
       contactName: c.contactName,
@@ -360,6 +366,7 @@ export default function DemoApp() {
             <ul className="chat-list" aria-label="Chats">
               {chats.map((c) => {
                 const last = c.messages.at(-1)
+                const pinned = pack.pinned.includes(c.contactName)
                 return (
                   <li key={c.phone}>
                     <button
@@ -368,13 +375,22 @@ export default function DemoApp() {
                       onClick={() => setOpenPhone(c.phone)}
                     >
                       <Avatar name={c.contactName} />
-                      <span className="chat-row">
+                      <span
+                        className="chat-row"
+                        data-pinned={pinned || undefined}
+                      >
                         <strong>{c.contactName}</strong>
                         <time>{last?.time}</time>
                         <span className="preview">
                           {last?.from === 'vendor' && 'You: '}
                           {last?.text ?? (last?.image ? 'Photo' : '')}
                         </span>
+                        {pinned && (
+                          <span className="pin" title="Pinned">
+                            <Icon name="pin" size={14} />
+                            <span className="visually-hidden">Pinned</span>
+                          </span>
+                        )}
                       </span>
                     </button>
                   </li>

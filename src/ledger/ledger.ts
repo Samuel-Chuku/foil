@@ -80,6 +80,10 @@ export function matcherLedger(
       .filter((s) => s.state !== 'kept' && s.id === s.creditId)
       .map((s) => s.id),
   )
+  // Credits the vendor said are not this order's customer's.
+  const declined = new Set(
+    orders.find((o) => o.id === forOrderId)?.payment.declinedIds ?? [],
+  )
   const claimedCredits = new Map<string, string>()
   const usedSessionIds = new Map<string, string>()
   for (const o of orders) {
@@ -89,7 +93,7 @@ export function matcherLedger(
     if (o.payment.sessionId) usedSessionIds.set(o.payment.sessionId, o.code)
   }
   return {
-    credits: credits.filter((c) => !refunds.has(c.id)),
+    credits: credits.filter((c) => !refunds.has(c.id) && !declined.has(c.id)),
     claimedCredits,
     usedSessionIds,
     reversedCredits: findReversedCredits(credits, config),
@@ -116,6 +120,10 @@ export function recordVerdict(
     topUpIds: [],
     decidedBy: 'rules',
     checkedAt: now,
+    ...(verdict.kind === 'check' && verdict.why && { checkWhy: verdict.why }),
+    ...(order.payment.declinedIds?.length && {
+      declinedIds: order.payment.declinedIds,
+    }),
   }
   return { ...order, payment, receipt, updatedAt: now }
 }
@@ -268,6 +276,48 @@ export function freshCredits(existing: Credit[], incoming: Credit[]): Credit[] {
     kept.push(c)
   }
   return kept
+}
+
+// The vendor says none of the credits on offer is this customer's. The order
+// waits for its money again, those credits are never offered for it again,
+// and the rules keep checking it as new money arrives.
+export function declineCredits(order: Order, now: number): Order | null {
+  const p = order.payment
+  if (p.state !== 'check' || p.candidates.length === 0) return null
+  const { checkWhy: _was, ...rest } = p
+  return {
+    ...order,
+    payment: {
+      ...rest,
+      state: 'not yet credited',
+      reason: `You said ${p.candidates.length === 1 ? 'that credit is' : 'those credits are'} not from this customer. Their payment has not arrived yet.`,
+      candidates: [],
+      declinedIds: [...(p.declinedIds ?? []), ...p.candidates],
+      decidedBy: 'rules',
+      checkedAt: now,
+    },
+    updatedAt: now,
+  }
+}
+
+// Takes back "not theirs": the credits are offered again to choose from.
+export function undoDecline(order: Order, now: number): Order | null {
+  const p = order.payment
+  if (p.state !== 'not yet credited' || !p.declinedIds?.length) return null
+  const { declinedIds, ...rest } = p
+  return {
+    ...order,
+    payment: {
+      ...rest,
+      state: 'check',
+      reason:
+        'Your answer was undone. Choose whether one of these credits pays for this order.',
+      candidates: declinedIds,
+      decidedBy: 'rules',
+      checkedAt: now,
+    },
+    updatedAt: now,
+  }
 }
 
 // Undoes the vendor's pick of a credit: the order goes back to "check this"

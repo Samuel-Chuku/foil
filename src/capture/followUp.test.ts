@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_VERIFY as config } from '../config/defaults'
 import { newOrder, recordVerdict } from '../ledger/ledger'
 import type { Receipt } from '../verify/types'
-import { followUpFacts, formatWait, waitingMin } from './followUp'
+import {
+  followUpFacts,
+  formatWait,
+  PAYER_NAME_ASK,
+  waitingMin,
+} from './followUp'
 
 const at = (h: number, m: number) => Date.UTC(2026, 10, 21, h, m)
 const ID = '000014261121124501730268159843'
@@ -85,5 +90,35 @@ describe('payment follow-up', () => {
   it('formats waits plainly', () => {
     expect(formatWait(45)).toBe('45 min')
     expect(formatWait(120)).toBe('2 h')
+  })
+})
+
+describe('money from a different name', () => {
+  const asked = recordVerdict(
+    waiting(receipt()),
+    receipt(),
+    { kind: 'check', reason: '', candidates: ['c1'], why: 'name' },
+    0,
+  )
+
+  it('asks whose account paid, without suggesting anything is wrong', () => {
+    const lines = followUpFacts(asked, at(12, 50), 30, config)
+    expect(lines).toContain(PAYER_NAME_ASK)
+    expect(lines.join(' ')).not.toMatch(/fake|fraud/i)
+  })
+
+  it('asks which account they paid from once the vendor says not theirs', () => {
+    const declined = {
+      ...asked,
+      payment: {
+        ...asked.payment,
+        state: 'not yet credited' as const,
+        candidates: [],
+        declinedIds: ['c1'],
+      },
+    }
+    expect(followUpFacts(declined, at(12, 50), 30, config).join(' ')).toMatch(
+      /which account they paid from/,
+    )
   })
 })
