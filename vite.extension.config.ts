@@ -41,7 +41,7 @@ export default defineConfig(({ mode }): UserConfig =>
             input: { whatsapp: 'src/extension/whatsapp.ts' },
             output: {
               entryFileNames: '[name].js',
-              inlineDynamicImports: true,
+              codeSplitting: false,
             },
           },
         },
