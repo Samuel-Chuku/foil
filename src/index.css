@@ -1489,15 +1489,22 @@ p.meta:has(.badge) {
 .proof {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--dk-s2);
+  /* Label, amount and detail share rows across both halves, so the two
+     amounts line up even when one label wraps. */
+  grid-template-rows: auto auto auto;
+  column-gap: var(--dk-s2);
+  row-gap: var(--dk-s1);
   margin: var(--dk-s3) 0;
 }
 .proof-half {
   display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
   align-content: start;
-  gap: var(--dk-s1);
   min-height: 88px;
-  padding: var(--dk-s3);
+  /* Room for a textured half's frame, kept on every half so the two
+     amounts line up. */
+  padding: calc(var(--dk-s3) + var(--dk-s1));
   border: var(--dk-bw) solid var(--dk-ink);
   border-radius: var(--dk-r-control);
   background: var(--dk-surface);
@@ -1522,9 +1529,7 @@ p.meta:has(.badge) {
 .proof-detail {
   font-size: var(--dk-text-meta);
   color: var(--dk-ink-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .proof-half[data-side='receipt'],
 .proof-half[data-state='claimed'] {
@@ -1551,22 +1556,34 @@ p.meta:has(.badge) {
 .proof-half[data-state='waiting'] .proof-amount {
   color: var(--dk-ink-3);
 }
-/* Text over a texture sits on a small plate so it stays readable. */
-.proof-half[data-side='receipt'] > *,
-.proof-half[data-state='claimed'] > *,
-.proof-half[data-state='mismatch'] > * {
-  justify-self: start;
-  max-width: 100%;
+/* A textured half shows its texture as a frame round a plain inner card,
+   so the words never sit on the dots or the hatch. */
+.proof-half[data-side='receipt'],
+.proof-half[data-state='claimed'],
+.proof-half[data-state='mismatch'] {
+  position: relative;
+  isolation: isolate;
+}
+.proof-half[data-side='receipt']::before,
+.proof-half[data-state='claimed']::before,
+.proof-half[data-state='mismatch']::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  z-index: -1;
+  border-radius: calc(var(--dk-r-control) - 4px);
   background: var(--dk-surface);
-  border-radius: var(--dk-r-tag);
-  padding: 0 var(--dk-s1);
-  margin-left: calc(var(--dk-s1) * -1);
 }
 @container panel (max-width: 340px) {
   .proof {
     grid-template-columns: 1fr;
+    grid-template-rows: none;
+    row-gap: var(--dk-s2);
   }
   .proof-half {
+    grid-row: auto;
+    grid-template-rows: none;
+    gap: var(--dk-s1);
     min-height: 0;
   }
 }
