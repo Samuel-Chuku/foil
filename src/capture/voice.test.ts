@@ -136,7 +136,7 @@ describe('items checked against the customer’s own words', () => {
       { name: 'black cap', quantity: 'two', price: '' },
     ])
     expect(note.unsure).toContain('black cap')
-    expect(note.gloss).toBe('They want black cap (two), for Surulere.')
+    expect(note.gloss).toBe('They want two × black cap, for Surulere.')
     expect(clarifyLine(note)).toMatch(/which one they mean/)
   })
 
@@ -168,6 +168,43 @@ describe('items checked against the customer’s own words', () => {
     expect(note.order.items).toHaveLength(2)
     expect(note.unsure).toEqual([])
     expect(note.gloss).toBe('They want two black caps and a headwrap.')
+  })
+
+  it('folds words that point back into the item they describe', () => {
+    const note = pickVoice({
+      items: [
+        { name: 'black cap', quantity: 'two', heard: 'two black caps' },
+        { name: 'plain cap', quantity: '1', heard: 'the plain one' },
+      ],
+      area: 'Surulere',
+    })
+    expect(note.order.items).toEqual([
+      { name: 'black cap (plain)', quantity: 'two', price: '' },
+    ])
+    expect(note.unsure).toEqual(['black cap (plain)'])
+    expect(note.gloss).toBe('They want two × black cap (plain), for Surulere.')
+  })
+
+  it('treats "that one" and "the big ones" the same way', () => {
+    for (const heard of ['that one', 'the big ones', 'and the same one']) {
+      const note = pickVoice({
+        items: [
+          { name: 'gown', quantity: '1', heard: 'one ankara gown' },
+          { name: 'gown', quantity: '1', heard },
+        ],
+      })
+      expect(note.order.items).toHaveLength(1)
+    }
+  })
+
+  it('keeps a new item that only sounds alike', () => {
+    const note = pickVoice({
+      items: [
+        { name: 'black cap', quantity: 'two', heard: 'two black caps' },
+        { name: 'red cap', quantity: 'three', heard: 'three red ones' },
+      ],
+    })
+    expect(note.order.items).toHaveLength(2)
   })
 
   it('reads numbers as digits or words', () => {

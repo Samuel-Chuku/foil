@@ -179,7 +179,7 @@ items: each different thing they want, once. For each: name; quantity, only if t
 customerName: the name they give for themselves, if they say it
 address: the street address with any house number, such as "14 Adeniran Ogunsanya Street"; if you are not sure of a word, write your best hearing and list "address" under unsure
 landmark, area: a landmark near the address, and the area or neighbourhood
-deliveryChoice: how they want to receive it, in their words, such as pick up, delivery or a park
+deliveryChoice: how they want to receive it, in plain English, such as pick up, delivery or a park
 state: the state or city if they are outside ${m.city}${m.outOfTown.shortForms ? `, including short forms such as ${m.outOfTown.shortForms}` : ''}
 park: the motor park they named
 payOnDelivery: yes if they will pay the rider on delivery, otherwise empty
@@ -302,6 +302,12 @@ export function numbersIn(phrase: string): number[] {
     )
 }
 
+// "the plain one", "that red one", "the big ones", "this one": words that
+// point back to something already named rather than name something new.
+// The group is the description, if any.
+const POINTS_BACK =
+  /^(?:and |but )?(?:the|that|this|those|these)(?: same)?((?: [a-z]+)*?) ones?$/
+
 const words = (s: string) =>
   s
     .toLowerCase()
@@ -314,6 +320,9 @@ const words = (s: string) =>
 // quantity is never copied onto words that did not say it:
 // - an item whose words lie inside another's came from the same request,
 //   so it is folded into that item, which is marked unsure;
+// - words that point back to an item already named, such as "the plain
+//   one" or "that red one", describe that item: the description joins its
+//   name, which is marked unsure;
 // - a quantity that its own words do not say is marked unsure.
 // Unsure items make the draft ask, so a guess never becomes a promise.
 export function checkItems(read: HeardItem[]): {
@@ -335,6 +344,17 @@ export function checkItems(read: HeardItem[]): {
       merged = true
       continue
     }
+    const pointsBack = h.match(POINTS_BACK)
+    const previous = kept.at(-1)
+    if (pointsBack && previous && numbersIn(h).every((n) => n === 1)) {
+      const detail = pointsBack[1]?.trim()
+      if (detail && !previous.name.toLowerCase().includes(detail)) {
+        previous.name = `${previous.name} (${detail})`
+      }
+      previous.unsure = true
+      merged = true
+      continue
+    }
     kept.push({ ...item })
   }
   for (const item of kept) {
@@ -350,7 +370,7 @@ export function checkItems(read: HeardItem[]): {
 const itemsGloss = (items: HeardItem[], place: string) =>
   items.length === 0
     ? ''
-    : `They want ${items.map((i) => `${i.name}${i.quantity ? ` (${i.quantity})` : ''}`).join(' and ')}${place ? `, for ${place}` : ''}.`
+    : `They want ${items.map((i) => `${i.quantity ? `${i.quantity} × ` : ''}${i.name}`).join(' and ')}${place ? `, for ${place}` : ''}.`
 
 // One specific question for the draft, about only what was unclear, so a
 // guess never becomes a promise and the customer is not asked to repeat
