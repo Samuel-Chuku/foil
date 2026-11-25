@@ -87,7 +87,10 @@ describe('thin answers', () => {
           text: `#12 gown, Lekki\n${BUTTON_NOTE}`,
           step: 'Looked up orders to send (1)',
         },
-        { text: 'No orders on the way.', step: 'Looked up orders on the way (0)' },
+        {
+          text: 'No orders on the way.',
+          step: 'Looked up orders on the way (0)',
+        },
       ]),
     ).toBe('#12 gown, Lekki\nNo orders on the way.')
   })

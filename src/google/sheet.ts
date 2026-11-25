@@ -39,7 +39,9 @@ const up = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 export function sheetDay(iso: string): Cell {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
   if (!m) return iso
-  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86_400_000 + 25_569
+  return (
+    Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86_400_000 + 25_569
+  )
 }
 
 export function ordersTable(
@@ -162,7 +164,9 @@ export function tableText(tab: SheetTab, symbol: string): string {
     tab.title,
     ...tab.table.map((r, i) =>
       r
-        .map((c, j) => (i === 0 ? String(c) : shown(c, tab.kinds[j] ?? 'text', symbol)))
+        .map((c, j) =>
+          i === 0 ? String(c) : shown(c, tab.kinds[j] ?? 'text', symbol),
+        )
         .join(' | '),
     ),
   ].join('\n')

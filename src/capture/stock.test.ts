@@ -196,7 +196,7 @@ describe('askedFor', () => {
 })
 
 describe('withListPrices', () => {
-  it("uses the list price and keeps a differing chat figure aside", () => {
+  it('uses the list price and keeps a differing chat figure aside', () => {
     const priced = withListPrices(
       [
         { name: 'headwrap', qty: 1, priceKobo: null },

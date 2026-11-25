@@ -250,7 +250,10 @@ export const BUTTON_NOTE =
 export function withoutNotes(text: string): string {
   return text
     .split('\n')
-    .filter((l) => !/note for you|already (has its button|shown to the owner)/i.test(l))
+    .filter(
+      (l) =>
+        !/note for you|already (has its button|shown to the owner)/i.test(l),
+    )
     .join('\n')
     .trim()
 }
@@ -299,9 +302,7 @@ export function runTool(
       return {
         text:
           (lines.length ? lines.join('\n') : `No ${GROUP_LABEL[which]}.`) +
-          (buttons.length
-            ? `\n${BUTTON_NOTE}`
-            : ''),
+          (buttons.length ? `\n${BUTTON_NOTE}` : ''),
         step: `Looked up ${GROUP_LABEL[which]} (${lines.length})`,
         ...(buttons.length && { buttons }),
       }

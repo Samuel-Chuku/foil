@@ -207,7 +207,7 @@ const PRICE_ASK =
 export function unknownPriceFact(said: string, asked: Asked[]): string[] {
   if (asked.length > 0 || !PRICE_ASK.test(said)) return []
   return [
-    'They asked about a price, but the item they mean is not clear from the shop\'s list. Ask which item they mean, or for a photo of it, and do not quote any item price.',
+    "They asked about a price, but the item they mean is not clear from the shop's list. Ask which item they mean, or for a photo of it, and do not quote any item price.",
   ]
 }
 
