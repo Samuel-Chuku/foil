@@ -538,12 +538,13 @@ npm run build:extension
 
 ### Troubleshooting
 
-| Symptom                                       | What to do                                                                                                                |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| "This computer has no on-device model"        | Check `chrome://on-device-internals`; on two-GPU laptops run Chrome on the dedicated GPU; or allow the cloud in the panel |
-| "The cloud refused this app"                  | The App Check debug token is missing or not registered, or the bridge page does not list your extension's ID              |
-| "The free cloud allowance is used up for now" | The Gemini free tier hit its limit; wait a minute. On-device features and the rules keep working                          |
-| The books say "the books refused the update"  | Deploy the current `firestore.rules`                                                                                      |
+| Symptom                                       | What to do                                                                                                                 |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| "This computer has no on-device model"        | Check `chrome://on-device-internals`; on two-GPU laptops run Chrome on the dedicated GPU; or allow the cloud in the panel  |
+| "The cloud refused this app"                  | The App Check debug token is missing or not registered, or the bridge page does not list your extension's ID               |
+| Settings lists only Google's online voices    | On Linux, Chrome reaches the computer's own voices (speech-dispatcher) only when started with `--enable-speech-dispatcher` |
+| "The free cloud allowance is used up for now" | The Gemini free tier hit its limit; wait a minute. On-device features and the rules keep working                           |
+| The books say "the books refused the update"  | Deploy the current `firestore.rules`                                                                                       |
 
 ## 20. Hackathon rules compliance
 

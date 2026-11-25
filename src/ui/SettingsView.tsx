@@ -87,7 +87,15 @@ export function SettingsView(props: {
   const lang = answerLanguage(market(), p.answerLanguage)
   const voices = voicesFor(speech.voices, lang.voiceLang)
   const onlineVoice = voices.online.some((v) => v.name === p.voiceName)
-  const onlyBasic = voices.online.length > 0 && voices.local.every(soundsBasic)
+  const onlyBasic =
+    voices.online.length > 0 &&
+    voices.local.length > 0 &&
+    voices.local.every(soundsBasic)
+  // Chrome on Linux reaches the system's voices only when started with
+  // --enable-speech-dispatcher; without it, it lists Google's online ones.
+  const linux =
+    /Linux/.test(navigator.userAgent) &&
+    !/Android|CrOS/.test(navigator.userAgent)
   const [tried, setTried] = useState<SpeakResult | null>(null)
   const online = useOnline()
 
@@ -253,6 +261,20 @@ export function SettingsView(props: {
           <p className="hint" role="status">
             Chrome is still listing the voices on this computer. If none appear,
             answers stay on screen only.
+          </p>
+        ) : voices.local.length === 0 ? (
+          <p className="hint">
+            {linux ? (
+              <>
+                Chrome lists no voices on this computer. On Linux, start Chrome
+                with <code>--enable-speech-dispatcher</code> to use the
+                system&apos;s voices.
+              </>
+            ) : (
+              <>No voice on this computer reads {lang.label}.</>
+            )}{' '}
+            With one of Google&apos;s online voices, the words of each answer go
+            to Google to be spoken.
           </p>
         ) : onlineVoice ? (
           <p className="hint">
