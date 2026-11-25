@@ -2,7 +2,13 @@ import { useCallback, useState, type ReactNode } from 'react'
 import { approve, type Approved, type CloudRequest } from '../cloud/approval'
 import { ApprovalDialog } from './ApprovalDialog'
 
-type Pending = { request: CloudRequest; settle: (a: Approved | null) => void }
+type Pending = {
+  request: CloudRequest
+  settle: (a: Approved | null) => void
+  // What had focus when the send was asked for, before the screen disabled
+  // it while waiting, so the dialog can hand focus back when it closes.
+  opener: HTMLElement | null
+}
 
 // Every cloud job asks here first. `ask` resolves with the approved request,
 // or null when the vendor cancels; nothing is sent in either case until the
@@ -15,7 +21,14 @@ export function useApproval(): {
   const ask = useCallback(
     (request: CloudRequest) =>
       new Promise<Approved | null>((settle) => {
-        setPending({ request, settle })
+        setPending({
+          request,
+          settle,
+          opener:
+            document.activeElement instanceof HTMLElement
+              ? document.activeElement
+              : null,
+        })
       }),
     [],
   )
@@ -28,6 +41,7 @@ export function useApproval(): {
     dialog: pending && (
       <ApprovalDialog
         request={pending.request}
+        opener={pending.opener}
         onSend={() => close(approve(pending.request))}
         onCancel={() => close(null)}
       />

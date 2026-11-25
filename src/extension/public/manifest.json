@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Foil (dev)",
+  "name": "Foil",
   "version": "0.0.1",
   "description": "Verify bank-transfer payments and capture orders on WhatsApp Web, on your own device.",
   "minimum_chrome_version": "139",

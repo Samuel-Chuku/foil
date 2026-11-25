@@ -3,21 +3,28 @@ import { base64Bytes, sizeText, type CloudRequest } from '../cloud/approval'
 
 export function ApprovalDialog(props: {
   request: CloudRequest
+  opener: HTMLElement | null
   onSend: () => void
   onCancel: () => void
 }) {
-  const { request } = props
+  const { request, opener } = props
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
-    // The dialog is removed rather than closed, so the browser cannot hand
-    // focus back on its own; return it to whatever asked for the send.
-    const before =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null
     ref.current?.showModal()
-    return () => before?.focus()
-  }, [])
+    // The dialog is removed rather than closed, so the browser cannot hand
+    // focus back on its own. The button that asked is often disabled until
+    // its request settles, and cannot take focus until then, so this tries
+    // for a few frames.
+    return () => {
+      let tries = 10
+      const back = () => {
+        if (!opener?.isConnected || tries-- === 0) return
+        opener.focus()
+        if (document.activeElement !== opener) requestAnimationFrame(back)
+      }
+      requestAnimationFrame(back)
+    }
+  }, [opener])
   const a = request.attachment
   const audioUrl =
     a?.kind === 'audio' ? `data:${a.mimeType};base64,${a.base64}` : null
