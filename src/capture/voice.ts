@@ -130,6 +130,10 @@ export const streetOf = (address: string) =>
 // vendor to confirm; anything else is a street the desk cannot vouch for.
 const SURE = 0.9
 const CLOSE = 0.75
+// Sounding alike is not enough on its own: names that share their
+// consonants, such as Ayodele Okeowo and Adeola Odeku, are different
+// streets. A correction or suggestion also needs the spelling this close.
+const SPELLING_FLOOR = 0.6
 
 export function checkStreet(
   address: string,
@@ -144,13 +148,16 @@ export function checkStreet(
     ) || /^\s*(no\.?\s*)?\d/i.test(address)
   if (!core(heard) || !looksLikeStreet) return { address, street: null }
   const best = streets
-    .map((known) => ({
-      known,
-      score: Math.max(
-        likeness(core(heard), core(known)),
-        likeness(sound(heard), sound(known)),
-      ),
-    }))
+    .map((known) => {
+      const spelling = likeness(core(heard), core(known))
+      return {
+        known,
+        score:
+          spelling < SPELLING_FLOOR
+            ? 0
+            : Math.max(spelling, likeness(sound(heard), sound(known))),
+      }
+    })
     .sort((a, b) => b.score - a.score)[0]
   if (best && best.score >= SURE) {
     return { address: address.replace(heard, best.known), street: null }
@@ -226,8 +233,18 @@ export function pickVoice(
       .filter((u) => UNSURE_NAMES.includes(u)),
   )
   for (const i of items) if (i.unsure && i.name) unsure.add(i.name)
-  const checked = checkStreet(text(o.address), streets)
+  // An address that only repeats the landmark names no street.
+  const said = text(o.address)
+  const address = words(said) === words(text(o.landmark)) ? '' : said
+  const checked = checkStreet(address, streets)
   if (checked.street) unsure.add('address')
+  // Given an address but no choice, they want it delivered.
+  const choice = text(o.deliveryChoice) || (checked.address ? 'delivery' : '')
+  // Someone collecting from the shop or a motor park needs no address, so
+  // the draft does not ask for one.
+  if (/pick|collect|park/i.test(choice) || (text(o.park) && !checked.address)) {
+    unsure.delete('address')
+  }
   return {
     order: {
       items: items.map((i) => ({
@@ -241,7 +258,7 @@ export function pickVoice(
       address: checked.address,
       landmark: text(o.landmark),
       area: text(o.area),
-      deliveryChoice: text(o.deliveryChoice),
+      deliveryChoice: choice,
       state: text(o.state),
       park: text(o.park),
       payOnDelivery: yes(o.payOnDelivery) ? 'yes' : '',
@@ -289,17 +306,20 @@ const NUMBER_WORDS: Record<string, number> = {
 }
 
 // The numbers in a phrase, as digits or English words.
+// A number that names something rather than counts it, as in "size 42".
+const NAMING = new Set(['size', 'sz', 'number', 'no', 'num', 'model', 'year'])
+
 export function numbersIn(phrase: string): number[] {
-  return phrase
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .flatMap((w) =>
-      /^\d+$/.test(w)
+  const words = phrase.toLowerCase().split(/[^a-z0-9]+/)
+  return words.flatMap((w, i) =>
+    NAMING.has(words[i - 1] ?? '')
+      ? []
+      : /^\d+$/.test(w)
         ? [Number(w)]
         : NUMBER_WORDS[w] !== undefined
           ? [NUMBER_WORDS[w]!]
           : [],
-    )
+  )
 }
 
 // "the plain one", "that red one", "the big ones", "this one": words that

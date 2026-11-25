@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { toOrderFields } from './orderFields'
 import {
   checkStreet,
+  LAGOS_STREETS,
   clarifyLine,
   numbersIn,
   pickVoice,
@@ -207,6 +208,21 @@ describe('items checked against the customer’s own words', () => {
     expect(note.order.items).toHaveLength(2)
   })
 
+  it('does not count a size or a number that names something', () => {
+    expect(numbersIn('white sneakers, size 42')).toEqual([])
+    expect(numbersIn('two caps, number 7 design')).toEqual([2])
+    const note = pickVoice({
+      items: [
+        {
+          name: 'white sneakers',
+          quantity: '1',
+          heard: 'white sneakers size 42',
+        },
+      ],
+    })
+    expect(note.unsure).toEqual([])
+  })
+
   it('reads numbers as digits or words', () => {
     expect(numbersIn('2 caps and a dozen pens')).toEqual([2, 1, 12])
   })
@@ -217,5 +233,50 @@ describe('items checked against the customer’s own words', () => {
     })
     expect(note.order.items).toHaveLength(1)
     expect(note.unsure).toEqual([])
+  })
+})
+
+describe('places in a voice note', () => {
+  it('never suggests a street that only shares its consonants', () => {
+    const { street } = checkStreet('12 Ayodele Okeowo Street', LAGOS_STREETS)
+    expect(street).toEqual({ heard: 'Ayodele Okeowo Street', suggestion: null })
+  })
+
+  it('still corrects a near spelling of a known street', () => {
+    expect(checkStreet('5 Bode Tomas Street', LAGOS_STREETS).address).toBe(
+      '5 Bode Thomas Street',
+    )
+  })
+
+  it('asks for no address when they collect from a park or the shop', () => {
+    for (const choice of ['park', 'pick up']) {
+      const note = pickVoice({
+        items: [{ name: 'gown', quantity: '1', heard: 'one gown' }],
+        deliveryChoice: choice,
+        state: 'Abuja',
+        park: 'Jabi',
+        unsure: ['address'],
+      })
+      expect(note.unsure).toEqual([])
+    }
+  })
+
+  it('drops an address that only repeats the landmark', () => {
+    const note = pickVoice({
+      address: 'University of Lagos main gate',
+      landmark: 'University of Lagos main gate',
+      area: 'Yaba',
+      deliveryChoice: 'delivery',
+    })
+    expect(note.order.address).toBe('')
+    expect(note.order.landmark).toBe('University of Lagos main gate')
+  })
+
+  it('reads an address with no stated choice as delivery', () => {
+    const note = pickVoice({
+      address: '5 Bode Thomas Street',
+      area: 'Surulere',
+    })
+    expect(note.order.deliveryChoice).toBe('delivery')
   })
 })

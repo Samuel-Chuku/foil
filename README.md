@@ -383,7 +383,21 @@ The one São Paulo verdict miss was a misread Pix transaction ID that became _ch
 
 - **Both missed verdicts came out as _check this_**, which hands the decision to the seller. A misread session ID caused each one; neither was a false match or a false mismatch. That is the design working: a misread ID becomes a question, not a wrong answer.
 - **The first on-device call** after Chrome starts took 16 seconds while the model loaded. The panel warms the model up in the background, so the seller's first click is usually quick.
-- **Voice notes are not measured.** No labelled set of recorded voice notes has been run yet, so this README gives no accuracy figure for them. Single test runs took 3 to 20 seconds in the cloud.
+- **Voice notes**, measured on 25 November 2026: 10 scripted notes in English, Pidgin and a Yoruba greeting, spoken by one person and recorded as WhatsApp voice notes, and read in the cloud through the same Firebase AI Logic path the panel uses (one pass):
+
+  | What                                             | Result                     |
+  | ------------------------------------------------ | -------------------------- |
+  | Items and quantities                             | 10/10                      |
+  | Delivery, pickup or motor park                   | 10/10                      |
+  | Area, state, park, landmark and street all right | 9/10                       |
+  | Known Lagos streets spelt right                  | 2/2                        |
+  | Unknown street flagged for the reply to confirm  | 1/1                        |
+  | Customer's question / paying the rider caught    | 1/1 / 1/1                  |
+  | Customer's name                                  | 0/1                        |
+  | Time in the cloud                                | median 3.2 s, 1.8 to 6.7 s |
+
+  The misses were the model mishearing: an area (Gbagada heard as Magodo) and a name (Chinedu heard as "Nachi Nedu"). The first pass also found four faults, now fixed: a street suggested only because its consonants matched, an address asked of a customer collecting from a motor park, a landmark copied into the address, and an address with no stated delivery choice. A size ("size 42") was briefly read as a quantity; numbers that name something are no longer counted.
+
 - **Other cloud calls** took 1.5 to 3 seconds for the review and up to about 8 seconds for Ask Foil with a full day's facts. Ask Foil on the device answered in about 3 seconds.
 - **Drafts were measured with the 21 November prompt.** Since then, drafts quote the shop's list prices, never treat a delivery fee as an item's price, and ask whose account paid when the payer's name differs. Those changes have unit tests but have not been through the labelled set.
 - **Ask Foil on the device** sometimes ran neighbouring order numbers together ("#78, #80" written as "#780"), and once wrote ₦396,000 as "₦396,0000". Common answers are now worked out in code and given to the model, and order numbers and amounts in an answer are checked against the shop's records: a number that reads as a slip of one known value is put back, and anything else is left as written.
