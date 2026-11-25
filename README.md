@@ -383,11 +383,14 @@ The one São Paulo verdict miss was a misread Pix transaction ID that became _ch
 
 - **Both missed verdicts came out as _check this_**, which hands the decision to the seller. A misread session ID caused each one; neither was a false match or a false mismatch. That is the design working: a misread ID becomes a question, not a wrong answer.
 - **The first on-device call** after Chrome starts took 16 seconds while the model loaded. The panel warms the model up in the background, so the seller's first click is usually quick.
-- **Cloud calls** took 6 to 12 seconds for voice notes, 1.5 to 3 seconds for the review, and up to about 8 seconds for Ask Foil with a full day's facts. Ask Foil on the device answered in about 3 seconds.
-- **Ask Foil on the device** sometimes ran neighbouring order numbers together ("#78, #80" written as "#780"). Common answers are now worked out in code and given to the model, and order numbers in an answer are checked against the shop's real orders.
+- **Voice notes are not measured.** No labelled set of recorded voice notes has been run yet, so this README gives no accuracy figure for them. Single test runs took 3 to 20 seconds in the cloud.
+- **Other cloud calls** took 1.5 to 3 seconds for the review and up to about 8 seconds for Ask Foil with a full day's facts. Ask Foil on the device answered in about 3 seconds.
+- **Drafts were measured with the 21 November prompt.** Since then, drafts quote the shop's list prices, never treat a delivery fee as an item's price, and ask whose account paid when the payer's name differs. Those changes have unit tests but have not been through the labelled set.
+- **Ask Foil on the device** sometimes ran neighbouring order numbers together ("#78, #80" written as "#780"), and once wrote ₦396,000 as "₦396,0000". Common answers are now worked out in code and given to the model, and order numbers and amounts in an answer are checked against the shop's records: a number that reads as a slip of one known value is put back, and anything else is left as written.
 - **Lessons that shaped the design:**
   - Constraining amounts to a JSON _number_ made the model drop the thousands comma (₦45,000.00 became 450000). Reading amounts as text and parsing them in code fixed it.
   - A voice note heard "Bode Thomas Street" as "Potiskum Street". Street names are now checked in code against well-known streets: near-certain spellings are corrected, close ones are suggested for the seller to confirm, and unknown ones make the draft ask the customer to confirm the street by name.
+  - A voice note asking for "two black caps, the plain one" came back as two black caps and two plain caps. Each item now carries the customer's own words for it, and code folds a phrase that points back ("the plain one", "that red one") into the item it describes and doubts any quantity those words never said, so the draft asks rather than promises.
 
 ## 12. Firebase products used
 
@@ -482,7 +485,7 @@ What does not change between markets: the "did the money land?" matching, orders
 
 - **Built for this hackathon.** The repository starts on 18 November 2026, and all code, the engine, the panel, the demo and the tests were written for this entry. The first idea for the hackathon was a handover desk for online community moderators. On 19 November it was set aside for this one, because fake transfer receipts are a sharper, costlier problem for a specific group of people, and because the receipt itself is the private data on-device AI is best placed to protect. Its feasibility test, which showed the on-device model could sort large batches of messages reliably, became the basis of the waiting queue.
 - **Runtime dependencies:** `firebase`, `react`, `react-dom` and `pdfjs-dist` (reading PDF receipts). Charts are drawn as plain SVG, and the receipt picture on a canvas, with no chart or image library.
-- **Data.** All sample chats, receipts, alerts, voice-note scripts, history and screenshots are invented. No real customer data is in this repository.
+- **Data.** All sample chats, receipts, alerts, history and screenshots are invented. No real customer data is in this repository.
 - **Authorship and AI assistance.** The product, its design and its plan are the author's: the problem and audience, the choice to verify against the seller's own bank rather than detect forgeries, the hybrid routing and privacy rules, the matching rules, the feature scope and every trade-off. An AI coding assistant was used to write code to that plan, under review. The author tested every feature on real devices, approved each stage and made every commit.
 
 ## 18. Roadmap and production path
