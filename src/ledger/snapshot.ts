@@ -225,9 +225,10 @@ export type Exchange = { question: string; answer: string }
 
 // The on-device model takes one request at a time and holds no chat, so each
 // question carries the shop's facts and the last few exchanges with it.
-// About 4 characters make a token; the device's limit is 9,216 tokens, so
-// the request is kept well under it.
-export const DEVICE_ASK_MAX_CHARS = 24_000
+// The device's limit is 9,216 tokens. Plain words run about 4 characters a
+// token, but amounts, order numbers and the currency sign run nearer 2 or 3,
+// and the answer's own tokens count too, so requests stay well under it.
+export const DEVICE_ASK_MAX_CHARS = 16_000
 
 export function deviceAskPrompt(
   instructions: string,

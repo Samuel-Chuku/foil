@@ -414,6 +414,25 @@ p.meta:has(.badge) {
   grid-template-rows: auto 1fr;
   min-height: 100vh;
 }
+/* On a wide screen the demo fills the window and each side scrolls on its
+   own, so scrolling the panel never moves the chat beside it, as with the
+   real side panel next to WhatsApp Web. */
+@media (min-width: 60.01rem) {
+  .demo {
+    height: 100dvh;
+    min-height: 0;
+  }
+  .demo > .host,
+  .demo > .panel,
+  .demo > .first-run {
+    /* Positioned, so hidden screen-reader text placed absolutely inside
+       stays within this scrolling side instead of lengthening the page. */
+    position: relative;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
 .demo-bar {
   grid-column: 1 / -1;
   display: flex;

@@ -1,6 +1,6 @@
 import { shopWords } from '../config/marketWords'
 import { CHART_IDS } from './charts'
-import type { Exchange } from './snapshot'
+import { DEVICE_ASK_MAX_CHARS, type Exchange } from './snapshot'
 import { toolMenu, TOOL_NAMES, withoutNotes, type ToolResult } from './tools'
 
 // The prompts and checks around Ask Foil's tools, kept free of Firebase
@@ -97,13 +97,41 @@ export function deviceAnswerPrompt(
     .slice(-2)
     .map((e) => `Owner asked: ${e.question}\nYou answered: ${e.answer}`)
     .join('\n')
-  return [
+  const head = [
     toolInstructions(language),
     `Quick answers, worked out from the records and correct:\n${quick.join('\n')}`,
-    ...results.map((r) => `${r.step}:\n${r.text}`),
+  ]
+  const tail = [
     ...(recent ? [`Earlier:\n${recent}`] : []),
     `Question: ${question}\nIn "answer", reply to the owner in one or more full sentences, even when the answer is that there are none. In "chart", name a chart only if one helps, otherwise "none".`,
+  ]
+  // The lookups share what room is left, so a long one, such as the whole
+  // stock list, cannot push the request past the device's limit.
+  const fixed = [...head, ...tail].join('\n\n').length
+  const share = Math.floor(
+    (DEVICE_ASK_MAX_CHARS - fixed) / Math.max(1, results.length),
+  )
+  return [
+    ...head,
+    ...results.map((r) => fitLines(`${r.step}:\n${r.text}`, share)),
+    ...tail,
   ].join('\n\n')
+}
+
+// Whole lines up to `max` characters. A list cut short says so, so the model
+// never presents part of it as all of it.
+export function fitLines(text: string, max: number): string {
+  if (text.length <= max) return text
+  const lines = text.split('\n')
+  const kept: string[] = []
+  let used = 0
+  for (const line of lines) {
+    if (used + line.length + 1 > max - 80) break
+    kept.push(line)
+    used += line.length + 1
+  }
+  const left = lines.length - kept.length
+  return `${kept.join('\n')}\n(${left} more line${left === 1 ? '' : 's'} not shown. Say the list is longer than shown here.)`
 }
 
 // An answer too thin to read, such as "none" or "0", which a small model

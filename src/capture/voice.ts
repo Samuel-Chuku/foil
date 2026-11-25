@@ -175,7 +175,7 @@ export function voicePrompt(vocabulary: {
     .join('; ')
   const m = market()
   return `This is a WhatsApp voice note from a customer of a small ${m.city} shop. They may speak ${m.speaks}, or a mix. Listen and fill in the order, in English. Do not write out what was said word for word.
-items: each item they want, with its quantity as said (a number or a word), and unsure "yes" if you could not make out the item or how many
+items: each different thing they want, once. For each: name; quantity, only if they said a number for that item, otherwise empty; heard, their own words for that item in English, kept close to what they said, such as "two black caps, the plain one"; and unsure "yes" if you could not make out the item or how many. Words that describe or narrow something they already named, such as "the plain one", "the big size" or "that red one", belong to that same item: put them in its name, never list them as another item, and never copy a quantity onto them. List two items only when they clearly want two different things.
 customerName: the name they give for themselves, if they say it
 address: the street address with any house number, such as "14 Adeniran Ogunsanya Street"; if you are not sure of a word, write your best hearing and list "address" under unsure
 landmark, area: a landmark near the address, and the area or neighbourhood
@@ -210,14 +210,16 @@ export function pickVoice(
     unknown
   >
   const rawItems = Array.isArray(o.items) ? (o.items as unknown[]) : []
-  const items = rawItems.map((i) => {
+  const read = rawItems.map((i) => {
     const r = (i && typeof i === 'object' ? i : {}) as Record<string, unknown>
     return {
       name: text(r.name),
       quantity: text(r.quantity),
+      heard: text(r.heard),
       unsure: yes(r.unsure),
     }
   })
+  const { items, merged } = checkItems(read.filter((i) => i.name))
   const unsure = new Set(
     (Array.isArray(o.unsure) ? o.unsure : [])
       .map(text)
@@ -228,9 +230,11 @@ export function pickVoice(
   if (checked.street) unsure.add('address')
   return {
     order: {
-      items: items
-        .filter((i) => i.name)
-        .map((i) => ({ name: i.name, quantity: i.quantity, price: '' })),
+      items: items.map((i) => ({
+        name: i.name,
+        quantity: i.quantity,
+        price: '',
+      })),
       // Prices are the shop's to say, never heard from a voice note.
       total: '',
       customerName: text(o.customerName),
@@ -243,12 +247,110 @@ export function pickVoice(
       payOnDelivery: yes(o.payOnDelivery) ? 'yes' : '',
     },
     question: text(o.question),
-    gloss: text(o.gloss),
+    // The model's summary repeats the items it listed; once two were found
+    // to be one, it is rebuilt from the checked items instead.
+    gloss: merged
+      ? itemsGloss(items, text(o.area) || text(o.state))
+      : text(o.gloss),
     language: text(o.language),
     unsure: [...unsure],
     street: checked.street,
   }
 }
+
+type HeardItem = {
+  name: string
+  quantity: string
+  heard: string
+  unsure: boolean
+}
+
+const NUMBER_WORDS: Record<string, number> = {
+  a: 1,
+  an: 1,
+  one: 1,
+  single: 1,
+  two: 2,
+  pair: 2,
+  couple: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  dozen: 12,
+  fifteen: 15,
+  twenty: 20,
+}
+
+// The numbers in a phrase, as digits or English words.
+export function numbersIn(phrase: string): number[] {
+  return phrase
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .flatMap((w) =>
+      /^\d+$/.test(w)
+        ? [Number(w)]
+        : NUMBER_WORDS[w] !== undefined
+          ? [NUMBER_WORDS[w]!]
+          : [],
+    )
+}
+
+const words = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+// The model's item list is checked against the customer's own words for
+// each item, so a describing phrase never becomes a second item and a
+// quantity is never copied onto words that did not say it:
+// - an item whose words lie inside another's came from the same request,
+//   so it is folded into that item, which is marked unsure;
+// - a quantity that its own words do not say is marked unsure.
+// Unsure items make the draft ask, so a guess never becomes a promise.
+export function checkItems(read: HeardItem[]): {
+  items: HeardItem[]
+  merged: boolean
+} {
+  const kept: HeardItem[] = []
+  let merged = false
+  for (const item of read) {
+    const h = words(item.heard)
+    const host = h
+      ? kept.find((k) => {
+          const kh = words(k.heard)
+          return kh && (kh.includes(h) || h.includes(kh))
+        })
+      : undefined
+    if (host) {
+      host.unsure = true
+      merged = true
+      continue
+    }
+    kept.push({ ...item })
+  }
+  for (const item of kept) {
+    if (!item.heard || !item.quantity) continue
+    const said = numbersIn(item.heard)
+    const qty = numbersIn(item.quantity)[0]
+    if (qty === undefined) continue
+    if (said.length > 0 ? !said.includes(qty) : qty > 1) item.unsure = true
+  }
+  return { items: kept, merged }
+}
+
+const itemsGloss = (items: HeardItem[], place: string) =>
+  items.length === 0
+    ? ''
+    : `They want ${items.map((i) => `${i.name}${i.quantity ? ` (${i.quantity})` : ''}`).join(' and ')}${place ? `, for ${place}` : ''}.`
 
 // One specific question for the draft, about only what was unclear, so a
 // guess never becomes a promise and the customer is not asked to repeat

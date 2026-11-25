@@ -19,6 +19,7 @@ import {
 } from '../ai/deskTools'
 import type { Reading } from '../ai/run'
 import { cloudErrorText } from '../cloud/send'
+import { ERRORS } from '../cloud/errors'
 import type { ShopRules } from '../capture/shopRules'
 import { market } from '../config/market'
 import { chartMenu, chartSpec } from '../ledger/charts'
@@ -54,7 +55,12 @@ type Turn = {
   question: string
   answer?: DeskAnswer
   error?: string
+  // The device could not take this question; the cloud can be offered.
+  tooBig?: boolean
 }
+
+const TOO_BIG =
+  'That needs more of your records than the model on this computer can hold.'
 
 // A question that needs more of the records than the device can hold.
 class NeedsCloud extends Error {}
@@ -210,11 +216,7 @@ export function AskCard(props: {
               () =>
                 prompt
                   ? askOnDevice(prompt)
-                  : Promise.reject(
-                      new NeedsCloud(
-                        'That needs more of your records than the model on this computer can hold. Ask the cloud instead.',
-                      ),
-                    ),
+                  : Promise.reject(new NeedsCloud(TOO_BIG)),
               lang.prompt,
             ),
           ),
@@ -229,8 +231,14 @@ export function AskCard(props: {
         }
         setTurns((t) => t.map((x, i) => (i === at ? { ...x, answer } : x)))
       } catch (e) {
-        const error = e instanceof NeedsCloud ? e.message : cloudErrorText(e)
-        setTurns((t) => t.map((x, i) => (i === at ? { ...x, error } : x)))
+        // A request too long for the device, from the size check or the
+        // model itself, is offered to the cloud rather than ending there.
+        const tooBig =
+          e instanceof NeedsCloud || cloudErrorText(e) === ERRORS.deviceTooLong
+        const error = tooBig ? TOO_BIG : cloudErrorText(e)
+        setTurns((t) =>
+          t.map((x, i) => (i === at ? { ...x, error, tooBig } : x)),
+        )
       } finally {
         setBusy(false)
       }
@@ -485,6 +493,18 @@ export function AskCard(props: {
                 ) : t.error ? (
                   <p className="error" role="alert">
                     {t.error}
+                    {t.tooBig && !busy && (
+                      <>
+                        {' '}
+                        <button
+                          type="button"
+                          className="link"
+                          onClick={() => void send(t.question, true)}
+                        >
+                          Ask the cloud instead
+                        </button>
+                      </>
+                    )}
                   </p>
                 ) : (
                   <p className="hint said">Thinking…</p>

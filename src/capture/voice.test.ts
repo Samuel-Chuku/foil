@@ -3,6 +3,7 @@ import { toOrderFields } from './orderFields'
 import {
   checkStreet,
   clarifyLine,
+  numbersIn,
   pickVoice,
   voiceLine,
   voicePrompt,
@@ -114,5 +115,70 @@ describe('checkStreet', () => {
     )
     expect(note.unsure).toContain('address')
     expect(clarifyLine(note)).toContain('it sounded like "Potiskum Street"')
+  })
+})
+
+describe('items checked against the customer’s own words', () => {
+  it('folds a describing phrase into the item it describes', () => {
+    const note = pickVoice({
+      items: [
+        {
+          name: 'black cap',
+          quantity: 'two',
+          heard: 'two black caps, the plain one',
+        },
+        { name: 'plain cap', quantity: 'two', heard: 'the plain one' },
+      ],
+      area: 'Surulere',
+      gloss: 'They want two black caps and two plain caps.',
+    })
+    expect(note.order.items).toEqual([
+      { name: 'black cap', quantity: 'two', price: '' },
+    ])
+    expect(note.unsure).toContain('black cap')
+    expect(note.gloss).toBe('They want black cap (two), for Surulere.')
+    expect(clarifyLine(note)).toMatch(/which one they mean/)
+  })
+
+  it('doubts a quantity the item’s own words never said', () => {
+    const note = pickVoice({
+      items: [
+        { name: 'headwrap', quantity: '3', heard: 'the red headwrap' },
+        { name: 'gown', quantity: '1', heard: 'one ankara gown' },
+      ],
+    })
+    expect(note.unsure).toEqual(['headwrap'])
+  })
+
+  it('doubts a quantity that disagrees with the number they said', () => {
+    const note = pickVoice({
+      items: [{ name: 'cap', quantity: '2', heard: 'three caps' }],
+    })
+    expect(note.unsure).toEqual(['cap'])
+  })
+
+  it('leaves two different things alone', () => {
+    const note = pickVoice({
+      items: [
+        { name: 'black cap', quantity: 'two', heard: 'two black caps' },
+        { name: 'headwrap', quantity: 'one', heard: 'and one headwrap' },
+      ],
+      gloss: 'They want two black caps and a headwrap.',
+    })
+    expect(note.order.items).toHaveLength(2)
+    expect(note.unsure).toEqual([])
+    expect(note.gloss).toBe('They want two black caps and a headwrap.')
+  })
+
+  it('reads numbers as digits or words', () => {
+    expect(numbersIn('2 caps and a dozen pens')).toEqual([2, 1, 12])
+  })
+
+  it('still works when the model gives no words for an item', () => {
+    const note = pickVoice({
+      items: [{ name: 'cap', quantity: '2' }],
+    })
+    expect(note.order.items).toHaveLength(1)
+    expect(note.unsure).toEqual([])
   })
 })

@@ -198,11 +198,9 @@ export function StockCard(props: {
         }}
       >
         <p className="hint">
-          List what you sell, by name, by photo or both. Leave the quantity
-          empty for anything you don&apos;t count. A customer&apos;s picture of
-          an item, such as a reply to your status, is matched to these photos on
-          this computer. Each paid order takes its items off what is left, and
-          drafts tell customers honestly when something is sold out.
+          Add what you sell by name, photo or both, and leave the quantity empty
+          if you don&apos;t count it. Customers&apos; photos are matched to
+          yours on this computer, and replies never promise what has sold out.
         </p>
         {ledger.data && r.length === 0 && (
           <p className="empty">No products yet.</p>

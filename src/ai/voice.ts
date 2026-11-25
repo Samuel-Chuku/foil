@@ -21,6 +21,7 @@ const model = cloudModel({
           properties: {
             name: Schema.string(),
             quantity: Schema.string(),
+            heard: Schema.string(),
             unsure: Schema.string(),
           },
         }),

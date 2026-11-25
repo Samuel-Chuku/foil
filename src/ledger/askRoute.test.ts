@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   answerFromResults,
+  deviceAnswerPrompt,
+  fitLines,
   readPicks,
   routePrompt,
   thinAnswer,
 } from './askRoute'
-import { BUTTON_NOTE, withoutNotes } from './tools'
+import { DEVICE_ASK_MAX_CHARS } from './snapshot'
+import { BUTTON_NOTE, withoutNotes, type ToolResult } from './tools'
 
 describe('readPicks', () => {
   it('keeps known tools and only the arguments given', () => {
@@ -103,5 +106,27 @@ describe('notes for the model', () => {
         'Orders 77 and 81 are ready.\nA button to move each of these along is already shown to the owner.',
       ),
     ).toBe('Orders 77 and 81 are ready.')
+  })
+})
+
+describe('the on-device answer prompt', () => {
+  it('stays under the device limit however long a lookup is', () => {
+    const long = Array.from(
+      { length: 2000 },
+      (_, n) => `#${n} gown, ₦18,500, Lekki`,
+    ).join('\n')
+    const prompt = deviceAnswerPrompt(
+      'What should I restock?',
+      ['Paid today: 3'],
+      [{ step: 'Looked up stock', text: long } as ToolResult],
+      [],
+    )
+    expect(prompt.length).toBeLessThanOrEqual(DEVICE_ASK_MAX_CHARS)
+    expect(prompt).toMatch(/more lines not shown/)
+    expect(prompt).toMatch(/Question: What should I restock\?/)
+  })
+
+  it('keeps a short lookup whole', () => {
+    expect(fitLines('a\nb', 100)).toBe('a\nb')
   })
 })
