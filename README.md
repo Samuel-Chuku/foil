@@ -491,7 +491,8 @@ What does not change between markets: the "did the money land?" matching, orders
 ## 18. Roadmap and production path
 
 - **Bank data without email:** a fintech webhook or open-banking feed behind a small server would replace reading alert emails, keeping the same matching rules.
-- **Delivery runs:** grouping the day's approved delivery areas and landmarks into rider runs with Grounding with Google Maps.
+- **Delivery runs:** grouping the day's approved delivery areas and landmarks into rider runs with Grounding with Google Maps. It needs a billed Firebase project, so the hackathon build groups deliveries by area instead.
+- **Live courier quotes:** a delivery price from a courier aggregator (such as Shipbubble or Terminal Africa) in place of the shop's fixed area fees, sent with the approved address only.
 - **Android:** the same engine with on-device inference on phones, where most sellers already sell.
 - **More markets:** Kenya (M-Pesa) and the Philippines (GCash) next, each with its own wallets, reference rules, currency and reply language; and real, confirmed alert formats for the Indian and Brazilian banks.
 - **More languages:** drafts in Yoruba, Igbo, Hausa, Hindi, Portuguese and Swahili, on device where quality allows and through the cloud with approval otherwise.
