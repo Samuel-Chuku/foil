@@ -180,7 +180,7 @@ The receipt picture can carry the shop's own look: its logo (with colours sugges
 - **Ask Foil:** a chat about the whole business ("which orders still need sending?", "what should I restock?", "how did this week compare with last?"). It is sent the shop's own facts, orders by number, items, stock, money and rules, never customers' names, phones or addresses. Answers can carry a chart. When Chrome's model is ready, each question is answered on the device and nothing is sent; **Ask the cloud instead** sends it after approval. Common answers, such as which orders are unpaid or ready to send, are worked out in code first, and order numbers in an on-device answer are checked against the real orders.
 - **Offline and power cuts:** records are saved on the device with strict durability, and the cloud books catch up when the connection returns.
 
-![A chat answer comparing this week with last week, with a stacked chart of paid and still-open sales by day, marked Cloud](docs/images/books-chat-chart.png)
+![A cloud answer to "Show me sales by day this week as a chart": a stacked chart of paid and still-open sales by day, marked Cloud](docs/images/books-chat-chart.png)
 
 ## 7. Hybrid inference, feature by feature
 

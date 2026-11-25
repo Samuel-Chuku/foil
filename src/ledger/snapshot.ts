@@ -2,7 +2,8 @@ import { shopWords } from '../config/marketWords'
 import { itemState } from '../capture/drop'
 import { deliveryOptions, type ShopRules } from '../capture/shopRules'
 import { leftOf } from '../capture/stock'
-import { formatMoney } from '../verify/money'
+import { market, type Market } from '../config/market'
+import { formatMoney, parseMoney } from '../verify/money'
 import type { Credit } from '../verify/types'
 import { balanceKobo, dueKobo } from './ledger'
 import type { ChatNote, Drop, Order, Product, Settlement } from './types'
@@ -250,6 +251,71 @@ export function deviceAskPrompt(
   ].join('\n\n')
   // Too long for the device: the caller asks the cloud instead.
   return prompt.length > DEVICE_ASK_MAX_CHARS ? null : prompt
+}
+
+// The amounts written in a text, with where each number starts and ends.
+function amountsIn(
+  text: string,
+  m: Market,
+): { start: number; end: number; number: string; kobo: number | null }[] {
+  const symbol = m.currency.symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const re = new RegExp(`${symbol}\\s?(\\d[\\d.,]*\\d|\\d)`, 'g')
+  return [...text.matchAll(re)].map((hit) => {
+    const number = hit[1]!
+    const end = hit.index + hit[0].length
+    return {
+      start: end - number.length,
+      end,
+      number,
+      kobo: parseMoney(`${m.currency.symbol}${number}`, m),
+    }
+  })
+}
+
+// Small models sometimes slip a digit when copying an amount ("₦396,000"
+// written "₦396,0000"). An amount whose digits are grouped wrongly for the
+// market, and which becomes exactly one amount from the records the model was
+// given once a single stray digit is dropped or its grouping is fixed, is
+// put back as that amount.
+// Well-formed amounts are left alone, since the model may have worked them
+// out itself, and nothing is changed without one clear match.
+export function repairAmounts(
+  answer: string,
+  records: string,
+  m: Market = market(),
+): string {
+  const known = new Map<string, number>()
+  for (const a of amountsIn(records, m)) {
+    if (a.kobo !== null && a.kobo % 100 === 0) {
+      known.set(String(a.kobo / 100), a.kobo)
+    }
+  }
+  let out = ''
+  let from = 0
+  for (const a of amountsIn(answer, m)) {
+    const wellFormed =
+      a.kobo !== null &&
+      formatMoney(a.kobo, m).endsWith(a.number) &&
+      !/[.,]\d{4,}/.test(a.number)
+    if (wellFormed) continue
+    const digits = a.number.replace(/\D/g, '')
+    // The same digits with the comma in the wrong place count as a match
+    // too, so "₦47,8000" is left alone when both ₦47,800 and ₦478,000 are
+    // in the records.
+    const matches = new Set<number>()
+    const regrouped = known.get(digits)
+    if (regrouped !== undefined) matches.add(regrouped)
+    for (let i = 0; i < digits.length; i++) {
+      const kobo = known.get(digits.slice(0, i) + digits.slice(i + 1))
+      if (kobo !== undefined) matches.add(kobo)
+    }
+    if (matches.size !== 1) continue
+    // Only the number is swapped; the symbol stays as the model wrote it.
+    out += answer.slice(from, a.start)
+    out += formatMoney([...matches][0]!, m).replace(/^\D+/, '')
+    from = a.end
+  }
+  return out + answer.slice(from)
 }
 
 // Small on-device models sometimes merge neighbouring numbers when copying a

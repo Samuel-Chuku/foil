@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { EMPTY_RULES } from '../capture/shopRules'
+import { MARKETS } from '../config/market'
 import { newOrder } from './ledger'
 import {
   answerLines,
@@ -10,6 +11,7 @@ import {
   openOrderLines,
   stockLines,
   waitingLine,
+  repairAmounts,
 } from './snapshot'
 import type { ChatNote, Order, Product } from './types'
 
@@ -174,5 +176,48 @@ describe('repairOrderNumbers', () => {
     expect(repairOrderNumbers('Order #71 and #999.', ['71'])).toBe(
       'Order #71 and #999.',
     )
+  })
+})
+
+describe('repairAmounts', () => {
+  const records =
+    'Fully paid ₦396,000 (up 10%). Worth ₦478,000. Money in ₦472,000.'
+  const ng = MARKETS.ng
+
+  it('drops a stray digit to give back the amount in the records', () => {
+    expect(
+      repairAmounts('Paid orders were ₦396,0000, up 10%.', records, ng),
+    ).toBe('Paid orders were ₦396,000, up 10%.')
+  })
+
+  it('leaves well-formed amounts alone, even ones worked out', () => {
+    const said = 'That is ₦18,000 more than last week, and ₦472,000 in all.'
+    expect(repairAmounts(said, records, ng)).toBe(said)
+  })
+
+  it('changes nothing without exactly one match', () => {
+    expect(repairAmounts('About ₦12,34567.', records, ng)).toBe(
+      'About ₦12,34567.',
+    )
+    expect(repairAmounts('₦47,8000', 'Worth ₦478,000 and ₦47,800.', ng)).toBe(
+      '₦47,8000',
+    )
+  })
+
+  it('follows each market’s way of writing numbers', () => {
+    expect(
+      repairAmounts('Paid ₹1,00,0000.', 'Paid ₹1,00,000.', MARKETS.in),
+    ).toBe('Paid ₹1,00,000.')
+    expect(repairAmounts('Pago R$ 3.9600.', 'Pago R$ 3.960.', MARKETS.br)).toBe(
+      'Pago R$ 3.960.',
+    )
+  })
+})
+
+describe('repairAmounts, grouping only', () => {
+  it('regroups digits that match one amount in the records', () => {
+    expect(
+      repairAmounts('In ₦4720,00 today.', 'Money in ₦472,000.', MARKETS.ng),
+    ).toBe('In ₦472,000 today.')
   })
 })

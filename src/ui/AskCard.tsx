@@ -28,6 +28,7 @@ import {
   businessText,
   deskInstructions,
   deviceAskPrompt,
+  repairAmounts,
   repairOrderNumbers,
 } from '../ledger/snapshot'
 import { lookupPreview, type DeskData, type Proposal } from '../ledger/tools'
@@ -221,12 +222,15 @@ export function AskCard(props: {
             ),
           ),
         )
-        // Order numbers are checked against the shop's real orders.
+        // Order numbers and amounts are checked against the shop's records.
         const answer = {
           ...read,
-          text: repairOrderNumbers(
-            read.text,
-            desk.orders.map((o) => o.code),
+          text: repairAmounts(
+            repairOrderNumbers(
+              read.text,
+              desk.orders.map((o) => o.code),
+            ),
+            facts,
           ),
         }
         setTurns((t) => t.map((x, i) => (i === at ? { ...x, answer } : x)))
@@ -269,7 +273,10 @@ export function AskCard(props: {
         }),
       )
       if (answer) {
-        setTurns((t) => t.map((x, i) => (i === at ? { ...x, answer } : x)))
+        const checked = { ...answer, text: repairAmounts(answer.text, facts) }
+        setTurns((t) =>
+          t.map((x, i) => (i === at ? { ...x, answer: checked } : x)),
+        )
       }
     } catch (e) {
       const error = cloudErrorText(e)
