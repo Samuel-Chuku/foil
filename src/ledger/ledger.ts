@@ -220,6 +220,23 @@ export function applyVerdict(
   return recordVerdict(order, receipt, verdict, now)
 }
 
+// Two readings of the same receipt: the same reference, or for a receipt
+// whose reference was not read, the same amount, sender and time.
+export function sameReceipt(a: Receipt, b: Receipt): boolean {
+  if (a.reference && b.reference) return a.reference === b.reference
+  return (
+    a.amountKobo === b.amountKobo &&
+    a.sender === b.sender &&
+    (a.at?.ms ?? null) === (b.at?.ms ?? null)
+  )
+}
+
+// A receipt already recorded on one of these orders. A new order in the same
+// chat leaves it out: it paid the earlier order, and checking it again would
+// wrongly call it reused.
+export const receiptOnOrder = (receipt: Receipt, orders: Order[]): boolean =>
+  orders.some((o) => o.receipt !== null && sameReceipt(o.receipt, receipt))
+
 // The vendor settles a "check" by picking the credit that pays for the order.
 export function confirmCredit(
   order: Order,

@@ -49,6 +49,7 @@ import {
   newOrder,
   normalisePhone,
   paidKobo,
+  receiptOnOrder,
   undoCreditPick,
 } from '../../ledger/ledger'
 import { moreFromPayer, type ExtraRow } from '../../ledger/settle'
@@ -609,9 +610,10 @@ export function useChatDesk(o: {
       fresh = { ...fresh, claimedAt: form.claimedAt }
     }
     // Receipts in chat order: a later one can pay the balance of an earlier.
+    // One that already pays an earlier order of theirs is not this order's.
     for (const m of chat.messages) {
       const receipt = current.receipts?.[m.id]
-      if (!receipt) continue
+      if (!receipt || receiptOnOrder(receipt, data.orders)) continue
       const verdict = verifyReceipt(
         receipt,
         matcherLedger(

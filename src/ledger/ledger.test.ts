@@ -11,6 +11,7 @@ import {
   newOrder,
   normalisePhone,
   recheckOrders,
+  receiptOnOrder,
   recordVerdict,
   toBookEntry,
   toMoneyEntry,
@@ -326,5 +327,23 @@ describe('customerKey', () => {
     expect(customerKey('+234 800 000 0011')).toBe('2348000000011')
     expect(customerKey('name:Tola')).toBe('name:Tola')
     expect(customerKey('Tola')).toBeNull()
+  })
+})
+
+describe('a second order in the same chat', () => {
+  it('knows a receipt already recorded on an earlier order', () => {
+    const first = verify(order(), [], [credit({ sessionId: OPAY_ID })])
+    expect(first.payment.state).toBe('matched')
+    expect(receiptOnOrder(receipt, [first])).toBe(true)
+    expect(receiptOnOrder({ ...receipt, reference: 'OTHER' }, [first])).toBe(
+      false,
+    )
+  })
+
+  it('matches a receipt with no reference by amount, sender and time', () => {
+    const plain = { ...receipt, reference: '' }
+    const first = { ...order(), receipt: plain }
+    expect(receiptOnOrder({ ...plain }, [first])).toBe(true)
+    expect(receiptOnOrder({ ...plain, amountKobo: 1 }, [first])).toBe(false)
   })
 })
