@@ -9,6 +9,7 @@ import {
   DEVICE_ASK_MAX_CHARS,
   deviceAskPrompt,
   openOrderLines,
+  stockAnswer,
   stockLines,
   waitingLine,
   repairAmounts,
@@ -219,5 +220,29 @@ describe('repairAmounts, grouping only', () => {
     expect(
       repairAmounts('In ₦4720,00 today.', 'Money in ₦472,000.', MARKETS.ng),
     ).toBe('In ₦472,000 today.')
+  })
+})
+
+describe('stockAnswer', () => {
+  const item = (
+    id: string,
+    name: string,
+    qty: number | null,
+    priceKobo: number | null = 700_000,
+  ): Product => ({ id, name, priceKobo, qty, countedAt: 0, updatedAt: 0 })
+
+  it('says yes with the count and price for one product', () => {
+    const cap = item('cap', 'Plain black cap', 10)
+    expect(stockAnswer([cap], [cap], [])).toBe(
+      'Yes, Plain black cap is in stock: 10 left at ₦7,000.',
+    )
+  })
+
+  it('names sold-out and uncounted products plainly', () => {
+    const a = item('a', 'red cap', 0)
+    const b = item('b', 'Blue cap', null, null)
+    expect(stockAnswer([a, b], [a, b], [])).toBe(
+      'Red cap is sold out.\nBlue cap is on your list, but you have not counted its stock.',
+    )
   })
 })

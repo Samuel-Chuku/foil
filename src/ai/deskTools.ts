@@ -14,7 +14,8 @@ import {
 import { cloudModel } from '../cloud/send'
 import type { ChartId } from '../ledger/charts'
 import type { Answer } from '../ledger/report'
-import { answerLines, type Exchange } from '../ledger/snapshot'
+import { productsAsked } from '../capture/stock'
+import { answerLines, stockAnswer, type Exchange } from '../ledger/snapshot'
 import {
   runTool,
   TOOLS,
@@ -189,6 +190,9 @@ export function planCloudAsk(o: {
   }
 }
 
+// More products than this and the question is a broad one, for the model.
+const STOCK_ANSWER_MAX = 4
+
 // On this computer: first pick at most two tools, then answer from them.
 const routeModel = privateModels({
   createOptions: TEXT_ONLY,
@@ -216,6 +220,28 @@ export async function askOnDeviceWithTools(
       steps: [{ label: 'Read the whole fact sheet', source: route.source }],
       source: read.source === 'Rules' ? 'On device' : read.source,
       ms: route.ms + read.ms,
+    }
+  }
+  // "Is this cap still available?" is answered from the count itself: the
+  // model once read "10 left" as not available.
+  const asked =
+    picks.length === 1 && picks[0]!.tool === 'check_stock'
+      ? productsAsked(question, data.products)
+      : []
+  if (asked.length > 0 && asked.length <= STOCK_ANSWER_MAX) {
+    return {
+      text: stockAnswer(asked, data.products, data.orders),
+      chart: null,
+      proposals: [],
+      steps: [
+        { label: 'Chose what to look up', source: route.source },
+        {
+          label: `Checked stock for ${asked.map((p) => `"${p.name.trim()}"`).join(', ')}`,
+          source: route.source,
+        },
+      ],
+      source: route.source,
+      ms: route.ms,
     }
   }
   const results = picks.map((p) => runTool(p.tool, p.args, data))

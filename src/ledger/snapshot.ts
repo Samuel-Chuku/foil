@@ -77,6 +77,29 @@ export function stockLines(products: Product[], orders: Order[]): string[] {
     })
 }
 
+// The answer to "is X in stock?", written here rather than by the model,
+// which has misread a plain count before. One sentence per product.
+export function stockAnswer(
+  asked: Product[],
+  products: Product[],
+  orders: Order[],
+): string {
+  return asked
+    .map((p) => {
+      const name = p.name.trim()
+      const price =
+        p.priceKobo === null ? '' : ` at ${formatMoney(p.priceKobo)}`
+      const left = leftOf(p, orders, products)
+      if (left === null) {
+        return `${name} is on your list${price}, but you have not counted its stock.`
+      }
+      if (left <= 0) return `${name} is sold out.`
+      return `${asked.length === 1 ? 'Yes, ' : ''}${name} is in stock: ${left} left${price}.`
+    })
+    .map((line) => line.charAt(0).toUpperCase() + line.slice(1))
+    .join('\n')
+}
+
 export function dropLines(
   drops: Drop[],
   products: Product[],

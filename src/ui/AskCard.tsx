@@ -603,8 +603,13 @@ export function AskCard(props: {
           disabled={!facts}
         />
         <div className="actions">
-          <button type="submit" disabled={busy || !question.trim()}>
+          <button
+            type="submit"
+            className="primary ask-send"
+            disabled={busy || !question.trim()}
+          >
             {busy ? 'Asking…' : 'Ask'}
+            {!busy && <Icon name="send" />}
           </button>
           {(voice.mode === 'device' || voice.mode === 'cloud') && (
             <button

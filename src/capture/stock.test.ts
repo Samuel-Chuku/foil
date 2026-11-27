@@ -8,6 +8,7 @@ import {
   leftOf,
   mergeProducts,
   parsePriceList,
+  productsAsked,
   productsInChat,
   orderTotal,
   stockFacts,
@@ -305,5 +306,30 @@ describe('mergeProducts', () => {
       countedAt: 99,
     })
     expect(next[1]).toMatchObject({ name: 'Silk scarf', qty: null })
+  })
+})
+
+describe('productsAsked', () => {
+  it('finds the product a forwarded question only hints at', () => {
+    expect(
+      productsAsked(
+        'About this message from Glory: "Good evening. Is this cap still available?".',
+        products,
+      ).map((p) => p.id),
+    ).toEqual(['cap'])
+  })
+
+  it('prefers a product named in full', () => {
+    expect(
+      productsAsked('Do you still have the green ankara gown?', products).map(
+        (p) => p.id,
+      ),
+    ).toEqual(['green'])
+  })
+
+  it('finds nothing in a general question', () => {
+    expect(productsAsked('What is still available today?', products)).toEqual(
+      [],
+    )
   })
 })

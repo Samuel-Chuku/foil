@@ -88,6 +88,31 @@ export function productsInChat(
 
 const inStock = (left: number | null) => left === null || left > 0
 
+// Words in a question that never pick out a product, so "Is this cap still
+// available?" is about caps and nothing else. They go through `words` too,
+// so "this" is stored the way it is read ("thi").
+const NOT_PRODUCT = new Set(
+  words(
+    'about this that these those message from still available availability have has any the you your for and how many much left stock what which there are can get want need please good morning afternoon evening hello price cost does sell item product one some more is it in do we again yet now today',
+  ),
+)
+
+// The products a stock question means: each one whose whole name it says,
+// or else, as in "Is this cap still available?", each one sharing a word
+// with it. Drop pieces are left out; they have their own lookup.
+export function productsAsked(
+  question: string,
+  products: Product[],
+): Product[] {
+  const named = products.filter((p) => !p.dropId && p.name.trim())
+  const whole = productsInChat(question, named)
+  if (whole.length > 0) return whole
+  const asked = words(question).filter(
+    (w) => w.length >= 3 && !NOT_PRODUCT.has(w),
+  )
+  return named.filter((p) => words(p.name).some((w) => asked.includes(w)))
+}
+
 // "Handbag" is like "bag".
 const alike = (a: string, b: string) =>
   a === b ||
