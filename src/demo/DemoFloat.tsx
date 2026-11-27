@@ -4,6 +4,7 @@ import { deskActions, toPanelRequest } from '../ui/deskActions'
 import type { OpenChat, PanelRequest } from '../ui/host'
 import { Icon } from '../ui/icons'
 import { Where } from '../ui/Where'
+import { useOnline } from '../ui/useOnline'
 
 // The extension's floating desk, drawn in the demo's simulated WhatsApp so a
 // visitor sees the same way in: one button, and a menu for the open chat.
@@ -12,6 +13,7 @@ export function DemoFloat(props: {
   onRequest: (r: PanelRequest) => void
 }) {
   const [open, setOpen] = useState(false)
+  const online = useOnline()
   const box = useRef<HTMLDivElement>(null)
   const first = useRef<HTMLButtonElement>(null)
   const launch = useRef<HTMLButtonElement>(null)
@@ -34,7 +36,7 @@ export function DemoFloat(props: {
       // The sample chats carry no voice notes.
       voiceNotes: [],
     },
-    { replyOnDevice: market().reply.onDevice },
+    { replyOnDevice: market().reply.onDevice, online },
   )
 
   return (
@@ -58,7 +60,10 @@ export function DemoFloat(props: {
           </div>
           <ul>
             {items.map((it, n) => (
-              <li key={it.label + it.sub}>
+              <li
+                key={it.label + it.sub}
+                className={it.offline ? 'offline' : undefined}
+              >
                 <button
                   ref={n === 0 ? first : undefined}
                   type="button"

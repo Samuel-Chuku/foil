@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { jobRunner, type Gate, type RunJob } from '../ai/job'
 import type { DeviceApi } from './useDevice'
+import { isOnline } from './network'
 
 // Connects the job runner to this screen's model state and approval dialog.
 export function useModelJobs(device: DeviceApi, ask: Gate['ask']): RunJob {
@@ -10,7 +11,7 @@ export function useModelJobs(device: DeviceApi, ask: Gate['ask']): RunJob {
       jobRunner({
         cloudConsent: () => consent,
         ready,
-        online: () => navigator.onLine,
+        online: isOnline,
         ask,
       }),
     [consent, ready, ask],

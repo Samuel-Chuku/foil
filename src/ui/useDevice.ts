@@ -8,6 +8,7 @@ import {
 } from '../ai/device'
 import { modelLoad } from '../ai/run'
 import { prepareReceiptModel } from '../ai/receipt'
+import { isOnline } from './network'
 
 // Raised instead of quietly using the cloud, or quietly starting a large
 // download, when this machine has no model ready. The message opens the
@@ -62,7 +63,7 @@ export function useDevice() {
   const ready = useCallback(async () => {
     if (consent) {
       // The cloud fallback cannot help without a connection.
-      if (!navigator.onLine && (await deviceState()) !== 'available') {
+      if (!isOnline() && (await deviceState()) !== 'available') {
         throw new Error(
           'You are offline and this computer has no on-device model, so this step needs the internet.',
         )
@@ -82,7 +83,7 @@ export function useDevice() {
       throw new NeedsConsent(true)
     }
     if (now !== 'available') {
-      if (!navigator.onLine) {
+      if (!isOnline()) {
         throw new Error(
           'The on-device model has not finished downloading. Connect to the internet once to download it; after that this works offline.',
         )

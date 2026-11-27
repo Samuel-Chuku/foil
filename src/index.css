@@ -3321,3 +3321,131 @@ button.talk[aria-pressed='true'] {
 .talk-live {
   margin: var(--dk-s2) 0 0;
 }
+
+/* ---------- Forwarded to Foil, and notes on a customer ---------- */
+
+.forward-quote {
+  margin: 0;
+  padding: var(--dk-s2) var(--dk-s3);
+  border-left: var(--dk-s1) solid var(--tone-deep, var(--dk-line));
+  border-radius: var(--dk-r-control);
+  background: var(--dk-surface);
+}
+.forward-quote p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.forward-quote footer {
+  margin-top: var(--dk-s1);
+  font-size: var(--dk-text-small);
+  color: var(--dk-ink-2);
+}
+.forward .actions .where {
+  margin-left: var(--dk-s1);
+}
+.notes ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--dk-s2);
+}
+.notes li p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.notes li .hint {
+  font-size: var(--dk-text-small);
+  color: var(--dk-ink-2);
+}
+
+/* The demo's "To Foil" button beside a message, and "Send to Foil" beside
+   selected text, as the extension shows them on WhatsApp Web. */
+.messages li:not(.day) {
+  position: relative;
+}
+.to-foil,
+.to-foil-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dk-s1);
+  min-height: 28px;
+  padding: 0 var(--dk-s2);
+  border: var(--dk-bw-hair) solid var(--dk-line);
+  border-radius: 999px;
+  background: var(--dk-surface);
+  color: var(--dk-ink);
+  font-size: var(--dk-text-small);
+  font-weight: 600;
+  box-shadow: none;
+  white-space: nowrap;
+}
+.to-foil .icon,
+.to-foil-chip .icon {
+  color: var(--dk-accent);
+}
+.to-foil {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.messages li.customer .to-foil {
+  left: calc(100% + var(--dk-s2));
+}
+.messages li.vendor .to-foil {
+  right: calc(100% + var(--dk-s2));
+}
+.messages li:hover .to-foil,
+.to-foil:focus-visible {
+  opacity: 1;
+}
+.to-foil-chip {
+  position: fixed;
+  z-index: 40;
+}
+@media (prefers-reduced-motion: reduce) {
+  .to-foil {
+    transition: none;
+  }
+}
+.desk-float-menu li.offline button {
+  opacity: 0.6;
+}
+.offline h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--dk-s1);
+  margin: 0;
+  font-size: var(--dk-text-small);
+}
+.offline p {
+  margin: var(--dk-s1) 0 0;
+}
+.offline .link {
+  margin-top: var(--dk-s1);
+}
+.demo-bar .offline-switch[aria-pressed='true'] {
+  background: var(--dk-ink);
+  color: var(--dk-on-ink);
+}
+.day-summary-text {
+  margin: 0;
+  padding: var(--dk-s2) var(--dk-s3);
+  border-radius: var(--dk-r-control);
+  background: var(--dk-surface);
+  border: var(--dk-bw-hair) solid var(--dk-line);
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.demo-bar > p {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+.demo-bar > .demo-controls {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+}

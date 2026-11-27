@@ -105,6 +105,9 @@ export function AskCard(props: {
   // Sends to the vendor's own Google Sheet or Calendar, after approval.
   sendSheet: () => void
   addRun: (area: string, orderIds: string[]) => void
+  // A question started elsewhere, such as from a forwarded message, for the
+  // vendor to finish; a new nonce each time.
+  seed?: { text: string; nonce: number } | null
 }) {
   const { data, config } = props.ledger
   const bankName = (id: string | null) =>
@@ -172,6 +175,24 @@ export function AskCard(props: {
   }, [turns])
   const [question, setQuestion] = useState('')
   const [busy, setBusy] = useState(false)
+  // A started question fills the box once and takes the focus, with the
+  // cursor at the end for the vendor to finish it.
+  const seed = props.seed
+  const [seeded, setSeeded] = useState<number | null>(null)
+  if (seed && seed.nonce !== seeded) {
+    setSeeded(seed.nonce)
+    setQuestion(seed.text)
+  }
+  useEffect(() => {
+    if (!seed) return
+    const q = document.getElementById('ask-q')
+    if (!(q instanceof HTMLTextAreaElement || q instanceof HTMLInputElement)) {
+      return
+    }
+    q.scrollIntoView({ block: 'center' })
+    q.focus()
+    q.setSelectionRange(q.value.length, q.value.length)
+  }, [seed])
 
   const startOver = () => {
     chat.current = null

@@ -4,6 +4,7 @@ import type { Brand } from '../capture/brand'
 import type {
   ChatNote,
   Customer,
+  KeptNote,
   Drop,
   GmailSettings,
   Order,
@@ -22,6 +23,7 @@ type Stores = {
   products: Product
   drops: Drop
   chats: ChatNote
+  notes: KeptNote
   // One record per setting: the shop's rules, the Gmail accounts to read.
   settings:
     | ({ id: 'shop-rules' } & ShopRules)
@@ -36,7 +38,7 @@ type Stores = {
 export type StoreName = keyof Stores
 
 const NAME = 'vendor-desk'
-const VERSION = 6
+const VERSION = 7
 const STORES: StoreName[] = [
   'orders',
   'customers',
@@ -46,6 +48,7 @@ const STORES: StoreName[] = [
   'products',
   'drops',
   'chats',
+  'notes',
 ]
 
 let opening: Promise<IDBDatabase> | null = null
@@ -53,7 +56,7 @@ let opening: Promise<IDBDatabase> | null = null
 function open(): Promise<IDBDatabase> {
   opening ??= new Promise((resolve, reject) => {
     const req = indexedDB.open(NAME, VERSION)
-    // Version 2 added settlements, 3 settings, 4 products, 5 drops and 6 chats; existing stores are kept.
+    // Version 2 added settlements, 3 settings, 4 products, 5 drops, 6 chats and 7 notes; existing stores are kept.
     req.onupgradeneeded = () => {
       for (const store of STORES) {
         if (!req.result.objectStoreNames.contains(store)) {

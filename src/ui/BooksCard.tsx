@@ -4,18 +4,10 @@ import { formatMoney } from '../verify/money'
 import { useShopClock } from './useShopClock'
 import { loadingLine, type LedgerApi } from './useLedger'
 import { Icon } from './icons'
+import { dayTitle } from './dayTitle'
 
 const tally = (t: Tally) =>
   t.count ? `${t.count} · ${formatMoney(t.kobo)}` : 'None'
-
-function dayTitle(day: string): string {
-  return new Date(`${day}T00:00:00Z`).toLocaleDateString('en-NG', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'UTC',
-  })
-}
 
 // The day's books, worked out on this computer. Questions about them go to
 // Ask Foil, at the foot of the panel.

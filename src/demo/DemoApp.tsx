@@ -30,6 +30,9 @@ import { DemoIntro } from './DemoIntro'
 import type { AlertResult } from '../verify/alerts'
 import { SourceBadge } from '../ui/SourceBadge'
 import { DemoCompose } from './DemoCompose'
+import { ForwardButton, SelectionForward } from './DemoForward'
+import { offlineSimulated, simulateOffline } from '../ui/network'
+import { useOnline } from '../ui/useOnline'
 import { DemoFloat } from './DemoFloat'
 import { Avatar } from '../ui/Avatar'
 import { Icon } from '../ui/icons'
@@ -177,6 +180,9 @@ export default function DemoApp() {
   // A picture pasted into a chat's message box, as WhatsApp Web allows.
   const [pasted, setPasted] = useState<Record<string, string>>({})
   const [request, setRequest] = useState<PanelRequest | null>(null)
+  // The "Try it offline" switch: cloud steps and the books behave as with
+  // the connection gone.
+  const online = useOnline()
   const [alerts, setAlerts] = useState<Record<string, AlertResult>>({})
   const [alertsFailed, setAlertsFailed] = useState(false)
   // Whether the demo has let time pass, so later alerts have arrived.
@@ -294,25 +300,41 @@ export default function DemoApp() {
           <strong>Demo</strong> with sample data for {pack.shop} in{' '}
           {market().city}, {pack.day}. Everything here is invented.
         </p>
-        <label className="market-pick">
-          City{' '}
-          <select
-            value={market().id}
-            onChange={(e) => void switchMarket(e.target.value as MarketId)}
+        <div className="demo-controls">
+          <label className="market-pick">
+            City{' '}
+            <select
+              value={market().id}
+              onChange={(e) => void switchMarket(e.target.value as MarketId)}
+            >
+              {(Object.keys(MARKETS) as MarketId[]).map((id) => (
+                <option key={id} value={id}>
+                  {MARKETS[id].city}: {RAIL_NAME[MARKETS[id].rail]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="quiet offline-switch"
+            aria-pressed={!online}
+            disabled={!online && !offlineSimulated()}
+            onClick={() => simulateOffline(online)}
           >
-            {(Object.keys(MARKETS) as MarketId[]).map((id) => (
-              <option key={id} value={id}>
-                {MARKETS[id].city}: {RAIL_NAME[MARKETS[id].rail]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className="quiet" onClick={() => setIntro(true)}>
-          What is this?
-        </button>
-        <button type="button" className="quiet" onClick={() => void reset()}>
-          Reset the demo
-        </button>
+            <Icon name="offline" />
+            {online ? 'Try it offline' : 'Back online'}
+          </button>
+          <button
+            type="button"
+            className="quiet"
+            onClick={() => setIntro(true)}
+          >
+            What is this?
+          </button>
+          <button type="button" className="quiet" onClick={() => void reset()}>
+            Reset the demo
+          </button>
+        </div>
       </header>
 
       {intro && (
@@ -428,7 +450,7 @@ export default function DemoApp() {
                       Today
                     </li>
                     {chat.messages.map((m) => (
-                      <li key={m.id} className={m.from}>
+                      <li key={m.id} className={m.from} data-id={m.id}>
                         {m.quoted && (
                           <div className="quote">
                             <span>
@@ -462,9 +484,15 @@ export default function DemoApp() {
                           <p>{m.text}</p>
                         )}
                         <time>{m.time}</time>
+                        <ForwardButton message={m} onRequest={setRequest} />
                       </li>
                     ))}
                   </ol>
+                  <SelectionForward
+                    thread={thread}
+                    messages={chat.messages}
+                    onRequest={setRequest}
+                  />
                   <DemoFloat chat={chat} onRequest={setRequest} />
                 </div>
                 <div className="compose">

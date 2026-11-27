@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { isOnline } from '../network'
 import { planDraft } from '../../ai/draft'
 import { planOrder } from '../../ai/order'
 import { planRefundTo } from '../../ai/refund'
@@ -77,6 +78,11 @@ import { lostNumbers, rewriteStyles } from '../../capture/rewrite'
 import { planWrite, type WriteJob } from '../../ai/rewrite'
 
 import { errorText } from '../errorText'
+import {
+  mergeForwarded,
+  type Forwarded,
+  type ForwardFill,
+} from '../../capture/forward'
 import type { RunJob } from '../../ai/job'
 import { SAME_AS_BEFORE, type OrderForm, type Work } from './work'
 
@@ -96,6 +102,9 @@ export function useChatDesk(o: {
   const { data, config } = ledger
   const clock = useShopClock()
   const [work, setWork] = useState<Record<string, Work>>({})
+  // Voice notes waiting for the connection, so a second click does not
+  // queue the same one twice.
+  const queuedVoice = useRef(new Set<string>())
   const patch = (phone: string, next: Partial<Work>) =>
     setWork((w) => ({ ...w, [phone]: { ...w[phone], ...next } }))
 
@@ -449,6 +458,28 @@ export function useChatDesk(o: {
     const audio = message?.voice?.audio
     if (!chat || !message?.voice || !audio) return
     const phone = chat.phone
+    // Offline, the note waits: once the connection is back, the approval
+    // opens as usual and nothing goes before the vendor's click.
+    if (!isOnline()) {
+      patch(phone, {
+        voice: {
+          status: 'running',
+          note: 'You are offline, so this voice note is queued. When the connection is back, Foil shows you what would be sent and waits for your approval.',
+        },
+      })
+      if (!queuedVoice.current.has(messageId)) {
+        queuedVoice.current.add(messageId)
+        window.addEventListener(
+          'online',
+          () => {
+            queuedVoice.current.delete(messageId)
+            void readVoice(messageId)
+          },
+          { once: true },
+        )
+      }
+      return
+    }
     patch(phone, {
       voice: { status: 'running', note: 'Waiting for your approval…' },
     })
@@ -1088,7 +1119,120 @@ export function useChatDesk(o: {
   const customerName = (id: string | null) =>
     data?.customers.find((x) => x.id === id)?.name || 'Customer'
 
+  // A message the vendor forwarded from WhatsApp waits in its own card.
+  function receiveForward(message: Forwarded) {
+    if (!chat) return
+    patch(chat.phone, { forward: { message } })
+  }
+
+  // Reads the forwarded message on this computer and adds what it says to
+  // the order being written, capturing the order from the chat first when
+  // there is none yet.
+  async function addForwarded() {
+    const f = current.forward
+    if (!chat || !f) return
+    const phone = chat.phone
+    const step = (add: NonNullable<Work['forward']>['add']) =>
+      setWork((w) => {
+        const now = w[phone]?.forward
+        return now
+          ? { ...w, [phone]: { ...w[phone], forward: { ...now, add } } }
+          : w
+      })
+    step({ status: 'running', note: 'Reading the forwarded message…' })
+    try {
+      const reading = await jobs(
+        planOrder(
+          transcript([
+            {
+              from: f.message.from,
+              time: f.message.time,
+              text: f.message.text,
+            },
+          ]),
+        ),
+      )
+      const fields = toOrderFields(reading.fields)
+      const fill: ForwardFill = {
+        // The vendor's own words name nobody but the customer's order.
+        customerName: f.message.from === 'customer' ? fields.customerName : '',
+        address: fields.address,
+        landmark: fields.landmark,
+        area: fields.area,
+        items: withListPrices(fields.items, ledger.data?.products ?? []),
+      }
+      if (current.capture?.status !== 'done') {
+        step({ status: 'running', note: 'Reading the order from the chat…' })
+        await capture()
+      }
+      setWork((w) => {
+        const now = w[phone]
+        const c = now?.capture
+        if (!now?.forward) return w
+        if (c?.status !== 'done') {
+          return {
+            ...w,
+            [phone]: {
+              ...now,
+              forward: {
+                ...now.forward,
+                add: {
+                  status: 'error',
+                  message:
+                    'The order could not be read from the chat, so there is nothing to add this to yet.',
+                },
+              },
+            },
+          }
+        }
+        const merged = mergeForwarded(c.value.form, fill)
+        return {
+          ...w,
+          [phone]: {
+            ...now,
+            capture: { ...c, value: { ...c.value, form: merged.form } },
+            forward: {
+              ...now.forward,
+              add: {
+                status: 'done',
+                value: {
+                  source: reading.source,
+                  ms: reading.ms,
+                  added: merged.added,
+                },
+              },
+            },
+          },
+        }
+      })
+    } catch (error) {
+      step({ status: 'error', message: errorText(error) })
+    }
+  }
+
+  // Keeps the forwarded message as a note on this customer, on this device.
+  async function keepForwarded() {
+    const f = current.forward
+    if (!chat || !f || !customerId) return
+    const at = Date.now()
+    await ledger.keepNote({
+      id: `${customerId}:${at}`,
+      customerId,
+      from: f.message.from,
+      time: f.message.time,
+      text: f.message.text,
+      keptAt: at,
+    })
+    patch(chat.phone, { forward: { ...f, kept: true } })
+  }
+
+  const notes = (data?.notes ?? []).filter((n) => n.customerId === customerId)
+
   return {
+    receiveForward,
+    addForwarded,
+    keepForwarded,
+    notes,
     patch,
     hasReceipt,
     order,

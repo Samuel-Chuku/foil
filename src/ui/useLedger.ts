@@ -13,6 +13,7 @@ import { applyRefunds, settle, type ExtraRow } from '../ledger/settle'
 import { latestAsk, noteFrom } from '../queue/queue'
 import type {
   ChatNote,
+  KeptNote,
   Customer,
   Drop,
   Order,
@@ -29,6 +30,7 @@ import {
 } from '../verify/history'
 import type { Credit } from '../verify/types'
 import { prefs, withWindows } from './prefs'
+import { isOnline, offlineSimulated } from './network'
 
 export type BooksSync =
   | { state: 'idle' }
@@ -46,6 +48,7 @@ export type LedgerData = {
   products: Product[]
   drops: Drop[]
   chats: ChatNote[]
+  notes: KeptNote[]
 }
 
 // Remote Config is applied before the first render; the vendor's own
@@ -55,16 +58,25 @@ const verifyConfig = () => withWindows(verifyFor(appConfig().verify), prefs())
 // Read straight from IndexedDB, so a step that waited seconds on the model
 // decides against the records as they are now.
 async function load(): Promise<LedgerData> {
-  const [orders, credits, customers, settlements, products, drops, chats] =
-    await Promise.all([
-      getAll('orders'),
-      getAll('credits'),
-      getAll('customers'),
-      getAll('settlements'),
-      getAll('products'),
-      getAll('drops'),
-      getAll('chats'),
-    ])
+  const [
+    orders,
+    credits,
+    customers,
+    settlements,
+    products,
+    drops,
+    chats,
+    notes,
+  ] = await Promise.all([
+    getAll('orders'),
+    getAll('credits'),
+    getAll('customers'),
+    getAll('settlements'),
+    getAll('products'),
+    getAll('drops'),
+    getAll('chats'),
+    getAll('notes'),
+  ])
   // Latest change first, so an order whose payment just landed rises to the top.
   orders.sort((a, b) => b.updatedAt - a.updatedAt)
   // Records saved before balances and part refunds existed lack those fields.
@@ -90,6 +102,7 @@ async function load(): Promise<LedgerData> {
     ),
     drops: drops.sort((a, b) => b.createdAt - a.createdAt),
     chats,
+    notes: notes.sort((a, b) => a.keptAt - b.keptAt),
   }
 }
 
@@ -168,7 +181,10 @@ export function useLedger() {
       // Offline, Firestore queues the write on the device and sends it later;
       // its promise only settles then, so the screen says so instead of
       // showing "updating" for as long as the outage lasts.
-      setBooks(navigator.onLine ? { state: 'syncing' } : { state: 'offline' })
+      setBooks(isOnline() ? { state: 'syncing' } : { state: 'offline' })
+      // The demo's offline switch keeps the books here until it is turned
+      // off, as a real outage would.
+      if (offlineSimulated()) return
       // The books need the credits to say how much of each order has arrived.
       Promise.all([vendorId(), load()])
         .then(([uid, d]) =>
@@ -184,7 +200,7 @@ export function useLedger() {
         })
         .catch((error: unknown) =>
           setBooks(
-            navigator.onLine
+            isOnline()
               ? { state: 'failed', message: syncProblem(error) }
               : { state: 'offline' },
           ),
@@ -518,6 +534,23 @@ export function useLedger() {
     [reload],
   )
 
+  // A forwarded message kept as a note on the customer, on this device.
+  const keepNote = useCallback(
+    async (note: KeptNote) => {
+      await putAll({ notes: [note] })
+      await reload()
+    },
+    [reload],
+  )
+
+  const dropNote = useCallback(
+    async (id: string) => {
+      await remove('notes', id)
+      await reload()
+    },
+    [reload],
+  )
+
   const reset = useCallback(async () => {
     setJustPaid([])
     await clearAll()
@@ -549,6 +582,8 @@ export function useLedger() {
     setDelivery,
     noteChat,
     labelChats,
+    keepNote,
+    dropNote,
     reset,
     config: verifyConfig(),
   }

@@ -11,6 +11,7 @@ import { chatAction, toPanelRequest } from '../ui/deskActions'
 import { shopTime } from '../verify/time'
 import {
   isFocusAsk,
+  isForward,
   isFromChat,
   isOpened,
   type DraftReply,
@@ -77,6 +78,21 @@ export default function ExtensionApp() {
         reply(true)
         setTabId(sender.tab.id)
         setRequest({ action: 'ask', nonce: Date.now() })
+        return
+      }
+      // One forwarded message: the chat it came from, without its messages,
+      // and the message itself.
+      if (isForward(message)) {
+        reply(true)
+        setChat((current) =>
+          current?.phone === message.chat.phone ? current : message.chat,
+        )
+        setTabId(sender.tab.id)
+        setRequest({
+          action: 'forward',
+          forward: message.forward,
+          nonce: Date.now(),
+        })
         return
       }
       // Switching chats: show that customer's order, without their messages.

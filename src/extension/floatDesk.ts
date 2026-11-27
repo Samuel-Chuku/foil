@@ -127,6 +127,7 @@ li button {
   padding: 9px 10px; border-radius: 12px; font-size: 14px; font-weight: 600;
 }
 li button:hover, li button:focus-visible { background: var(--hover); }
+li.offline button { opacity: 0.6; }
 li button:focus-visible, .launch:focus-visible, .close:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 li button small { display: block; font-weight: 400; font-size: 12px; color: var(--ink2); }
 li button > span:not(.where) { flex: 1; }
@@ -234,7 +235,7 @@ export function mountFloatDesk(opts: {
 
   function build() {
     const c = opts.chat()
-    shown = JSON.stringify(c)
+    shown = JSON.stringify([c, navigator.onLine])
     menu.replaceChildren()
     const head = document.createElement('div')
     head.className = 'head'
@@ -250,8 +251,13 @@ export function mountFloatDesk(opts: {
         'Open a chat to verify a payment, capture an order or draft a reply.'
       menu.append(note)
     }
-    for (const it of deskActions(c, { replyOnDevice: opts.replyOnDevice() })) {
-      list.append(item(it.icon, it.label, it.sub, it.action, it.where))
+    for (const it of deskActions(c, {
+      replyOnDevice: opts.replyOnDevice(),
+      online: navigator.onLine,
+    })) {
+      const li = item(it.icon, it.label, it.sub, it.action, it.where)
+      if (it.offline) li.classList.add('offline')
+      list.append(li)
     }
     menu.append(list)
     const sep = document.createElement('div')
@@ -268,7 +274,7 @@ export function mountFloatDesk(opts: {
   let shown = ''
   function refresh() {
     if (menu.hidden) return
-    const now = JSON.stringify(opts.chat())
+    const now = JSON.stringify([opts.chat(), navigator.onLine])
     if (now === shown) return
     build()
   }

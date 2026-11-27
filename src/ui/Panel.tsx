@@ -22,9 +22,11 @@ import { ShopRulesCard } from './ShopRulesCard'
 import { StockCard } from './StockCard'
 import { QueueCard } from './QueueCard'
 import { useOnline } from './useOnline'
+import { offlineSimulated, simulateOffline } from './network'
 import { DropCard } from './DropCard'
 import { MoneyPulseCard } from './MoneyPulseCard'
 import { BooksCard } from './BooksCard'
+import { DaySummaryCard } from './DaySummaryCard'
 import { market } from '../config/market'
 import { findOrders } from '../ledger/search'
 import { DeliveriesCard } from './DeliveriesCard'
@@ -48,12 +50,58 @@ import { useChatDesk } from './chat/useChatDesk'
 import { PaymentCard } from './chat/PaymentCard'
 import { OrderCard } from './chat/OrderCard'
 import { DraftCard } from './chat/DraftCard'
+import { ForwardCard, NotesCard } from './chat/ForwardCard'
+import { askAbout } from '../capture/forward'
 import { paymentText } from './chat/paymentText'
 import type { Step } from './chat/work'
 import { GoogleResult } from './GoogleResult'
 import { useGoogle } from './useGoogle'
 import { dailyTable, ordersTable } from '../google/sheet'
 import { deliveryRunEvent, nextHour } from '../google/calendar'
+
+// Offline, the panel says plainly what still runs on this computer and what
+// waits for the connection, so the vendor keeps working through an outage.
+function OfflineBand(props: { onDevice: boolean }) {
+  const simulated = offlineSimulated()
+  return (
+    <section className="offline" role="status" aria-labelledby="offline-h">
+      <h3 id="offline-h">
+        <Icon name="offline" />
+        Working offline
+      </h3>
+      {props.onDevice ? (
+        <>
+          <p>
+            <strong>Still running on this computer:</strong> reading receipts,
+            checking them against the bank alerts already saved, capturing
+            orders, drafting replies and answering questions about your shop.
+          </p>
+          <p>
+            <strong>Waiting for the connection:</strong> voice notes, cloud
+            answers, new alert emails and your books. Nothing is lost, and
+            anything that needs the cloud asks you again before it goes.
+          </p>
+        </>
+      ) : (
+        <p>
+          This computer has no on-device model, so reading receipts and chats
+          waits for the connection too. Your saved orders, stock and books stay
+          here and open as usual. On a computer with Chrome&apos;s built-in
+          model, all of it keeps working offline.
+        </p>
+      )}
+      {simulated && (
+        <button
+          type="button"
+          className="link"
+          onClick={() => simulateOffline(false)}
+        >
+          End the offline test
+        </button>
+      )}
+    </section>
+  )
+}
 
 // The on-device model's state as one line with a mark, and, when nothing can
 // be read here yet, the vendor's choice between downloading it and the cloud.
@@ -267,6 +315,11 @@ function PanelBody(props: PanelProps) {
     draft,
     customerName,
   } = desk
+  // A question started from a forwarded message, for the Ask box to take.
+  const [askSeed, setAskSeed] = useState<{
+    text: string
+    nonce: number
+  } | null>(null)
   const [appBank, setAppBank] = useState('')
   const [bankApp, setBankApp] = useState<Step<BankAppResult> | null>(null)
 
@@ -288,6 +341,7 @@ function PanelBody(props: PanelProps) {
     else if (r.action === 'draft') void draft()
     else if (r.action === 'rewrite') void rewrite(r.style, r.text)
     else if (r.action === 'translate') void translate()
+    else if (r.action === 'forward') desk.receiveForward(r.forward)
     else if (r.action === 'ask') {
       setSettingsOpen(false)
       const q = document.getElementById('ask-q')
@@ -375,14 +429,7 @@ function PanelBody(props: PanelProps) {
           </button>
         </div>
         <DeviceStatus device={device} />
-        {!online && (
-          <p className="offline" role="status">
-            You are offline. Reading receipts, capturing orders and drafting
-            replies still work on this computer. Your books and bank alert
-            emails catch up when you are back online, and voice notes, the books
-            chat and reviews wait for the connection.
-          </p>
-        )}
+        {!online && <OfflineBand onDevice={device.state === 'available'} />}
       </header>
 
       {settingsOpen && (
@@ -460,6 +507,22 @@ function PanelBody(props: PanelProps) {
                 </span>
               </header>
 
+              <ForwardCard
+                desk={desk}
+                customer={chat.contactName}
+                busy={device.busy}
+                onAsk={() => {
+                  const f = current.forward
+                  if (f) {
+                    setAskSeed({
+                      text: askAbout(f.message, chat.contactName),
+                      nonce: Date.now(),
+                    })
+                  }
+                }}
+                onClose={() => patch(chat.phone, { forward: undefined })}
+              />
+
               <PaymentCard
                 chat={chat}
                 desk={desk}
@@ -488,6 +551,11 @@ function PanelBody(props: PanelProps) {
                 ledger={ledger}
                 shop={shop}
                 busy={device.busy}
+              />
+
+              <NotesCard
+                desk={desk}
+                onDrop={(id) => void ledger.dropNote(id)}
               />
 
               {current.voice && (
@@ -586,6 +654,16 @@ function PanelBody(props: PanelProps) {
               </ul>
             )}
           </section>
+
+          <DaySummaryCard
+            ledger={ledger}
+            shopName={shop.rules.shopName}
+            {...(chat && {
+              onInsert: async (text: string) => {
+                await host.insertDraft(chat.phone, text)
+              },
+            })}
+          />
 
           {drops && <DropCard ledger={ledger} clock={clock.time} side="live" />}
 
@@ -765,6 +843,7 @@ function PanelBody(props: PanelProps) {
         </TabPanel>
 
         <AskCard
+          seed={askSeed}
           deviceReady={device.state === 'available'}
           ledger={ledger}
           rules={shop.rules}

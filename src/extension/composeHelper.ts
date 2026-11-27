@@ -20,6 +20,9 @@ export type ComposePick =
   | { kind: 'rewrite'; style: StyleChoice; text: string; source: Source }
   | { kind: 'meaning'; text: string }
   | { kind: 'clipboard' }
+  // Selected text from a message in the chat, forwarded to the desk. `node`
+  // is where the selection started, to tell whose message it is.
+  | { kind: 'forward'; text: string; node: Node | null }
 
 type Approval = Extract<WriteAnswer, { kind: 'approve' }>['request']
 
@@ -128,8 +131,8 @@ export function mountComposeHelper(opts: {
       <button class="chip glass" type="button" aria-expanded="false">${SPARK}<span>Foil</span></button>
     </div>
     <div class="anchor sel below" hidden>
-      <button class="chip glass" type="button" aria-expanded="false">${SPARK}<span>Rewrite</span></button>
-      <div class="menu glass" role="group" aria-label="Rewrite the selected text" hidden></div>
+      <button class="chip glass" type="button" aria-expanded="false">${SPARK}<span>Foil</span></button>
+      <div class="menu glass" role="group" aria-label="Foil, for the selected text" hidden></div>
     </div>
   </div>`
   document.body.append(host)
@@ -143,7 +146,8 @@ export function mountComposeHelper(opts: {
 
   // The selection as it was when the chip appeared: clicking the chip can
   // clear the page's own selection.
-  let selected: { text: string; inBox: boolean } | null = null
+  let selected: { text: string; inBox: boolean; node: Node | null } | null =
+    null
 
   function closeMenus() {
     for (const [menu, chip] of [
@@ -232,12 +236,16 @@ export function mountComposeHelper(opts: {
 
   function openSelMenu() {
     if (!selected) return
-    const { text, inBox } = selected
+    const { text, inBox, node } = selected
     selMenu.replaceChildren()
     if (inBox) {
       note(selMenu, 'Reword the part you selected. Nothing is sent.')
       styleButtons(selMenu, text, { from: 'box-part' })
     } else {
+      button(selMenu, 'Send to Foil', ['device'], () =>
+        opts.onPick({ kind: 'forward', text, node }),
+      )
+      selMenu.append(document.createElement('hr'))
       note(selMenu, 'The result is shown here for you to copy or use.')
       button(selMenu, 'What it means in English', ['device', 'cloud'], () =>
         opts.onPick({ kind: 'meaning', text }),
@@ -304,7 +312,7 @@ export function mountComposeHelper(opts: {
       return
     }
     const r = sel.getRangeAt(0).getBoundingClientRect()
-    selected = { text, inBox }
+    selected = { text, inBox, node }
     selAnchor.hidden = false
     const below = r.bottom + 48 < window.innerHeight
     selAnchor.classList.toggle('below', below)

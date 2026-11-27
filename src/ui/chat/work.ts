@@ -1,4 +1,5 @@
 import type { Reading } from '../../ai/run'
+import type { Forwarded } from '../../capture/forward'
 import type { RefundTo } from '../../ledger/types'
 import type { VoiceNote } from '../../capture/voice'
 import type { RawReceipt } from '../../verify/receiptFields'
@@ -49,6 +50,17 @@ export type OrderForm = {
 }
 
 export type Work = {
+  // The message the vendor last forwarded from this chat, and what the desk
+  // did with it.
+  forward?: {
+    message: Forwarded
+    add?: Step<{
+      source: Reading<unknown>['source']
+      ms: number
+      added: string[]
+    }>
+    kept?: boolean
+  }
   verify?: Step<Verified>
   capture?: Step<{
     source: Reading<unknown>['source']

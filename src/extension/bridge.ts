@@ -2,6 +2,7 @@ import type { WriteJob } from '../ai/rewrite'
 import type { CloudRequest } from '../cloud/approval'
 import type { ChatAction } from '../ui/deskActions'
 import type { OpenChat } from '../ui/host'
+import type { Forwarded } from '../capture/forward'
 
 // Messages between the WhatsApp Web content script and the side panel. The
 // chat's messages travel only when the vendor clicks one of the desk's
@@ -20,6 +21,18 @@ export type FromChat = {
 // Content script to panel: the vendor switched to this chat. `chat` carries
 // no messages.
 export type Opened = { kind: 'opened'; chat: OpenChat }
+
+// Content script to the panel: the vendor forwarded one message, or part of
+// one, to the desk. `chat` names the chat and carries no messages; only the
+// forwarded text travels.
+export type ForwardToDesk = {
+  kind: 'forward'
+  chat: OpenChat
+  forward: Forwarded
+}
+
+export const isForward = (m: unknown): m is ForwardToDesk =>
+  typeof m === 'object' && m !== null && (m as ForwardToDesk).kind === 'forward'
 
 // Content script to the panel: the vendor picked "Ask Foil".
 export type FocusAsk = { kind: 'focus-ask' }

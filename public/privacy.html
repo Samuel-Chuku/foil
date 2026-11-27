@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Foil privacy policy</title>
+    <meta
+      name="description"
+      content="What the Foil Chrome extension reads, what stays on your computer and what is sent, only after you approve it."
+    />
+    <style>
+      :root {
+        --ground: #e9e6dc;
+        --surface: #f3f1ea;
+        --ink: #1b1c18;
+        --ink-2: #4a4c44;
+        --line: rgb(27 28 24 / 0.16);
+        --accent: #e4703a;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ground: #161713;
+          --surface: #1f201b;
+          --ink: #eceae0;
+          --ink-2: #b9b8ae;
+          --line: rgb(236 234 224 / 0.16);
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font:
+          16px/1.6 system-ui,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 48px 16px 64px;
+      }
+      h1 {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 4px;
+        font-size: 1.9rem;
+        line-height: 1.2;
+      }
+      h1::before {
+        content: '';
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        background: var(--accent);
+        box-shadow: 2px 2px 0 0 var(--ink);
+      }
+      h2 {
+        margin: 2rem 0 0.5rem;
+        font-size: 1.15rem;
+      }
+      p,
+      li {
+        color: var(--ink-2);
+      }
+      strong {
+        color: var(--ink);
+      }
+      ul {
+        padding-left: 1.2rem;
+      }
+      a {
+        color: inherit;
+      }
+      .updated {
+        margin: 0 0 2rem;
+        font-size: 0.9rem;
+      }
+      .box {
+        padding: 12px 16px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Foil privacy policy</h1>
+      <p class="updated">Last updated 27 November 2026</p>
+
+      <p class="box">
+        <strong>In short:</strong> Foil reads receipts, chats and bank alerts on
+        your own computer. Nothing about your customers or your bank account
+        is sent anywhere unless you see exactly what would go and click to
+        approve it. Your books in the cloud hold only amounts, payment states
+        and times, never names, phone numbers, addresses or chat text.
+      </p>
+
+      <h2>What Foil reads, and when</h2>
+      <ul>
+        <li>
+          <strong>WhatsApp Web:</strong> only the chat you have open, only what
+          is already on screen, and only when you click one of Foil's buttons.
+          Foil never sends messages, opens other chats or scrolls for you.
+          Replies it writes are placed in the message box for you to send
+          yourself.
+        </li>
+        <li>
+          <strong>Gmail (optional):</strong> if you connect it, Foil reads bank
+          alert emails with read-only access to find the credits that match
+          your customers' receipts. It cannot send, change or delete email.
+        </li>
+        <li>
+          <strong>Screenshots you add:</strong> such as a bank-app history
+          screenshot, read on your computer.
+        </li>
+      </ul>
+
+      <h2>What stays on your computer</h2>
+      <p>
+        Customers' names, phone numbers, addresses, chat messages, receipts,
+        your bank credits, your stock and any notes you keep are stored in your
+        browser's own storage (IndexedDB) on this computer. Where Chrome's
+        built-in model is available, receipts, chats, orders and replies are
+        also read and written on this computer by that model.
+      </p>
+
+      <h2>What is sent, and only after you approve it</h2>
+      <ul>
+        <li>
+          <strong>Google's Gemini service, through Firebase AI Logic:</strong>
+          used for voice notes, for some languages, for cloud answers to your
+          questions, and for any step you have chosen to run in the cloud
+          because this computer has no built-in model. Each time, Foil shows
+          you exactly what will be sent, with customer names and numbers
+          replaced by neutral labels wherever the task allows, and waits for
+          your click.
+        </li>
+        <li>
+          <strong>Your books, in Cloud Firestore:</strong> one entry per order
+          or money decision with its amount, payment state and times, under an
+          anonymous account tied to this browser. It holds no names, phone
+          numbers, addresses, account numbers or chat text.
+        </li>
+        <li>
+          <strong>Google Sheets and Calendar (optional):</strong> only when you
+          choose to send your orders or a delivery run there, after you see and
+          approve what will be written, to files in your own Google account.
+        </li>
+        <li>
+          <strong>Spoken answers (optional):</strong> if you choose one of
+          Google's online voices in Settings, the words of each answer are
+          spoken by Google's speech service. Local voices keep them on this
+          computer.
+        </li>
+      </ul>
+
+      <h2>What Foil never does</h2>
+      <ul>
+        <li>No analytics, tracking, advertising or profiling.</li>
+        <li>No selling or sharing of your data with anyone.</li>
+        <li>No sending of WhatsApp messages or any automation of WhatsApp.</li>
+        <li>
+          No use of your data for anything other than the features you click.
+        </li>
+      </ul>
+      <p>
+        Foil's use of information received from Google APIs adheres to the
+        Chrome Web Store User Data Policy, including the Limited Use
+        requirements.
+      </p>
+
+      <h2>Your control</h2>
+      <p>
+        You can turn the cloud off in Settings at any time, disconnect Gmail
+        and Google, download your records, and erase everything Foil stored by
+        removing the extension or clearing its data in Chrome.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions or requests:
+        <a href="https://github.com/Samuel-Chuku/foil/issues"
+          >open an issue on Foil's GitHub page</a
+        >.
+      </p>
+    </main>
+  </body>
+</html>

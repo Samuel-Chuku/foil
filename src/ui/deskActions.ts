@@ -32,6 +32,8 @@ export type DeskItem = {
   sub: string
   where: Where[]
   action: DeskAction
+  // Offline, a cloud-only action cannot run now; it is shown dimmed.
+  offline?: boolean
 }
 
 // What the open chat holds that the desk can act on.
@@ -53,6 +55,27 @@ const ask: DeskItem = {
 // `replyOnDevice`: whether this shop's market writes replies on this
 // computer; other languages are written in the cloud.
 export function deskActions(
+  chat: DeskChat | null,
+  opts: { replyOnDevice: boolean; online?: boolean },
+): DeskItem[] {
+  const items = chatItems(chat, opts)
+  if (opts.online !== false) return items
+  // Offline, what needs the cloud says so; everything else still runs here.
+  return items.map((i) =>
+    i.where.every((w) => w === 'cloud')
+      ? {
+          ...i,
+          offline: true,
+          sub:
+            i.action.kind === 'voice'
+              ? 'Offline: it waits for the connection, then asks you'
+              : 'Offline: needs the internet',
+        }
+      : i,
+  )
+}
+
+function chatItems(
   chat: DeskChat | null,
   opts: { replyOnDevice: boolean },
 ): DeskItem[] {

@@ -1,7 +1,10 @@
 import type { ChatMessage, OpenChat } from '../ui/host'
 import type { WriteJob } from '../ai/rewrite'
+import type { Forwarded } from '../capture/forward'
+import { mountForwardButton } from './forwardButton'
 import type {
   DraftReply,
+  ForwardToDesk,
   FromChat,
   Opened,
   StyleChoice,
@@ -713,9 +716,73 @@ const compose = mountComposeHelper({
       return
     }
     if (pick.kind === 'clipboard') return void fromClipboard()
+    if (pick.kind === 'forward') {
+      const row = (
+        pick.node instanceof Element ? pick.node : pick.node?.parentElement
+      )?.closest('#main [role="row"]')
+      if (row) forwardRow(row, pick.text)
+      return
+    }
     if (pick.kind === 'meaning') return void meaning(pick.text)
     void rewrite(pick)
   },
+})
+
+// The text of one message as WhatsApp shows it: its words, or a picture's
+// caption.
+function rowText(row: Element): string {
+  return [...row.querySelectorAll('.copyable-text span.selectable-text')]
+    .map((s) => (s as HTMLElement).innerText.trim())
+    .filter(Boolean)
+    .join('\n')
+}
+
+function rowFromVendor(row: Element): boolean {
+  const label = [...row.querySelectorAll('span[aria-label]')]
+    .map((s) => s.getAttribute('aria-label') ?? '')
+    .find((l) => /:\s*$/.test(l))
+  return sentByVendor(label)
+}
+
+// Forwards one message, or the part the vendor selected, to the desk. Only
+// that text goes, with the chat's name and number so the panel files it
+// under the right customer.
+function forwardRow(row: Element, selected?: string) {
+  const whole = rowText(row)
+  const text = (selected ?? whole).trim()
+  if (!text) {
+    toast('There are no words in that message to forward.')
+    return
+  }
+  if (!openPanel()) return
+  const holder = row.querySelector('[data-id]')
+  const meta = row.querySelector('[data-testid="msg-meta"]')?.textContent
+  const pre = row
+    .querySelector('[data-pre-plain-text]')
+    ?.getAttribute('data-pre-plain-text')
+  const forward: Forwarded = {
+    text,
+    from: rowFromVendor(row) ? 'vendor' : 'customer',
+    time: timeFrom(meta) || timeFrom(pre),
+    ...(holder?.getAttribute('data-id') && {
+      messageId: holder.getAttribute('data-id') ?? undefined,
+    }),
+    ...(selected !== undefined && selected.trim() !== whole && { part: true }),
+  }
+  const { name } = chatHeader()
+  const message: ForwardToDesk = {
+    kind: 'forward',
+    chat: { phone: chatKey(), contactName: name, messages: [] },
+    forward,
+  }
+  toast('Forwarded to Foil.')
+  void deliver(message).catch((e) => toast(problem(e)))
+}
+
+mountForwardButton({
+  canForward: (row) => rowText(row) !== '',
+  fromVendor: rowFromVendor,
+  onForward: (row) => forwardRow(row),
 })
 
 void refreshStyles()

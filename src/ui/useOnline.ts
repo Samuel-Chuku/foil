@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { isOnline } from './network'
 
 // Whether the browser thinks it has a connection. Everything private works
 // without one; only the books, Gmail and cloud steps wait for it.
@@ -12,9 +13,5 @@ function subscribe(onChange: () => void) {
 }
 
 export function useOnline(): boolean {
-  return useSyncExternalStore(
-    subscribe,
-    () => navigator.onLine,
-    () => true,
-  )
+  return useSyncExternalStore(subscribe, isOnline, () => true)
 }

@@ -147,6 +147,25 @@ const PATHS = {
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
   back: <path d="M14.5 6 8.5 12l6 6" />,
   pin: <path d="M9 4h6l-1 6 3.5 3.5h-11L10 10 9 4ZM12 13.5V20" />,
+  forward: (
+    <>
+      <path d="M14.5 6 20 11l-5.5 5" />
+      <path d="M20 11h-9.5A6.5 6.5 0 0 0 4 17.5V19" />
+    </>
+  ),
+  note: (
+    <>
+      <path d="M6 3.5h9l3.5 3.5v13.5H6Z" />
+      <path d="M9 11h6M9 14.5h6M9 18h3" />
+    </>
+  ),
+  offline: (
+    <>
+      <path d="M3.5 3.5l17 17" />
+      <path d="M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 4.5-2.5M19 13a10 10 0 0 0-3-2.1M2 9.5a15 15 0 0 1 4.6-3M22 9.5A15 15 0 0 0 11 5.6" />
+      <circle cx="12" cy="19.5" r=".75" />
+    </>
+  ),
 } as const
 
 export type IconName = keyof typeof PATHS

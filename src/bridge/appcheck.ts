@@ -5,7 +5,7 @@ import {
   ReCaptchaEnterpriseProvider,
 } from 'firebase/app-check'
 import {
-  EXTENSION_ORIGIN,
+  EXTENSION_ORIGINS,
   type TokenReply,
   type TokenRequest,
 } from './protocol'
@@ -31,10 +31,10 @@ const appCheck = initializeAppCheck(app, {
 })
 
 window.addEventListener('message', (event: MessageEvent<TokenRequest>) => {
-  if (event.origin !== EXTENSION_ORIGIN) return
+  if (!EXTENSION_ORIGINS.includes(event.origin)) return
   if (event.data?.type !== 'appcheck-token-request') return
   const reply = (r: TokenReply) =>
-    (event.source as Window | null)?.postMessage(r, EXTENSION_ORIGIN)
+    (event.source as Window | null)?.postMessage(r, event.origin)
   getToken(appCheck, Boolean(event.data.forceRefresh)).then(
     ({ token }) => reply({ type: 'appcheck-token', id: event.data.id, token }),
     () => reply({ type: 'appcheck-token', id: event.data.id, token: null }),
@@ -42,4 +42,8 @@ window.addEventListener('message', (event: MessageEvent<TokenRequest>) => {
 })
 
 // Tells the extension the bridge is ready to take requests.
-window.parent.postMessage({ type: 'appcheck-bridge-ready' }, EXTENSION_ORIGIN)
+// Each allowed origin is tried; the browser delivers only to the one that
+// actually embeds this page.
+for (const origin of EXTENSION_ORIGINS) {
+  window.parent.postMessage({ type: 'appcheck-bridge-ready' }, origin)
+}

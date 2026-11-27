@@ -99,4 +99,25 @@ describe('requests', () => {
     expect(chatAction('verify')).toBeNull()
     expect(chatAction('translate')).toEqual({ kind: 'translate' })
   })
+
+  it('marks cloud-only actions when offline and leaves device ones alone', () => {
+    const c = {
+      receipts: [{ id: 'r1', time: '10:00' }],
+      voiceNotes: [{ id: 'v1', time: '10:05', played: true }],
+    }
+    const items = deskActions(c, { replyOnDevice: true, online: false })
+    const voice = items.find((i) => i.action.kind === 'voice')
+    expect(voice?.offline).toBe(true)
+    expect(voice?.sub).toMatch(/waits for the connection/)
+    expect(
+      items.find((i) => i.action.kind === 'verify')?.offline,
+    ).toBeUndefined()
+    expect(
+      items.find((i) => i.action.kind === 'draft')?.offline,
+    ).toBeUndefined()
+    const cloudReply = deskActions(c, { replyOnDevice: false, online: false })
+    expect(cloudReply.find((i) => i.action.kind === 'draft')?.offline).toBe(
+      true,
+    )
+  })
 })

@@ -1,3 +1,5 @@
+import type { Forwarded } from '../capture/forward'
+
 // What the panel needs from wherever it runs: the hosted demo's simulated
 // panes now, the WhatsApp Web content script in the extension later.
 
@@ -65,3 +67,5 @@ export type PanelRequest =
   | { action: 'translate'; nonce: number }
   // The vendor wants to ask the desk something: its question box is focused.
   | { action: 'ask'; nonce: number }
+  // The vendor forwarded one message, or part of one, to the desk.
+  | { action: 'forward'; forward: Forwarded; nonce: number }

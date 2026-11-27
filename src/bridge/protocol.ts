@@ -1,10 +1,13 @@
 // The messages between the extension's side panel and the App Check bridge
 // page on the hosted site.
 
-// The extension's ID is fixed by the public key in its manifest, so every
-// build from this repository has the same origin.
-export const EXTENSION_ORIGIN =
-  'chrome-extension://kglhadfgnelipmfglhndakoipifpbnba'
+// The extensions allowed to ask the bridge for tokens. A build from this
+// repository has a fixed ID, set by the public key in its manifest; the
+// Chrome Web Store gives its copy an ID of its own, listed here too. Keep
+// this list and the frame-ancestors header in firebase.json the same.
+export const EXTENSION_ORIGINS = [
+  'chrome-extension://kglhadfgnelipmfglhndakoipifpbnba',
+]
 
 export type TokenRequest = {
   type: 'appcheck-token-request'

@@ -10,6 +10,7 @@ import { appConfig } from '../config/active'
 import { ai } from '../firebase'
 import { partsOf, type Approved } from './approval'
 import { errorMessage } from './errors'
+import { isOnline } from '../ui/network'
 
 // Cloud-only jobs (voice notes, the books chat, other languages, Maps) never
 // rely on automatic fallback, so each uses an explicit cloud-only instance,
@@ -42,4 +43,4 @@ export function sendApproved(
 
 // Cloud failures in plain words; see errors.ts.
 export const cloudErrorText = (e: unknown): string =>
-  errorMessage(e, navigator.onLine)
+  errorMessage(e, isOnline())

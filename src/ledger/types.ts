@@ -203,3 +203,14 @@ export type ChatNote = {
   label?: MessageLabel
   labelledText?: string
 }
+
+// A message the vendor forwarded to the desk and kept as a note on the
+// customer. Kept on this device only, like the customer.
+export type KeptNote = {
+  id: string
+  customerId: string
+  from: 'customer' | 'vendor'
+  time: string
+  text: string
+  keptAt: number
+}
